@@ -61,7 +61,7 @@ Przykłady:
 str a = "abc\t\r\n\"\\\x00\xb7";
 
 str b = "\k";     # błąd - nieznana sekwencja \k
-str c = "\xg5";   # błąd - nieprawidłowa liczba heksadecymalna "01g5"
+str c = "\xg5";   # błąd - nieprawidłowa liczba heksadecymalna "g5"
 str d = "a01"g5"; # błąd - " wewnątrz stringa musi być poprzedzony \
 ```
 
@@ -97,14 +97,14 @@ int a = int("42"); # a === 42
 ```
 
 Nie są dozwolone konwersje z i na typy struktur.\
-Nie są dozwolone konwersje na typy rekordów wariantowych.\
+Nie są dozwolone konwersje z typów rekordów wariantowych.\
 Możliwa jest konwersja typu na rekord wariantowy, jeżeli rekord wariantowy może zawierać ten typ.
 
 ### Komentarze
 Język obsługuje komentarze - jako komentarz traktowany jest fragment kodu pomiędzy `#` a końcem linii.
 
 ### Operatory
-Poniższa tabela prezentuje wspierane operatory. Wszystkie operatory są dwuargumentowe, chyba że podano inaczej.
+Poniższa tabela prezentuje wspierane operatory. Wszystkie operatory, poza `(` `)` i `[` `]`, są dwuargumentowe, chyba że podano inaczej.
 | Operator | Argumenty | Znaczenie |
 |----------|-----------|-----------|
 | `(` `)` | dowolne | zmienia priorytet operacji |
@@ -165,6 +165,8 @@ Priorytety (w kolejności od najwyższego) i łączności operatorów:
 | `is` | nie dotyczy |
 | `=` | nie dotyczy |
 
+Operatory oznaczone w powyższej tabeli jako "nie dotyczy" nie dopuszczają użycia 2 lub więcej z nich jednego za drugim.
+
 Przykłady:
 ```
 int a = 2 / 2 * 3;      # a === 3
@@ -174,6 +176,7 @@ float e = 2 / 4.0       # e === 0.5
 bool f = 3 === -"-3"    # f === true
 int g = "2345"["1"]     # g === 3
 int h = "abc"["2.1"]    # błąd - string nie reprezentuje liczby całkowitej
+bool a = 2 < 3 < 4;     # błąd - operatory porównania nie dopuszczają wielu porównań jedno za drugim
 ```
 ### Rekordy wariantowe
 Język wspiera definiowanie przez użytkownika rekordów wariantowych:
@@ -198,10 +201,11 @@ a = 3.4;        # błąd - nieprawidłowy typ przypisany do rekordu wariantowego
 ```
 Można explicite skonwertować wartość odpowiedniego typu na typ rekordu wariantowego.
 ```
-func f(Variant v) {}
+func f(int i) -> int { return 1; }
+func f(Variant v) -> int { return 2; }
 
 func main() {
-    f(Variant(3));
+    print(f(Variant(3))); # 2
 }
 ```
 Dostęp do wartości pola rekordu wariantowego przez operator `.` jest zabroniony.
@@ -242,7 +246,7 @@ a.a = 2;
 if(int$ value = a) {
     value = 3;
 }
-# obecne jest a.a, o wartości 2
+# a przechowuje typ int, wartość 2
 ```
 Tak zadeklarowana zmienna jest widoczna tylko wewnątrz bloku instrukcji tej instrukcji `if`.
 ```
@@ -318,6 +322,19 @@ func f(str v) -> int { return 2; }
 func main() {
     V vart1 = 2;
     print(f(vart1)); # błąd - niezdefiniowane funkcje dla wszystkich pól rekordu wariantowego
+}
+```
+Jeżeli istnieje też funkcja przeciążona przyjmująca ten typ rekordu wariantowego, będzie ona preferowana.
+```
+variant V {int a; str b;}
+func f(int v) -> int { return 1; }
+func f(str v) -> int { return 2; }
+
+func f(V v) -> int { return 3; }
+
+func main() {
+    V vart1 = 2;
+    print(f(vart1)); # 3
 }
 ```
 
@@ -400,7 +417,7 @@ if(a == 3) # warunek
 {
     # instrukcje
 }
-elif(int val = a) # warunek z deklaracją - a to rekord wariantowy
+elif(int val = v) # warunek z deklaracją - v to rekord wariantowy
 {
     # instrukcje
 }
@@ -437,7 +454,7 @@ do {
 
 # a === 2
 ```
-Dostępne są instrukcje `continue`, powodująca natychmiastowe przejście do końca obecnej iteracji pętli, oraz `break`, natychmiast wychodząca z najgłębszej obecnie iterowanej pętli.
+Dostępne są instrukcje `continue`, powodująca natychmiastowe przejście do końca obecnej iteracji najgłębszej obecnie iterowanej pętli, oraz `break`, natychmiast wychodząca z najgłębszej obecnie iterowanej pętli.
 
 ```
 int$ a = 0;
@@ -475,7 +492,21 @@ func funkcja(int$ a)
     # instrukcje
 }
 ```
-Wartość jest zwracana z funkcji przez słowo kluczowe `return`.
+Wartość jest zwracana z funkcji przez słowo kluczowe `return`. Możliwe jest użycie bezargumentowego `return`, żeby wcześniej wyjść z funkcji niezwracającej wartości.
+```
+func funkcja(int$ a)
+{
+    if(a === 3)
+        return;
+    a = a + 1;
+}
+
+func main() {
+    int$ a = 2;
+    funkcja(a); print(a); # 3
+    funkcja(a); print(a); # 3
+}
+```
 
 Argumenty są domyślnie przekazywane przez referencję uniemożliwiającą ich modyfikację. Żeby umożliwić modyfikację, typy argumentów powinny zostać oznaczone jako mutowalne.
 ```
@@ -533,6 +564,12 @@ func main() {
     # f(1, 2.5);       # błąd - niejednoznaczne wywołanie funkcji
 }
 ```
+Przeciążone funkcje muszą zwracać ten sam typ.
+```
+func f(int a, str b) -> int { return 1; }
+func f(int a, int b) -> str { return "2"; } # błąd - przeciążone funkcje zwracające różne typy
+```
+
 
 ### Widoczność zmiennych
 Zmienna zadeklarowana w bloku oznaczonym `{` `}` jest widoczna tylko wewnątrz bloku, w którym została zadeklarowana.
@@ -764,7 +801,9 @@ Dozwolone są tylko wartości liczb całkowitych nie większe niż $2^{31}-1$. S
 ```
 FLOAT_LITERAL
 (0|[1-9][0-9]*)\.[0-9]*
-
+```
+Sekwencje rozpoczynające się od znaku `-` są traktowane jako literał nieujemny i unarny operator `-`.
+```
 BOOL_LITERAL
 true|false
 
@@ -942,7 +981,7 @@ Testy jednostkowe SemanticAnalyzera będą polegać na sprawdzaniu poprawnego ws
 - próba wstawienia nazwy typu tam, gdzie powinna być zmienna
 - próba wykonania instrukcji `break` lub `continue` poza pętlą
 
-Na każdy rodzaj błędu będzie min. 1 test jednostkowy.
+i innych. Na każdy rodzaj błędu będzie min. 1 test jednostkowy.
 
 Testy jednostkowe generatora kodu pośredniego będą polegać na sprawdzaniu poprawności sekwencji instrukcji wygenerowanych na podstawie drzewa składniowego. Poprawność kodu pośredniego będzie weryfikowana przez wypisanie go do stringa i porównanie ze wzorcem. Generator kodu pośredniego przyjmuje drzewo zweryfikowane wcześniej przez analizator semantyczny, zatem nie będą testowane przypadki błędów w drzewie, które wykrywa analizator semantyczny.
 

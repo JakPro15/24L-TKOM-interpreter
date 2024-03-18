@@ -97,7 +97,7 @@ int a = int("42"); # a === 42
 ```
 
 Nie są dozwolone konwersje z i na typy struktur.\
-Rekordy wariantowe zachowują się tak, jak typ obecnie w nich przechowywany.\
+Nie są dozwolone konwersje na typy rekordów wariantowych.\
 Możliwa jest konwersja typu na rekord wariantowy, jeżeli rekord wariantowy może zawierać ten typ.
 
 ### Komentarze
@@ -188,29 +188,69 @@ Określa to nowy typ danych, który pozwala przechowywać wartość jednego z wy
 
 Przypisać wartość do rekordu wariantowego można poprzez przypisanie wartości do pola rekordu lub przypisanie wartości odpowiedniego typu bezpośrednio do rekordu. Przy inicjalizacji możliwa jest tylko opcja druga.
 
-Dostęp do pól rekordu wariantowego następuje poprzez operator `.`.
+Dostęp do pól rekordu wariantowego w celu przypisania następuje poprzez operator `.`.
 ```
 Variant$ a = 2; # a.a === 2
 a.b = "string";
 a.c = 3.4;      # domyślna konwersja na bool
-a = true;       # a.c === true
+a = true;       # a is bool
 a = 3.4;        # błąd - nieprawidłowy typ przypisany do rekordu wariantowego
 ```
 Można explicite skonwertować wartość odpowiedniego typu na typ rekordu wariantowego.
 ```
-int d = Variant(3).a;
+func f(Variant v) {}
+
+func main() {
+    f(Variant(3));
+}
 ```
-Dostęp do wartości pola rekordu wariantowego innego niż ostatnio ustawione powoduje błąd czasu wykonania.
+Dostęp do wartości pola rekordu wariantowego przez operator `.` jest zabroniony.
 ```
 Variant$ a = 2; # a.a === 2
-bool b = a.c;   # błąd - dostęp do niewłaściwego pola rekordu wariantowego
+bool b = a.c;   # błąd - dostęp do wartości rekordu wariantowego przez '.'
 ```
 Można sprawdzić typ obecnie przechowywany w rekordzie wariantowym za pomocą operatora `is`.
 ```
 if(a is bool) {
-    bool b = a.c;
+    # a przechowuje typ bool
 }
 ```
+Można dostać się do wartości przechowywanej w rekordzie wariantowym przez specjalną instrukcję `if` z deklaracją:
+```
+if(bool b = a) {}
+if(bool b = a.c) {}
+```
+Po prawej stronie przypisania musi być rekord wariantowy, lub pole rekordu wariantowego o typie takim, jak typ deklarowanej zmiennej. Typ deklarowanej zmiennej musi być jednym z typów przechowywanych w rekordzie wariantowym.
+
+Instrukcje w bloku instrukcji `if` wykonają się, jeżeli rekord wariantowy zawiera typ podany w deklaracji.
+
+```
+a.a = 2;
+if(int value = a) {
+    # przypadek int (obecne jest a.a)
+}
+elif(str value = a.b) {
+    # przypadek str (obecne jest a.b)
+}
+elif(bool value = a) {
+    # przypadek bool (obecne jest a.c)
+}
+```
+Deklarowana zmienna może być oznaczona jako mutowalna - jej modyfikacja nie zmieni wartości w rekordzie wariantowym.
+```
+a.a = 2;
+if(int$ value = a) {
+    value = 3;
+}
+# obecne jest a.a, o wartości 2
+```
+Tak zadeklarowana zmienna jest widoczna tylko wewnątrz bloku instrukcji tej instrukcji `if`.
+```
+a.a = 2;
+if(int$ value = a) {}
+value = 3; # błąd - nieznana zmienna value
+```
+
 Typy pól rekordu wariantowego muszą być różne i nie mogą być oznaczone jako mutowalne - mutowalność wszystkich pól jest taka, jak całego rekordu.
 ```
 variant Variant1 {
@@ -254,16 +294,31 @@ variant StructOrInt {
     int b;
 }
 ```
-Rekord wariantowy w wyrażeniach zachowuje się tak, jak typ obecnie w nim przechowywany:
-```
-variant Variant {
-    int a;
-    str b;
-    bool c;
-}
+Konwersje rekordów wariantowych na inne typy są niedozwolone.
 
-Variant v = "2.14";
-float a = 0.86 + v; # f === 3.0
+Możliwe jest wywołanie funkcji przyjmującej wartość typu pola rekordu wariantowego bezpośrednio z rekordem wariantowym jako argumentem, jeżeli zdefiniowane są funkcje dla wszystkich pól tego rekordu wariantowego. Przy wyborze funkcji rekord wariantowy zostanie potraktowany tak, jak wartość obecnie w nim zawarta.
+```
+variant V {int a; str b; bool c;}
+func f(int v) -> int { return 1; }
+func f(str v) -> int { return 2; }
+func f(bool v) -> int { return 3; }
+
+func main() {
+    V vart1 = 2;
+    V vart2 = "string";
+    print(f(vart1)); # 1
+    print(f(vart2)); # 2
+}
+```
+```
+variant V {int a; str b; bool c;}
+func f(int v) -> int { return 1; }
+func f(str v) -> int { return 2; }
+
+func main() {
+    V vart1 = 2;
+    print(f(vart1)); # błąd - niezdefiniowane funkcje dla wszystkich pól rekordu wariantowego
+}
 ```
 
 ### Struktury
@@ -345,7 +400,7 @@ if(a == 3) # warunek
 {
     # instrukcje
 }
-elif(a == 4) # warunek
+elif(int val = a) # warunek z deklaracją - a to rekord wariantowy
 {
     # instrukcje
 }
@@ -590,7 +645,7 @@ VARIABLE_DECL = CONSTANT_DECL
 
 INSTR_BLOCK =   '{', { INSTRUCTION } , '}' ;
 
-INSTRUCTION =   DECL_ASSIGN
+INSTRUCTION =   DECL_ASSIGN, ';'
               | ASSIGNMENT
               | RETURN_STMT
               | 'continue', ';'
@@ -600,7 +655,7 @@ INSTRUCTION =   DECL_ASSIGN
               | DO_WHILE_STMT
               | EXPRESSION, ';' ;
 
-DECL_ASSIGN =   VARIABLE_DECL, '=', EXPRESSION, ';' ;
+DECL_ASSIGN =   VARIABLE_DECL, '=', EXPRESSION ;
 
 ASSIGNMENT =    ASSIGNABLE, '=', EXPRESSION, ';' ;
 
@@ -608,9 +663,12 @@ ASSIGNABLE =    IDENTIFIER, { '.', IDENTIFIER } ;
 
 RETURN_STMT =   'return', [ EXPRESSION ] , ';' ;
 
-IF_STMT =       'if', '(', EXPRESSION, ')', INSTR_BLOCK,
-                { 'elif', '(', EXPRESSION, ')', INSTR_BLOCK } ,
+IF_STMT =       'if', '(', IF_CONDITION, ')', INSTR_BLOCK,
+                { 'elif', '(', IF_CONDITION, ')', INSTR_BLOCK } ,
                 [ 'else', INSTR_BLOCK ] ;
+
+IF_CONDITION =  EXPRESSION
+              | DECL_ASSIGN ;
 
 WHILE_STMT =    'while', '(', EXPRESSION, ')', INSTR_BLOCK ;
 

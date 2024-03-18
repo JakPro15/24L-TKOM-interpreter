@@ -138,6 +138,13 @@ Wszelkie przekroczenia zakresu zmiennych typu `int` oraz `float` powodują błą
 
 Operatory `==`, `===`, `!=` i `!==` dla struktur wymagają tego samego typu dla obu argumentów i wykonują porównanie każdego elementu struktury  odpowiednim operatorem.
 
+Operatory przyjmujące typy `int` lub `float` zwracają typ `int` tylko, jeżeli oba ich argumenty są typu `int`; w przeciwnym razie zwracany jest typ `float`. Wyjątkiem są operatory `/` i `**`, które zawsze zwracają typ `float`.
+```
+bool a = 2 + 2.3 is float; # a === true
+bool b = 2.3 - 2 is float; # b === true
+bool c = 2 * 3 is int;     # c === true
+```
+
 Priorytety (w kolejności od najwyższego) i łączności operatorów:
 | Operatory | Łączność |
 |---|---|
@@ -148,14 +155,14 @@ Priorytety (w kolejności od najwyższego) i łączności operatorów:
 | `**` | lewy-do-prawej |
 | `*`, `/`, `//`, `%` | lewy-do-prawej |
 | `+`, `-` | lewy-do-prawej |
-| `<`, `>`, `<=`, `>=` | lewy-do-prawej |
+| `<`, `>`, `<=`, `>=` | nie dotyczy |
 | `@` | lewy-do-prawej |
 | `!` | lewy-do-prawej |
-| `==`, `!=`, `===`, `!==` | lewy-do-prawej |
+| `==`, `!=`, `===`, `!==` | nie dotyczy |
 | `and` | lewy-do-prawej |
 | `xor` | lewy-do-prawej |
 | `or` | lewy-do-prawej |
-| `is` | lewy-do-prawej |
+| `is` | nie dotyczy |
 | `=` | nie dotyczy |
 
 Przykłady:
@@ -187,7 +194,7 @@ Variant$ a = 2; # a.a === 2
 a.b = "string";
 a.c = 3.4;      # domyślna konwersja na bool
 a = true;       # a.c === true
-a = 3.4;         # błąd - nieprawidłowy typ przypisany do rekordu wariantowego
+a = 3.4;        # błąd - nieprawidłowy typ przypisany do rekordu wariantowego
 ```
 Można explicite skonwertować wartość odpowiedniego typu na typ rekordu wariantowego.
 ```
@@ -460,15 +467,15 @@ func main() {
 
 Możliwe jest przeciążanie funkcji - deklaracja wielu funkcji o tej samej nazwie, ale różniących się liczbą argumentów lub ich typami.
 
-Wybór przeciążonej funkcji spośród funkcji o tej samej liczbie argumentów następuje na podstawie liczby argumentów o typach oczekiwanych przez funkcję. Jeżeli nie da się tak dokonać wyboru, decyduje kolejność deklaracji funkcji.
+Wybór przeciążonej funkcji spośród funkcji o tej samej liczbie argumentów następuje na podstawie liczby argumentów o typach oczekiwanych przez funkcję.
 
 ```
 func f(int a, str b) -> int { return 1; }
 func f(int a, int b) -> int { return 2; }
 
 func main() {
-    int c = f(1, 2);   # c === 2, wybór po typach argumentów
-    int d = f(1, 2.5); # c === 1, wybór po kolejności deklaracji; 2.5 konwertowane na str
+    int c = f(1, 2);   # c === 2
+    # f(1, 2.5);       # błąd - niejednoznaczne wywołanie funkcji
 }
 ```
 
@@ -572,15 +579,14 @@ DECL_BLOCK =    '{', FIELD_DECL, { FIELD_DECL } , '}' ;
 
 FIELD_DECL =    CONSTANT_DECL, ';' ;
 
-CONSTANT_DECL = IDENTIFIER, IDENTIFIER ;
+CONSTANT_DECL = TYPE_IDENT, IDENTIFIER ;
 
-FUNCTION_DECL = 'func', IDENTIFIER, '(', [ PARAMETERS ], ')', INSTR_BLOCK
-              | 'func', IDENTIFIER, '(', [ PARAMETERS ], ')', '->', IDENTIFIER, INSTR_BLOCK ;
+FUNCTION_DECL = 'func', IDENTIFIER, '(', [ PARAMETERS ], ')', [ '->', TYPE_IDENT ] , INSTR_BLOCK ;
 
 PARAMETERS =    VARIABLE_DECL, { ',', VARIABLE_DECL } ;
 
 VARIABLE_DECL = CONSTANT_DECL
-              | IDENTIFIER, '$', IDENTIFIER ;
+              | TYPE_IDENT, '$', IDENTIFIER ;
 
 INSTR_BLOCK =   '{', { INSTRUCTION } , '}' ;
 
@@ -610,7 +616,7 @@ WHILE_STMT =    'while', '(', EXPRESSION, ')', INSTR_BLOCK ;
 
 DO_WHILE_STMT = 'do', INSTR_BLOCK, 'while', '(', EXPRESSION, ')' ;
 
-EXPRESSION =    OR_EXPR, { 'is', IDENTIFIER } ;
+EXPRESSION =    OR_EXPR, [ 'is', TYPE_IDENT ] ;
 
 OR_EXPR =       XOR_EXPR, { 'or', XOR_EXPR } ;
 
@@ -618,7 +624,7 @@ XOR_EXPR =      AND_EXPR, { 'xor', AND_EXPR } ;
 
 AND_EXPR =      EQUALITY_EXPR, { 'and', EQUALITY_EXPR } ;
 
-EQUALITY_EXPR = CONCAT_EXPR, { EQUALITY_OP, CONCAT_EXPR } ;
+EQUALITY_EXPR = CONCAT_EXPR, [ EQUALITY_OP, CONCAT_EXPR ] ;
 
 EQUALITY_OP =   '=='
               | '!='
@@ -629,7 +635,7 @@ CONCAT_EXPR =   STR_MUL_EXPR, { '!', STR_MUL_EXPR } ;
 
 STR_MUL_EXPR =  COMPARE_EXPR, { '@', COMPARE_EXPR } ;
 
-COMPARE_EXPR =  ADDITIVE_EXPR, { COMPARISON_OP, ADDITIVE_EXPR } ;
+COMPARE_EXPR =  ADDITIVE_EXPR, [ COMPARISON_OP, ADDITIVE_EXPR ] ;
 
 COMPARISON_OP = '>'
               | '<'
@@ -671,6 +677,12 @@ LITERAL =       STRING_LITERAL
               | INT_LITERAL
               | FLOAT_LITERAL
               | BOOL_LITERAL ;
+
+TYPE_IDENT =    'int'
+              | 'float'
+              | 'str'
+              | 'bool'
+              | IDENTIFIER ;
 ```
 
 
@@ -724,6 +736,10 @@ Poza powyższymi lekser emituje tokeny słów kluczowych:
 'xor'
 'and'
 'not'
+'int'
+'float'
+'bool'
+'str'
 ```
 oraz innych znaków sterujących:
 ```

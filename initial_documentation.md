@@ -208,10 +208,10 @@ func main() {
     print(f(Variant(3))); # 2
 }
 ```
-Dostęp do wartości pola rekordu wariantowego przez operator `.` jest zabroniony.
+Dostęp do wartości pola rekordu wariantowego przez operator `.` jest zabroniony (z wyjątkiem przypisania w instrukcji `if` z deklaracją).
 ```
 Variant$ a = 2; # a.a === 2
-bool b = a.c;   # błąd - dostęp do wartości rekordu wariantowego przez '.'
+bool b = a.c;   # błąd - dostęp do wartości rekordu wariantowego przez '.' poza 'if' z deklaracją
 ```
 Można sprawdzić typ obecnie przechowywany w rekordzie wariantowym za pomocą operatora `is`.
 ```

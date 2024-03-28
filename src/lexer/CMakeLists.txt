@@ -1,7 +1,5 @@
 add_library(
     Lexer OBJECT
-    lexer.hpp
+    include/lexer.hpp
     lexer.cpp
 )
-
-add_subdirectory(tests)

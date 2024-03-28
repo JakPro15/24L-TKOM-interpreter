@@ -15,11 +15,11 @@ if(NOT catch2_POPULATED)
 endif()
 
 add_executable(
-    LexerTests
-    dummyTest.cpp
+    UnitTests
+    lexerTest.cpp
 )
 
-target_link_libraries(LexerTests Lexer)
-target_link_libraries(LexerTests Catch2::Catch2WithMain)
+target_link_libraries(UnitTests Lexer)
+target_link_libraries(UnitTests Catch2::Catch2WithMain)
 
-add_test(NAME LexerTests COMMAND LexerTests)
+add_test(NAME UnitTests COMMAND UnitTests)

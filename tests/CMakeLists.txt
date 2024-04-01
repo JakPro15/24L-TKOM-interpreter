@@ -16,9 +16,11 @@ endif()
 
 add_executable(
     UnitTests
+    readerTest.cpp
     lexerTest.cpp
 )
 
+target_link_libraries(UnitTests Reader)
 target_link_libraries(UnitTests Lexer)
 target_link_libraries(UnitTests Catch2::Catch2WithMain)
 

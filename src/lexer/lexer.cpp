@@ -1,6 +1,6 @@
-#include <iostream>
 #include "lexer.hpp"
 
+#include <iostream>
 
 int Lexer::dummy()
 {

@@ -1,3 +1,6 @@
+#ifndef POSITION_HPP
+#define POSITION_HPP
+
 struct Position
 {
     unsigned line, column;
@@ -5,3 +8,5 @@ struct Position
     Position(unsigned line, unsigned column);
     bool operator==(const Position &other) const;
 };
+
+#endif

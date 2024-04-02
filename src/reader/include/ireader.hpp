@@ -1,3 +1,6 @@
+#ifndef IREADER_HPP
+#define IREADER_HPP
+
 #include "position.hpp"
 
 #define ETX wchar_t(3)
@@ -15,3 +18,5 @@ class IReader
     // Line and column numbers start from 1.
     virtual Position getPosition() = 0;
 };
+
+#endif

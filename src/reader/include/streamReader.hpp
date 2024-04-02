@@ -1,3 +1,6 @@
+#ifndef STREAMREADER_HPP
+#define STREAMREADER_HPP
+
 #include "ireader.hpp"
 
 #include <istream>
@@ -21,3 +24,5 @@ private:
     wchar_t current;
     Position currentPosition;
 };
+
+#endif

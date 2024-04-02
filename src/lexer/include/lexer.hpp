@@ -1,5 +1,14 @@
-class Lexer
+#ifndef LEXER_HPP
+#define LEXER_HPP
+
+#include "ilexer.hpp"
+#include "ireader.hpp"
+
+class Lexer: ILexer
 {
 public:
-    int dummy();
+    Lexer(IReader &reader);
+    Token getNextToken() override;
 };
+
+#endif

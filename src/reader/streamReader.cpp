@@ -1,18 +1,11 @@
-#include "reader.hpp"
+#include "streamReader.hpp"
 
-Position::Position(unsigned line, unsigned column): line(line), column(column) {}
-
-bool Position::operator==(const Position &other) const
-{
-    return this->line == other.line && this->column == other.column;
-}
-
-Reader::Reader(std::wistream &source): source(source), current(0), currentPosition(Position{1, 0})
+StreamReader::StreamReader(std::wistream &source): source(source), current(0), currentPosition(Position{1, 0})
 {
     this->next(); // set to the first character of input
 }
 
-void Reader::next()
+void StreamReader::next()
 {
     if(this->current == ETX)
         return;
@@ -39,12 +32,12 @@ void Reader::next()
     }
 }
 
-wchar_t Reader::get()
+wchar_t StreamReader::get()
 {
     return this->current;
 }
 
-Position Reader::getPosition()
+Position StreamReader::getPosition()
 {
     return this->currentPosition;
 }

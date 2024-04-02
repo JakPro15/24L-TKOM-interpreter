@@ -1,14 +1,14 @@
-#include "reader.hpp"
+#include "streamReader.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 
 #include <sstream>
 
-TEST_CASE("no newlines ASCII case", "[Reader]")
+TEST_CASE("no newlines ASCII case", "[StreamReader]")
 {
     std::wstringstream stream;
     stream.str(L"abc");
-    Reader reader(stream);
+    StreamReader reader(stream);
     REQUIRE(reader.get() == L'a');
     REQUIRE(reader.getPosition() == Position{1, 1});
     REQUIRE(reader.get() == L'a');
@@ -29,11 +29,11 @@ TEST_CASE("no newlines ASCII case", "[Reader]")
     }
 }
 
-TEST_CASE("empty string", "[Reader]")
+TEST_CASE("empty string", "[StreamReader]")
 {
     std::wstringstream stream;
     stream.str(L"");
-    Reader reader(stream);
+    StreamReader reader(stream);
     REQUIRE(reader.getPosition() == Position{1, 1});
     REQUIRE(reader.get() == ETX);
     REQUIRE(reader.get() == ETX);
@@ -42,18 +42,18 @@ TEST_CASE("empty string", "[Reader]")
     REQUIRE(reader.getPosition() == Position{1, 1});
 }
 
-wchar_t getAndNext(Reader &reader)
+wchar_t getAndNext(StreamReader &reader)
 {
     wchar_t result = reader.get();
     reader.next();
     return result;
 }
 
-TEST_CASE("no newlines Unicode case", "[Reader]")
+TEST_CASE("no newlines Unicode case", "[StreamReader]")
 {
     std::wstringstream stream;
     stream.str(L"ść ඞ读");
-    Reader reader(stream);
+    StreamReader reader(stream);
     REQUIRE(reader.getPosition() == Position{1, 1});
     REQUIRE(getAndNext(reader) == L'ś');
     REQUIRE(reader.getPosition() == Position{1, 2});
@@ -70,11 +70,11 @@ TEST_CASE("no newlines Unicode case", "[Reader]")
 
 #include <iostream>
 
-TEST_CASE("LF newlines", "[Reader]")
+TEST_CASE("LF newlines", "[StreamReader]")
 {
     std::wstringstream stream;
     stream.str(L"a\nb\n");
-    Reader reader(stream);
+    StreamReader reader(stream);
     REQUIRE(reader.getPosition() == Position{1, 1});
     REQUIRE(getAndNext(reader) == L'a');
     REQUIRE(reader.getPosition() == Position{1, 2});
@@ -87,11 +87,11 @@ TEST_CASE("LF newlines", "[Reader]")
     REQUIRE(getAndNext(reader) == ETX);
 }
 
-TEST_CASE("CRLF newlines", "[Reader]")
+TEST_CASE("CRLF newlines", "[StreamReader]")
 {
     std::wstringstream stream;
     stream.str(L"a\r\nb\r\n");
-    Reader reader(stream);
+    StreamReader reader(stream);
     REQUIRE(reader.getPosition() == Position{1, 1});
     REQUIRE(getAndNext(reader) == L'a');
     REQUIRE(reader.getPosition() == Position{1, 2});
@@ -104,11 +104,11 @@ TEST_CASE("CRLF newlines", "[Reader]")
     REQUIRE(getAndNext(reader) == ETX);
 }
 
-TEST_CASE("CR newlines", "[Reader]")
+TEST_CASE("CR newlines", "[StreamReader]")
 {
     std::wstringstream stream;
     stream.str(L"a\rb\r");
-    Reader reader(stream);
+    StreamReader reader(stream);
     REQUIRE(reader.getPosition() == Position{1, 1});
     REQUIRE(getAndNext(reader) == L'a');
     REQUIRE(reader.getPosition() == Position{1, 2});

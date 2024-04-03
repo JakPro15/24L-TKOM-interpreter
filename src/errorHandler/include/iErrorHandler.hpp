@@ -15,6 +15,8 @@ enum class Error
     LEXER_NEWLINE_IN_STRING,
     LEXER_INVALID_HEX_CHAR,
     LEXER_UNKNOWN_ESCAPE,
+    LEXER_INT_TOO_LARGE,
+    LEXER_UNKNOWN_TOKEN,
 };
 
 class IErrorHandler

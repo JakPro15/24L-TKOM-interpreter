@@ -2,6 +2,7 @@
 
 #include "token.hpp"
 
+#include <cmath>
 #include <format>
 #include <sstream>
 #include <string>
@@ -36,6 +37,12 @@ const std::unordered_map<std::wstring, TokenType> keywordToTokenType = {
 Lexer::Lexer(IReader &reader, IErrorHandler &errorHandler): reader(reader), errorHandler(errorHandler)
 {
     prepareOperatorMap();
+}
+
+void Lexer::skipWhitespace()
+{
+    while(std::iswspace(reader.get()))
+        reader.next();
 }
 
 bool Lexer::buildIdentifier()
@@ -101,12 +108,14 @@ unsigned Lexer::hexToNumber(wchar_t character)
         Error::LEXER_INVALID_HEX_CHAR, std::format(L"The character {} is not a valid hex digit", character),
         tokenBuilt.position
     );
+    return 0;
 }
 
-wchar_t Lexer::hexCharsToNumber(wchar_t firstHex, wchar_t secondHex)
+wchar_t Lexer::buildHexChar()
 {
-    unsigned first = hexToNumber(firstHex);
-    unsigned second = hexToNumber(secondHex);
+    unsigned first = hexToNumber(reader.get());
+    reader.next();
+    unsigned second = hexToNumber(reader.get());
     return static_cast<wchar_t>(first * 16 + second);
 }
 
@@ -131,10 +140,7 @@ void Lexer::buildEscapeSequence(std::wstringstream &tokenValue)
         break;
     case L'x':
         reader.next();
-        wchar_t firstHex = reader.get();
-        reader.next();
-        wchar_t secondHex = reader.get();
-        tokenValue.put(hexCharsToNumber(firstHex, secondHex));
+        tokenValue.put(buildHexChar());
         break;
     default:
         errorHandler.handleError(
@@ -176,6 +182,78 @@ bool Lexer::buildStringLiteral()
 
     tokenBuilt.type = TokenType::STR_LITERAL;
     tokenBuilt.value = tokenValue.str();
+    return true;
+}
+
+int32_t Lexer::buildIntLiteral()
+{
+    if(reader.get() == L'0')
+    {
+        reader.next();
+        return 0;
+    }
+    reader.next();
+    int32_t value = 0;
+    while(std::iswdigit(reader.get()))
+    {
+        int nextDigit = reader.get() - L'0';
+        if(value > (INT32_MAX - nextDigit) / 10)
+        {
+            errorHandler.handleError(
+                Error::LEXER_INT_TOO_LARGE, L"Maximum integer literal size exceeded", tokenBuilt.position
+            );
+        }
+        value *= 10;
+        value += nextDigit;
+        reader.next();
+    }
+    return value;
+}
+
+bool Lexer::buildNumberLiteral()
+{
+    if(!std::iswdigit(reader.get()))
+        return false;
+    int32_t integralPart = buildIntLiteral();
+
+    if(reader.get() != L'.' && reader.get() != L'e' && reader.get() != L'E')
+    {
+        tokenBuilt.type = TokenType::INT_LITERAL;
+        tokenBuilt.value = integralPart;
+        return true;
+    }
+
+    int32_t fractionalPart = 0;
+    int fractionalPartDigits = 0;
+    if(reader.get() == L'.')
+    {
+        reader.next();
+        while(std::iswdigit(reader.get()))
+        {
+            int nextDigit = reader.get() - L'0';
+            if(fractionalPart > (INT32_MAX - nextDigit) / 10)
+            {
+                errorHandler.handleError(
+                    Error::LEXER_INT_TOO_LARGE,
+                    L"Maximum integer literal size exceeded in float literal fractional part", tokenBuilt.position
+                );
+            }
+            fractionalPart *= 10;
+            fractionalPart += nextDigit;
+            fractionalPartDigits += 1;
+            reader.next();
+        }
+    }
+    int32_t exponent = 0;
+    if(reader.get() == L'e' || reader.get() == L'E')
+    {
+        reader.next();
+        exponent = buildIntLiteral();
+    }
+    double value = (integralPart + static_cast<double>(fractionalPart) / std::pow(10, fractionalPartDigits)) *
+                   std::pow(10, exponent);
+    tokenBuilt.type = TokenType::FLOAT_LITERAL;
+    tokenBuilt.value = value;
     return true;
 }
 
@@ -246,13 +324,21 @@ bool Lexer::buildOperator()
 
 Token Lexer::getNextToken()
 {
-    // skip whitespace
+    skipWhitespace();
     tokenBuilt.position = reader.getPosition();
     if(reader.get() == IReader::EOT)
     {
         tokenBuilt.type = TokenType::EOT;
         return tokenBuilt;
     }
-    // try build things
-    return this->tokenBuilt;
+    if(buildOperator() || buildNumberLiteral() || buildStringLiteral() || buildComment() || buildIdentifier())
+        return tokenBuilt;
+
+    errorHandler.handleError(
+        Error::LEXER_UNKNOWN_TOKEN, std::format(L"No known token begins with character {}", reader.get()),
+        tokenBuilt.position
+    );
+
+    tokenBuilt.type = TokenType::UNKNOWN;
+    return tokenBuilt;
 }

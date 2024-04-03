@@ -128,7 +128,7 @@ TEST_CASE("CR newlines", "[StreamReader]")
     REQUIRE(getAndNext(reader) == IReader::EOT);
 }
 
-TEST_CASE("Control character in input", "[StreamReader]")
+TEST_CASE("control character in input", "[StreamReader]")
 {
     std::wstringstream stream;
     TestErrorHandler errorHandler;
@@ -145,7 +145,7 @@ TEST_CASE("Control character in input", "[StreamReader]")
     REQUIRE(errorHandler.position == Position{1, 3});
 }
 
-TEST_CASE("Error in input stream", "[StreamReader]")
+TEST_CASE("error in input stream", "[StreamReader]")
 {
     std::wstringstream stream;
     TestErrorHandler errorHandler;

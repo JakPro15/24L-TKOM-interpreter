@@ -5,3 +5,4 @@ add_library(
     include/lexer.hpp
     lexer.cpp
 )
+target_compile_options(Lexer PUBLIC -fprofile-arcs -ftest-coverage)

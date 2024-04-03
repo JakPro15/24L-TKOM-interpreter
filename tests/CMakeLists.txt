@@ -20,6 +20,8 @@ add_executable(
     readerTest.cpp
     lexerTest.cpp
 )
+target_compile_options(UnitTests PUBLIC -fprofile-arcs -ftest-coverage)
+target_link_options(UnitTests PUBLIC -lgcov --coverage)
 
 target_link_libraries(UnitTests Reader)
 target_link_libraries(UnitTests Lexer)

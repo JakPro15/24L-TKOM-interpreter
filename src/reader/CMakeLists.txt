@@ -6,3 +6,4 @@ add_library(
     streamReader.cpp
     position.cpp
 )
+target_compile_options(Reader PUBLIC -fprofile-arcs -ftest-coverage)

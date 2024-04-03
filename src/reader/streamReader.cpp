@@ -1,6 +1,7 @@
 #include "streamReader.hpp"
 
-StreamReader::StreamReader(std::wistream &source): source(source), current(0), currentPosition(Position{1, 0})
+StreamReader::StreamReader(std::wistream &source, IErrorHandler &errorHandler):
+    source(source), errorHandler(errorHandler), current(0), currentPosition(Position{1, 0})
 {
     this->next(); // set to the first character of input
 }
@@ -19,6 +20,13 @@ void StreamReader::next()
         this->currentPosition.column += 1;
 
     this->current = source.get();
+    if(std::iswcntrl(this->current))
+        errorHandler.handleError(
+            Error::READER_CONTROL_CHAR, L"Control character encountered in input", currentPosition
+        );
+    if(source.bad() || source.fail())
+        errorHandler.handleError(Error::READER_INPUT_ERROR, L"Input stream returned error", currentPosition);
+
     if(source.eof())
     {
         this->current = EOT;

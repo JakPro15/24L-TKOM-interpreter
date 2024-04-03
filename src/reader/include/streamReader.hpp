@@ -1,6 +1,7 @@
 #ifndef STREAMREADER_HPP
 #define STREAMREADER_HPP
 
+#include "iErrorHandler.hpp"
 #include "ireader.hpp"
 
 #include <istream>
@@ -8,7 +9,7 @@
 class StreamReader: IReader
 {
 public:
-    StreamReader(std::wistream &source);
+    StreamReader(std::wistream &source, IErrorHandler &errorHandler);
 
     // Advances to the next wide character of input.
     void next() override;
@@ -21,6 +22,7 @@ public:
     Position getPosition() override;
 private:
     std::wistream &source;
+    IErrorHandler &errorHandler;
     wchar_t current;
     Position currentPosition;
 };

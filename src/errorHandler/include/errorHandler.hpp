@@ -1,8 +1,11 @@
+#ifndef ERRORHANDLER_HPP
+#define ERRORHANDLER_HPP
+
 #include "iErrorHandler.hpp"
 
 #include <iostream>
 
-class ErrorHandler: IErrorHandler
+class ErrorHandler: public IErrorHandler
 {
 public:
     ErrorHandler(std::wostream &output = std::wcerr);
@@ -11,3 +14,5 @@ public:
 private:
     std::wostream &output;
 };
+
+#endif

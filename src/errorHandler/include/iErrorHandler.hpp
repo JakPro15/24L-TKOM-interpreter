@@ -1,3 +1,6 @@
+#ifndef IERRORHANDLER_HPP
+#define IERRORHANDLER_HPP
+
 #include "position.hpp"
 
 #include <string>
@@ -16,3 +19,5 @@ public:
     [[noreturn]]
     virtual void handleError(Error error, std::wstring message, Position position) = 0;
 };
+
+#endif

@@ -2,7 +2,7 @@ Include(FetchContent)
 FetchContent_Declare(
     Catch2
     GIT_REPOSITORY https://github.com/catchorg/Catch2.git
-    GIT_TAG v3.0.1
+    GIT_TAG v3.5.3
 )
 FetchContent_GetProperties(Catch2)
 
@@ -16,6 +16,7 @@ endif()
 
 add_executable(
     UnitTests
+    testErrorHandler.hpp
     readerTest.cpp
     lexerTest.cpp
 )

@@ -4,7 +4,7 @@ project(TKOM_interpreter VERSION 0.1.0)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_SKIP_INSTALL_RULES True)
 
-add_compile_options(-Wall -Wextra -Wpedantic -Werror -Og -g)
+add_compile_options(-std=c++20 -Wall -Wextra -Wpedantic -Werror -Og -g)
 
 include_directories(src/errorHandler/include)
 include_directories(src/reader/include)

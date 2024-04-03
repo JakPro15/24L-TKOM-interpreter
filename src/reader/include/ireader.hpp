@@ -3,15 +3,16 @@
 
 #include "position.hpp"
 
-#define ETX wchar_t(3)
-
 class IReader
 {
+public:
+    static const wchar_t EOT = L'\3';
+
     // Advances to the next wide character of input.
     virtual void next() = 0;
 
     // Returns the current character of input.
-    // Returns ETX when end of input is reached.
+    // Returns EOT when end of input is reached.
     virtual wchar_t get() = 0;
 
     // Returns the position of the current character in input.

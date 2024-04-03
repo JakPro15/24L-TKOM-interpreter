@@ -29,6 +29,7 @@ enum class TokenType
     SEMICOLON,
     LPAREN,
     RPAREN,
+    ARROW,
     COMMA,
     DOLLAR_SIGN,
     OP_ASSIGN,
@@ -56,8 +57,10 @@ enum class TokenType
     STR_LITERAL,
     INT_LITERAL,
     FLOAT_LITERAL,
-    BOOL_LITERAL,
-    COMMENT
+    TRUE_LITERAL,
+    FALSE_LITERAL,
+    COMMENT,
+    EOT
 };
 
 #endif

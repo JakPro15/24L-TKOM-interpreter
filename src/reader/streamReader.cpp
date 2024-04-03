@@ -7,7 +7,7 @@ StreamReader::StreamReader(std::wistream &source): source(source), current(0), c
 
 void StreamReader::next()
 {
-    if(this->current == ETX)
+    if(this->current == EOT)
         return;
 
     if(this->current == L'\n')
@@ -21,7 +21,7 @@ void StreamReader::next()
     this->current = source.get();
     if(source.eof())
     {
-        this->current = ETX;
+        this->current = EOT;
         return;
     }
     if(this->current == L'\r')

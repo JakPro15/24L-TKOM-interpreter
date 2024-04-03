@@ -24,7 +24,7 @@ TEST_CASE("no newlines ASCII case", "[StreamReader]")
     for(int i = 0; i < 10; i++)
     {
         REQUIRE(reader.getPosition() == Position{1, 4});
-        REQUIRE(reader.get() == ETX);
+        REQUIRE(reader.get() == IReader::EOT);
         reader.next();
     }
 }
@@ -35,10 +35,10 @@ TEST_CASE("empty string", "[StreamReader]")
     stream.str(L"");
     StreamReader reader(stream);
     REQUIRE(reader.getPosition() == Position{1, 1});
-    REQUIRE(reader.get() == ETX);
-    REQUIRE(reader.get() == ETX);
+    REQUIRE(reader.get() == IReader::EOT);
+    REQUIRE(reader.get() == IReader::EOT);
     reader.next();
-    REQUIRE(reader.get() == ETX);
+    REQUIRE(reader.get() == IReader::EOT);
     REQUIRE(reader.getPosition() == Position{1, 1});
 }
 
@@ -65,7 +65,7 @@ TEST_CASE("no newlines Unicode case", "[StreamReader]")
     REQUIRE(reader.getPosition() == Position{1, 5});
     REQUIRE(getAndNext(reader) == L'读');
     REQUIRE(reader.getPosition() == Position{1, 6});
-    REQUIRE(getAndNext(reader) == ETX);
+    REQUIRE(getAndNext(reader) == IReader::EOT);
 }
 
 #include <iostream>
@@ -84,7 +84,7 @@ TEST_CASE("LF newlines", "[StreamReader]")
     REQUIRE(reader.getPosition() == Position{2, 2});
     REQUIRE(getAndNext(reader) == L'\n');
     REQUIRE(reader.getPosition() == Position{3, 1});
-    REQUIRE(getAndNext(reader) == ETX);
+    REQUIRE(getAndNext(reader) == IReader::EOT);
 }
 
 TEST_CASE("CRLF newlines", "[StreamReader]")
@@ -101,7 +101,7 @@ TEST_CASE("CRLF newlines", "[StreamReader]")
     REQUIRE(reader.getPosition() == Position{2, 2});
     REQUIRE(getAndNext(reader) == L'\n');
     REQUIRE(reader.getPosition() == Position{3, 1});
-    REQUIRE(getAndNext(reader) == ETX);
+    REQUIRE(getAndNext(reader) == IReader::EOT);
 }
 
 TEST_CASE("CR newlines", "[StreamReader]")
@@ -118,5 +118,5 @@ TEST_CASE("CR newlines", "[StreamReader]")
     REQUIRE(reader.getPosition() == Position{2, 2});
     REQUIRE(getAndNext(reader) == L'\n');
     REQUIRE(reader.getPosition() == Position{3, 1});
-    REQUIRE(getAndNext(reader) == ETX);
+    REQUIRE(getAndNext(reader) == IReader::EOT);
 }

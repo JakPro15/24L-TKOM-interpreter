@@ -6,11 +6,13 @@ set(CMAKE_SKIP_INSTALL_RULES True)
 
 add_compile_options(-Wall -Wextra -Wpedantic -Werror -Og -g)
 
+include_directories(src/errorHandler/include)
 include_directories(src/reader/include)
 include_directories(src/lexer/include)
 
 enable_testing()
 
+add_subdirectory(src/errorHandler)
 add_subdirectory(src/reader)
 add_subdirectory(src/lexer)
 add_subdirectory(tests)

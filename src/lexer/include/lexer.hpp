@@ -13,11 +13,11 @@ class Lexer: public ILexer
 public:
     Lexer(IReader &reader, IErrorHandler &errorHandler);
     Token getNextToken() override;
-private:
+
     static const int MAX_IDENTIFIER_SIZE = 40;
     static const int MAX_COMMENT_SIZE = 100;
     static const int MAX_STRING_SIZE = 100;
-
+private:
     IReader &reader;
     IErrorHandler &errorHandler;
     void skipWhitespace();

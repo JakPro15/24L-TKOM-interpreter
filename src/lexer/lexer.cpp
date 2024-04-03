@@ -57,7 +57,7 @@ bool Lexer::buildIdentifier()
     while(std::isalnum(reader.get()) || reader.get() == L'_' || reader.get() == L'\'')
     {
         tokenValue.put(reader.get());
-        if(tokenValue.tellg() > MAX_IDENTIFIER_SIZE)
+        if(tokenValue.tellp() > MAX_IDENTIFIER_SIZE)
             errorHandler.handleError(
                 Error::LEXER_IDENTIFIER_TOO_LONG, L"Maximum identifier size exceeded", tokenBuilt.position
             );
@@ -82,10 +82,10 @@ bool Lexer::buildComment()
     reader.next();
 
     std::wstringstream tokenValue;
-    while(reader.get() != L'\n')
+    while(reader.get() != L'\n' && reader.get() != IReader::EOT)
     {
         tokenValue.put(reader.get());
-        if(tokenValue.tellg() > MAX_COMMENT_SIZE)
+        if(tokenValue.tellp() > MAX_COMMENT_SIZE)
             errorHandler.handleError(
                 Error::LEXER_COMMENT_TOO_LONG, L"Maximum comment size exceeded", tokenBuilt.position
             );
@@ -171,7 +171,7 @@ bool Lexer::buildStringLiteral()
         else
         {
             tokenValue.put(reader.get());
-            if(tokenValue.tellg() > MAX_STRING_SIZE)
+            if(tokenValue.tellp() > MAX_STRING_SIZE)
                 errorHandler.handleError(
                     Error::LEXER_STRING_TOO_LONG, L"Maximum string literal size exceeded", tokenBuilt.position
                 );

@@ -313,3 +313,42 @@ TEST_CASE("] token", "[Lexer]")
     Token token = lexSingleToken(L"]");
     REQUIRE(token.type == TokenType::RSQUAREBRACE);
 }
+
+TEST_CASE("EOT token", "[Lexer]")
+{
+    Token token = lexSingleToken(L"");
+    REQUIRE(token.type == TokenType::EOT);
+}
+
+TEST_CASE("comment token - no newline", "[Lexer]")
+{
+    Token token = lexSingleToken(L"# this is a comment");
+    REQUIRE(token.type == TokenType::COMMENT);
+    REQUIRE(std::get<std::wstring>(token.value) == L" this is a comment");
+}
+
+TEST_CASE("comment token with newline", "[Lexer]")
+{
+    Token token = lexSingleToken(L"  \n # this is a comment\n hehe xd");
+    REQUIRE(token.type == TokenType::COMMENT);
+    REQUIRE(std::get<std::wstring>(token.value) == L" this is a comment");
+}
+
+TEST_CASE("comment token with maximum size", "[Lexer]")
+{
+    std::wstring longString(Lexer::MAX_COMMENT_SIZE, L'a');
+    Token token = lexSingleToken(L"#" + longString);
+    REQUIRE(token.type == TokenType::COMMENT);
+    REQUIRE(std::get<std::wstring>(token.value) == longString);
+}
+
+TEST_CASE("comment token too long", "[Lexer]")
+{
+    TestErrorHandler errorHandler;
+    std::wstringstream input(L"#" + std::wstring(Lexer::MAX_COMMENT_SIZE + 1, L'a'));
+    StreamReader reader(input, errorHandler);
+    Lexer lexer(reader, errorHandler);
+    REQUIRE_THROWS(lexer.getNextToken());
+    REQUIRE(errorHandler.error == Error::LEXER_COMMENT_TOO_LONG);
+    REQUIRE(errorHandler.position == Position{1, 1});
+}

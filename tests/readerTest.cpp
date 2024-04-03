@@ -135,12 +135,7 @@ TEST_CASE("control character in input", "[StreamReader]")
     stream.str(L"ab\3");
     StreamReader reader(stream, errorHandler);
     reader.next();
-    try
-    {
-        reader.next();
-    }
-    catch(std::exception &e)
-    {}
+    REQUIRE_THROWS(reader.next());
     REQUIRE(errorHandler.error == Error::READER_CONTROL_CHAR);
     REQUIRE(errorHandler.position == Position{1, 3});
 }
@@ -153,12 +148,7 @@ TEST_CASE("error in input stream", "[StreamReader]")
     StreamReader reader(stream, errorHandler);
     reader.next();
     stream.setstate(std::ios::badbit);
-    try
-    {
-        reader.next();
-    }
-    catch(std::exception &e)
-    {}
+    REQUIRE_THROWS(reader.next());
     REQUIRE(errorHandler.error == Error::READER_INPUT_ERROR);
     REQUIRE(errorHandler.position == Position{1, 3});
 }

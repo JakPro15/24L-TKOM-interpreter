@@ -4,6 +4,10 @@
 #include "testErrorHandler.hpp"
 
 #include <catch2/catch_test_macros.hpp>
+#include <catch2/matchers/catch_matchers_floating_point.hpp>
+
+using enum TokenType;
+using enum Error;
 
 Token lexSingleToken(std::wstring inputString)
 {
@@ -14,341 +18,254 @@ Token lexSingleToken(std::wstring inputString)
     return lexer.getNextToken();
 }
 
-TEST_CASE("include token", "[Lexer]")
+void checkToken(std::wstring inputString, TokenType tokenType)
 {
-    Token token = lexSingleToken(L"include");
-    REQUIRE(token.type == TokenType::KW_INCLUDE);
+    REQUIRE(lexSingleToken(inputString).type == tokenType);
 }
 
-TEST_CASE("struct token", "[Lexer]")
+void checkToken(std::wstring inputString, TokenType tokenType, std::wstring tokenValue)
 {
-    Token token = lexSingleToken(L"struct");
-    REQUIRE(token.type == TokenType::KW_STRUCT);
+    Token token = lexSingleToken(inputString);
+    REQUIRE(token.type == tokenType);
+    REQUIRE(std::get<std::wstring>(token.value) == tokenValue);
 }
 
-TEST_CASE("variant token", "[Lexer]")
+void checkToken(std::wstring inputString, TokenType tokenType, double tokenValue)
 {
-    Token token = lexSingleToken(L"variant");
-    REQUIRE(token.type == TokenType::KW_VARIANT);
+    Token token = lexSingleToken(inputString);
+    REQUIRE(token.type == tokenType);
+    REQUIRE_THAT(std::get<double>(token.value), Catch::Matchers::WithinAbsMatcher(tokenValue, 1e-6));
 }
 
-TEST_CASE("func token", "[Lexer]")
+void checkToken(std::wstring inputString, TokenType tokenType, int32_t tokenValue)
 {
-    Token token = lexSingleToken(L"func");
-    REQUIRE(token.type == TokenType::KW_FUNC);
+    Token token = lexSingleToken(inputString);
+    REQUIRE(token.type == tokenType);
+    REQUIRE(std::get<int32_t>(token.value) == tokenValue);
 }
 
-TEST_CASE("continue token", "[Lexer]")
-{
-    Token token = lexSingleToken(L"continue");
-    REQUIRE(token.type == TokenType::KW_CONTINUE);
-}
-
-TEST_CASE("break token", "[Lexer]")
-{
-    Token token = lexSingleToken(L"break");
-    REQUIRE(token.type == TokenType::KW_BREAK);
-}
-
-TEST_CASE("return token", "[Lexer]")
-{
-    Token token = lexSingleToken(L"return");
-    REQUIRE(token.type == TokenType::KW_RETURN);
-}
-
-TEST_CASE("if token", "[Lexer]")
-{
-    Token token = lexSingleToken(L"if");
-    REQUIRE(token.type == TokenType::KW_IF);
-}
-
-TEST_CASE("elif token", "[Lexer]")
-{
-    Token token = lexSingleToken(L"elif");
-    REQUIRE(token.type == TokenType::KW_ELIF);
-}
-
-TEST_CASE("else token", "[Lexer]")
-{
-    Token token = lexSingleToken(L"else");
-    REQUIRE(token.type == TokenType::KW_ELSE);
-}
-
-TEST_CASE("while token", "[Lexer]")
-{
-    Token token = lexSingleToken(L"while");
-    REQUIRE(token.type == TokenType::KW_WHILE);
-}
-
-TEST_CASE("do token", "[Lexer]")
-{
-    Token token = lexSingleToken(L"do");
-    REQUIRE(token.type == TokenType::KW_DO);
-}
-
-TEST_CASE("is token", "[Lexer]")
-{
-    Token token = lexSingleToken(L"is");
-    REQUIRE(token.type == TokenType::KW_IS);
-}
-
-TEST_CASE("or token", "[Lexer]")
-{
-    Token token = lexSingleToken(L"or");
-    REQUIRE(token.type == TokenType::KW_OR);
-}
-
-TEST_CASE("xor token", "[Lexer]")
-{
-    Token token = lexSingleToken(L"xor");
-    REQUIRE(token.type == TokenType::KW_XOR);
-}
-
-TEST_CASE("and token", "[Lexer]")
-{
-    Token token = lexSingleToken(L"and");
-    REQUIRE(token.type == TokenType::KW_AND);
-}
-
-TEST_CASE("not token", "[Lexer]")
-{
-    Token token = lexSingleToken(L"not");
-    REQUIRE(token.type == TokenType::KW_NOT);
-}
-
-TEST_CASE("int token", "[Lexer]")
-{
-    Token token = lexSingleToken(L"int");
-    REQUIRE(token.type == TokenType::KW_INT);
-}
-
-TEST_CASE("float token", "[Lexer]")
-{
-    Token token = lexSingleToken(L"float");
-    REQUIRE(token.type == TokenType::KW_FLOAT);
-}
-
-TEST_CASE("bool token", "[Lexer]")
-{
-    Token token = lexSingleToken(L"bool");
-    REQUIRE(token.type == TokenType::KW_BOOL);
-}
-
-TEST_CASE("str token", "[Lexer]")
-{
-    Token token = lexSingleToken(L"str");
-    REQUIRE(token.type == TokenType::KW_STR);
-}
-
-TEST_CASE("{ token", "[Lexer]")
-{
-    Token token = lexSingleToken(L"{");
-    REQUIRE(token.type == TokenType::LBRACE);
-}
-
-TEST_CASE("} token", "[Lexer]")
-{
-    Token token = lexSingleToken(L"}");
-    REQUIRE(token.type == TokenType::RBRACE);
-}
-
-TEST_CASE("; token", "[Lexer]")
-{
-    Token token = lexSingleToken(L";");
-    REQUIRE(token.type == TokenType::SEMICOLON);
-}
-
-TEST_CASE("( token", "[Lexer]")
-{
-    Token token = lexSingleToken(L"(");
-    REQUIRE(token.type == TokenType::LPAREN);
-}
-
-TEST_CASE(") token", "[Lexer]")
-{
-    Token token = lexSingleToken(L")");
-    REQUIRE(token.type == TokenType::RPAREN);
-}
-
-TEST_CASE("-> token", "[Lexer]")
-{
-    Token token = lexSingleToken(L"->");
-    REQUIRE(token.type == TokenType::ARROW);
-}
-
-TEST_CASE(", token", "[Lexer]")
-{
-    Token token = lexSingleToken(L",");
-    REQUIRE(token.type == TokenType::COMMA);
-}
-
-TEST_CASE("$ token", "[Lexer]")
-{
-    Token token = lexSingleToken(L"$");
-    REQUIRE(token.type == TokenType::DOLLAR_SIGN);
-}
-
-TEST_CASE("= token", "[Lexer]")
-{
-    Token token = lexSingleToken(L"=");
-    REQUIRE(token.type == TokenType::OP_ASSIGN);
-}
-
-TEST_CASE(". token", "[Lexer]")
-{
-    Token token = lexSingleToken(L".");
-    REQUIRE(token.type == TokenType::OP_DOT);
-}
-
-TEST_CASE("== token", "[Lexer]")
-{
-    Token token = lexSingleToken(L"==");
-    REQUIRE(token.type == TokenType::OP_EQUAL);
-}
-
-TEST_CASE("!= token", "[Lexer]")
-{
-    Token token = lexSingleToken(L"!=");
-    REQUIRE(token.type == TokenType::OP_NOT_EQUAL);
-}
-
-TEST_CASE("=== token", "[Lexer]")
-{
-    Token token = lexSingleToken(L"===");
-    REQUIRE(token.type == TokenType::OP_IDENTICAL);
-}
-
-TEST_CASE("!== token", "[Lexer]")
-{
-    Token token = lexSingleToken(L"!==");
-    REQUIRE(token.type == TokenType::OP_NOT_IDENTICAL);
-}
-
-TEST_CASE("! token", "[Lexer]")
-{
-    Token token = lexSingleToken(L"!");
-    REQUIRE(token.type == TokenType::OP_CONCAT);
-}
-
-TEST_CASE("@ token", "[Lexer]")
-{
-    Token token = lexSingleToken(L"@");
-    REQUIRE(token.type == TokenType::OP_STR_MULTIPLY);
-}
-
-TEST_CASE("> token", "[Lexer]")
-{
-    Token token = lexSingleToken(L">");
-    REQUIRE(token.type == TokenType::OP_GREATER);
-}
-
-TEST_CASE("< token", "[Lexer]")
-{
-    Token token = lexSingleToken(L"<");
-    REQUIRE(token.type == TokenType::OP_LESSER);
-}
-
-TEST_CASE(">= token", "[Lexer]")
-{
-    Token token = lexSingleToken(L">=");
-    REQUIRE(token.type == TokenType::OP_GREATER_EQUAL);
-}
-
-TEST_CASE("<= token", "[Lexer]")
-{
-    Token token = lexSingleToken(L"<=");
-    REQUIRE(token.type == TokenType::OP_LESSER_EQUAL);
-}
-
-TEST_CASE("+ token", "[Lexer]")
-{
-    Token token = lexSingleToken(L"+");
-    REQUIRE(token.type == TokenType::OP_PLUS);
-}
-
-TEST_CASE("- token", "[Lexer]")
-{
-    Token token = lexSingleToken(L"-");
-    REQUIRE(token.type == TokenType::OP_MINUS);
-}
-
-TEST_CASE("* token", "[Lexer]")
-{
-    Token token = lexSingleToken(L"*");
-    REQUIRE(token.type == TokenType::OP_MULTIPLY);
-}
-
-TEST_CASE("/ token", "[Lexer]")
-{
-    Token token = lexSingleToken(L"/");
-    REQUIRE(token.type == TokenType::OP_DIVIDE);
-}
-
-TEST_CASE("// token", "[Lexer]")
-{
-    Token token = lexSingleToken(L"//");
-    REQUIRE(token.type == TokenType::OP_FLOOR_DIVIDE);
-}
-
-TEST_CASE("% token", "[Lexer]")
-{
-    Token token = lexSingleToken(L"%");
-    REQUIRE(token.type == TokenType::OP_MODULO);
-}
-
-TEST_CASE("** token", "[Lexer]")
-{
-    Token token = lexSingleToken(L"**");
-    REQUIRE(token.type == TokenType::OP_EXPONENT);
-}
-
-TEST_CASE("[ token", "[Lexer]")
-{
-    Token token = lexSingleToken(L"[");
-    REQUIRE(token.type == TokenType::LSQUAREBRACE);
-}
-
-TEST_CASE("] token", "[Lexer]")
-{
-    Token token = lexSingleToken(L"]");
-    REQUIRE(token.type == TokenType::RSQUAREBRACE);
-}
-
-TEST_CASE("EOT token", "[Lexer]")
-{
-    Token token = lexSingleToken(L"");
-    REQUIRE(token.type == TokenType::EOT);
-}
-
-TEST_CASE("comment token - no newline", "[Lexer]")
-{
-    Token token = lexSingleToken(L"# this is a comment");
-    REQUIRE(token.type == TokenType::COMMENT);
-    REQUIRE(std::get<std::wstring>(token.value) == L" this is a comment");
-}
-
-TEST_CASE("comment token with newline", "[Lexer]")
-{
-    Token token = lexSingleToken(L"  \n # this is a comment\n hehe xd");
-    REQUIRE(token.type == TokenType::COMMENT);
-    REQUIRE(std::get<std::wstring>(token.value) == L" this is a comment");
-}
-
-TEST_CASE("comment token with maximum size", "[Lexer]")
-{
-    std::wstring longString(Lexer::MAX_COMMENT_SIZE, L'a');
-    Token token = lexSingleToken(L"#" + longString);
-    REQUIRE(token.type == TokenType::COMMENT);
-    REQUIRE(std::get<std::wstring>(token.value) == longString);
-}
-
-TEST_CASE("comment token too long", "[Lexer]")
+void checkTokenError(std::wstring inputString, Error error)
 {
     TestErrorHandler errorHandler;
-    std::wstringstream input(L"#" + std::wstring(Lexer::MAX_COMMENT_SIZE + 1, L'a'));
+    std::wstringstream input(inputString);
     StreamReader reader(input, errorHandler);
     Lexer lexer(reader, errorHandler);
     REQUIRE_THROWS(lexer.getNextToken());
-    REQUIRE(errorHandler.error == Error::LEXER_COMMENT_TOO_LONG);
+    REQUIRE(errorHandler.error == error);
     REQUIRE(errorHandler.position == Position{1, 1});
+}
+
+TEST_CASE("keywords tokens", "[Lexer]")
+{
+    checkToken(L"include", KW_INCLUDE);
+    checkToken(L"struct", KW_STRUCT);
+    checkToken(L"variant", KW_VARIANT);
+    checkToken(L"func", KW_FUNC);
+    checkToken(L"continue", KW_CONTINUE);
+    checkToken(L"break", KW_BREAK);
+    checkToken(L"return", KW_RETURN);
+    checkToken(L"if", KW_IF);
+    checkToken(L"elif", KW_ELIF);
+    checkToken(L"else", KW_ELSE);
+    checkToken(L"while", KW_WHILE);
+    checkToken(L"do", KW_DO);
+    checkToken(L"is", KW_IS);
+    checkToken(L"or", KW_OR);
+    checkToken(L"xor", KW_XOR);
+    checkToken(L"and", KW_AND);
+    checkToken(L"not", KW_NOT);
+    checkToken(L"int", KW_INT);
+    checkToken(L"float", KW_FLOAT);
+    checkToken(L"bool", KW_BOOL);
+    checkToken(L"str", KW_STR);
+}
+
+TEST_CASE("bool literal tokens", "[Lexer]")
+{
+    checkToken(L"true", TRUE_LITERAL);
+    checkToken(L"false", FALSE_LITERAL);
+}
+
+TEST_CASE("operator tokens", "[Lexer]")
+{
+    checkToken(L"=", OP_ASSIGN);
+    checkToken(L".", OP_DOT);
+    checkToken(L"==", OP_EQUAL);
+    checkToken(L"!=", OP_NOT_EQUAL);
+    checkToken(L"===", OP_IDENTICAL);
+    checkToken(L"!==", OP_NOT_IDENTICAL);
+    checkToken(L"!", OP_CONCAT);
+    checkToken(L"@", OP_STR_MULTIPLY);
+    checkToken(L">", OP_GREATER);
+    checkToken(L"<", OP_LESSER);
+    checkToken(L">=", OP_GREATER_EQUAL);
+    checkToken(L"<=", OP_LESSER_EQUAL);
+    checkToken(L"+", OP_PLUS);
+    checkToken(L"-", OP_MINUS);
+    checkToken(L"*", OP_MULTIPLY);
+    checkToken(L"/", OP_DIVIDE);
+    checkToken(L"//", OP_FLOOR_DIVIDE);
+    checkToken(L"%", OP_MODULO);
+    checkToken(L"**", OP_EXPONENT);
+}
+
+TEST_CASE("control sequence tokens", "[Lexer]")
+{
+    checkToken(L"{", LBRACE);
+    checkToken(L"}", RBRACE);
+    checkToken(L";", SEMICOLON);
+    checkToken(L"(", LPAREN);
+    checkToken(L")", RPAREN);
+    checkToken(L"->", ARROW);
+    checkToken(L",", COMMA);
+    checkToken(L"$", DOLLAR_SIGN);
+    checkToken(L"[", LSQUAREBRACE);
+    checkToken(L"]", RSQUAREBRACE);
+    checkToken(L"", EOT);
+}
+
+TEST_CASE("comments", "[Lexer]")
+{
+    checkToken(L"# this is a comment", COMMENT, L" this is a comment");
+    checkToken(L"  \n # this is a comment\n hehe xd", COMMENT, L" this is a comment");
+    std::wstring longString(Lexer::MAX_COMMENT_SIZE, L'a');
+    checkToken(L"#" + longString, COMMENT, longString);
+    checkTokenError(L"#A" + longString, LEXER_COMMENT_TOO_LONG);
+}
+
+TEST_CASE("strings", "[Lexer]")
+{
+    checkToken(L"\"\"", STR_LITERAL, L"");
+    checkToken(L"\"abcd XD\"", STR_LITERAL, L"abcd XD");
+    checkToken(L"\"część\"", STR_LITERAL, L"część");
+    checkToken(L"\"czę\\tść\"", STR_LITERAL, L"czę\tść");
+    checkToken(L"\"czę\\rść\"", STR_LITERAL, L"czę\rść");
+    checkToken(L"\"czę\\nść\"", STR_LITERAL, L"czę\nść");
+    checkToken(L"\"czę\\\"ść\"", STR_LITERAL, L"czę\"ść");
+    checkToken(L"\"czę\\\\ść\"", STR_LITERAL, L"czę\\ść");
+    checkToken(L"\"czę\\x13\\x20\\xbF\"", STR_LITERAL, L"czę\x13 \xBF");
+    std::wstring longString(Lexer::MAX_STRING_SIZE, L'A');
+    checkToken(L"\"" + longString + L"\"", STR_LITERAL, longString);
+    checkTokenError(L"\"\\xag\"", LEXER_INVALID_HEX_CHAR);
+    checkTokenError(L"\"\\k\"", LEXER_UNKNOWN_ESCAPE);
+    checkTokenError(L"\"abc\ndef\"", LEXER_NEWLINE_IN_STRING);
+    checkTokenError(L"\"abcdef", LEXER_STRING_UNTERMINATED);
+    checkTokenError(L"\"A" + longString + L"\"", LEXER_STRING_TOO_LONG);
+}
+
+TEST_CASE("integer literals", "[Lexer]")
+{
+    checkToken(L"234", INT_LITERAL, 234);
+    checkToken(L"0", INT_LITERAL, 0);
+    checkToken(L"-345", OP_MINUS);
+    checkTokenError(L"0123", LEXER_INT_WITH_LEADING_ZERO);
+    checkTokenError(std::format(L"{}", static_cast<int64_t>(INT32_MAX) + 1), LEXER_INT_TOO_LARGE);
+}
+
+TEST_CASE("float literals", "[Lexer]")
+{
+    checkToken(L"234.432", FLOAT_LITERAL, 234.432);
+    checkToken(L"-234.432", OP_MINUS);
+    checkToken(L"234.", FLOAT_LITERAL, 234.);
+    checkToken(L"234.00", FLOAT_LITERAL, 234.);
+    checkToken(L"0.0", FLOAT_LITERAL, 0.0);
+    checkToken(L"2.2e20", FLOAT_LITERAL, 2.2e20);
+    checkToken(L"2.2E-20", FLOAT_LITERAL, 2.2E-20);
+    checkToken(L"2.2E0", FLOAT_LITERAL, 2.2);
+    checkToken(L"2.2E01", FLOAT_LITERAL, 22.0);
+    checkToken(L"2.2E-01", FLOAT_LITERAL, 0.22);
+    int64_t tooLargeInt = static_cast<int64_t>(INT32_MAX) + 1;
+    checkTokenError(std::format(L"{}.2", tooLargeInt), LEXER_INT_TOO_LARGE);
+    checkTokenError(std::format(L"2.{}", tooLargeInt), LEXER_INT_TOO_LARGE);
+    checkTokenError(std::format(L"1e-{}", tooLargeInt), LEXER_INT_TOO_LARGE);
+}
+
+TEST_CASE("identifiers", "[Lexer]")
+{
+    checkToken(L"identifier", IDENTIFIER, L"identifier");
+    checkToken(L"_1dඞ'nt_1fi3文'", IDENTIFIER, L"_1dඞ'nt_1fi3文'");
+    checkToken(L"2ident", INT_LITERAL, 2);
+    std::wstring longString(Lexer::MAX_IDENTIFIER_SIZE, L'I');
+    checkToken(longString, IDENTIFIER, longString);
+    checkTokenError(L"A" + longString, LEXER_IDENTIFIER_TOO_LONG);
+}
+
+TEST_CASE("unknown token", "[Lexer]")
+{
+    checkTokenError(L"^", LEXER_UNKNOWN_TOKEN);
+}
+
+void getAndCheckToken(ILexer &lexer, TokenType tokenType)
+{
+    REQUIRE(lexer.getNextToken().type == tokenType);
+}
+
+void getAndCheckToken(ILexer &lexer, TokenType tokenType, std::wstring tokenValue)
+{
+    Token token = lexer.getNextToken();
+    REQUIRE(token.type == tokenType);
+    REQUIRE(std::get<std::wstring>(token.value) == tokenValue);
+}
+
+void getAndCheckToken(ILexer &lexer, TokenType tokenType, int32_t tokenValue)
+{
+    Token token = lexer.getNextToken();
+    REQUIRE(token.type == tokenType);
+    REQUIRE(std::get<int32_t>(token.value) == tokenValue);
+}
+
+TEST_CASE("factorial code", "[Lexer]")
+{
+    TestErrorHandler errorHandler;
+    std::wstringstream input(L"func factorial(int n) {\n"
+                             "    if(n == 0 or n == 1) {\n"
+                             "        return 1;\n"
+                             "    }\n"
+                             "    else {\n"
+                             "        return n * factorial(n - 1);\n"
+                             "    }\n"
+                             "}\n"
+                             "\n");
+    StreamReader reader(input, errorHandler);
+    Lexer lexer(reader, errorHandler);
+
+    getAndCheckToken(lexer, KW_FUNC);
+    getAndCheckToken(lexer, IDENTIFIER, L"factorial");
+    getAndCheckToken(lexer, LPAREN);
+    getAndCheckToken(lexer, KW_INT);
+    getAndCheckToken(lexer, IDENTIFIER, L"n");
+    getAndCheckToken(lexer, RPAREN);
+    getAndCheckToken(lexer, LBRACE);
+    getAndCheckToken(lexer, KW_IF);
+    getAndCheckToken(lexer, LPAREN);
+    getAndCheckToken(lexer, IDENTIFIER, L"n");
+    getAndCheckToken(lexer, OP_EQUAL);
+    getAndCheckToken(lexer, INT_LITERAL, 0);
+    getAndCheckToken(lexer, KW_OR);
+    getAndCheckToken(lexer, IDENTIFIER, L"n");
+    getAndCheckToken(lexer, OP_EQUAL);
+    getAndCheckToken(lexer, INT_LITERAL, 1);
+    getAndCheckToken(lexer, RPAREN);
+    getAndCheckToken(lexer, LBRACE);
+    getAndCheckToken(lexer, KW_RETURN);
+    getAndCheckToken(lexer, INT_LITERAL, 1);
+    getAndCheckToken(lexer, SEMICOLON);
+    getAndCheckToken(lexer, RBRACE);
+    getAndCheckToken(lexer, KW_ELSE);
+    getAndCheckToken(lexer, LBRACE);
+    getAndCheckToken(lexer, KW_RETURN);
+    getAndCheckToken(lexer, IDENTIFIER, L"n");
+    getAndCheckToken(lexer, OP_MULTIPLY);
+    getAndCheckToken(lexer, IDENTIFIER, L"factorial");
+    getAndCheckToken(lexer, LPAREN);
+    getAndCheckToken(lexer, IDENTIFIER, L"n");
+    getAndCheckToken(lexer, OP_MINUS);
+    getAndCheckToken(lexer, INT_LITERAL, 1);
+    getAndCheckToken(lexer, RPAREN);
+    getAndCheckToken(lexer, SEMICOLON);
+    getAndCheckToken(lexer, RBRACE);
+    getAndCheckToken(lexer, RBRACE);
+    getAndCheckToken(lexer, EOT);
+    getAndCheckToken(lexer, EOT);
+    getAndCheckToken(lexer, EOT);
 }

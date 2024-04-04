@@ -28,6 +28,7 @@ private:
     // Will build int or float literals
     bool buildNumberLiteral();
     int32_t buildIntLiteral();
+    int32_t buildIntLiteralWithLeadingZeros();
     bool buildOperator();
     void build2CharOp(wchar_t second, TokenType oneCharType, TokenType twoCharType);
     void build3CharOp(

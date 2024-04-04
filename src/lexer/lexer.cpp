@@ -163,6 +163,10 @@ bool Lexer::buildStringLiteral()
             errorHandler.handleError(
                 Error::LEXER_NEWLINE_IN_STRING, L"Newline character in string literal encountered", tokenBuilt.position
             );
+        else if(reader.get() == IReader::EOT)
+            errorHandler.handleError(
+                Error::LEXER_STRING_UNTERMINATED, L"String literal not terminated", tokenBuilt.position
+            );
         else if(reader.get() == L'\\')
         {
             reader.next();
@@ -190,11 +194,15 @@ int32_t Lexer::buildIntLiteral()
     if(reader.get() == L'0')
     {
         reader.next();
+        if(std::iswdigit(reader.get()))
+            errorHandler.handleError(
+                Error::LEXER_INT_WITH_LEADING_ZERO, L"Leading zeros in numeric constant are not permitted",
+                tokenBuilt.position
+            );
         return 0;
     }
-    reader.next();
     int32_t value = 0;
-    while(std::iswdigit(reader.get()))
+    do
     {
         int nextDigit = reader.get() - L'0';
         if(value > (INT32_MAX - nextDigit) / 10)
@@ -207,8 +215,11 @@ int32_t Lexer::buildIntLiteral()
         value += nextDigit;
         reader.next();
     }
+    while(std::iswdigit(reader.get()));
     return value;
 }
+
+#include <iostream>
 
 bool Lexer::buildNumberLiteral()
 {
@@ -244,14 +255,35 @@ bool Lexer::buildNumberLiteral()
             reader.next();
         }
     }
+    bool exponentNegative = false;
     int32_t exponent = 0;
     if(reader.get() == L'e' || reader.get() == L'E')
     {
         reader.next();
-        exponent = buildIntLiteral();
+        if(reader.get() == L'-')
+        {
+            exponentNegative = true;
+            reader.next();
+        }
+        while(std::iswdigit(reader.get()))
+        {
+            int nextDigit = reader.get() - L'0';
+            if(exponent > (INT32_MAX - nextDigit) / 10)
+            {
+                errorHandler.handleError(
+                    Error::LEXER_INT_TOO_LARGE, L"Maximum integer literal size exceeded in float literal exponent part",
+                    tokenBuilt.position
+                );
+            }
+            exponent *= 10;
+            exponent += nextDigit;
+            reader.next();
+        }
     }
-    double value = (integralPart + static_cast<double>(fractionalPart) / std::pow(10, fractionalPartDigits)) *
-                   std::pow(10, exponent);
+    if(exponentNegative)
+        exponent *= -1;
+    double value = integralPart * std::pow(10., exponent) +
+                   static_cast<double>(fractionalPart) * std::pow(10., exponent - fractionalPartDigits);
     tokenBuilt.type = TokenType::FLOAT_LITERAL;
     tokenBuilt.value = value;
     return true;

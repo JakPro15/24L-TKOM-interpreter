@@ -24,7 +24,7 @@ void StreamReader::next()
     current = source.get();
     if(current != L'\r' && current != L'\n' && std::iswcntrl(current))
         errorHandler.handleError(
-            Error::READER_CONTROL_CHAR, std::format(L"Control character encountered in input with \\x{:x}", current),
+            Error::READER_CONTROL_CHAR, std::format(L"Control character encountered in input: \\x{:x}", current),
             currentPosition
         );
     if(source.eof())

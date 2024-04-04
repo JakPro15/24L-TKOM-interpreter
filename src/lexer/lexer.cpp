@@ -45,7 +45,7 @@ void Lexer::skipWhitespace()
         reader.next();
 }
 
-bool Lexer::buildIdentifier()
+bool Lexer::tryBuildIdentifier()
 {
     if(!(std::iswalpha(reader.get()) || reader.get() == L'_'))
         return false;
@@ -74,7 +74,7 @@ bool Lexer::buildIdentifier()
     return true;
 }
 
-bool Lexer::buildComment()
+bool Lexer::tryBuildComment()
 {
     if(reader.get() != L'#')
         return false;
@@ -150,7 +150,7 @@ void Lexer::buildEscapeSequence(std::wstringstream &tokenValue)
     }
 }
 
-bool Lexer::buildStringLiteral()
+bool Lexer::tryBuildString()
 {
     if(reader.get() != L'"')
         return false;
@@ -189,9 +189,9 @@ bool Lexer::buildStringLiteral()
     return true;
 }
 
-int32_t Lexer::buildIntLiteral()
+int32_t Lexer::buildInteger(bool leadingZeroPermitted)
 {
-    if(reader.get() == L'0')
+    if(!leadingZeroPermitted && reader.get() == L'0')
     {
         reader.next();
         if(std::iswdigit(reader.get()))
@@ -219,13 +219,31 @@ int32_t Lexer::buildIntLiteral()
     return value;
 }
 
-#include <iostream>
+int32_t Lexer::buildExponent()
+{
+    bool exponentNegative = false;
+    int32_t exponent = 0;
+    if(reader.get() == L'e' || reader.get() == L'E')
+    {
+        reader.next();
+        if(reader.get() == L'-')
+        {
+            exponentNegative = true;
+            reader.next();
+        }
+        if(std::iswdigit(reader.get()))
+            exponent = buildInteger(true);
+    }
+    if(exponentNegative)
+        exponent *= -1;
+    return exponent;
+}
 
-bool Lexer::buildNumberLiteral()
+bool Lexer::tryBuildNumber()
 {
     if(!std::iswdigit(reader.get()))
         return false;
-    int32_t integralPart = buildIntLiteral();
+    int32_t integralPart = buildInteger();
 
     if(reader.get() != L'.' && reader.get() != L'e' && reader.get() != L'E')
     {
@@ -239,49 +257,14 @@ bool Lexer::buildNumberLiteral()
     if(reader.get() == L'.')
     {
         reader.next();
-        while(std::iswdigit(reader.get()))
+        if(std::iswdigit(reader.get()))
         {
-            int nextDigit = reader.get() - L'0';
-            if(fractionalPart > (INT32_MAX - nextDigit) / 10)
-            {
-                errorHandler.handleError(
-                    Error::LEXER_INT_TOO_LARGE,
-                    L"Maximum integer literal size exceeded in float literal fractional part", tokenBuilt.position
-                );
-            }
-            fractionalPart *= 10;
-            fractionalPart += nextDigit;
-            fractionalPartDigits += 1;
-            reader.next();
+            int columnBefore = static_cast<int>(reader.getPosition().column);
+            fractionalPart = buildInteger(true);
+            fractionalPartDigits = static_cast<int>(reader.getPosition().column) - columnBefore;
         }
     }
-    bool exponentNegative = false;
-    int32_t exponent = 0;
-    if(reader.get() == L'e' || reader.get() == L'E')
-    {
-        reader.next();
-        if(reader.get() == L'-')
-        {
-            exponentNegative = true;
-            reader.next();
-        }
-        while(std::iswdigit(reader.get()))
-        {
-            int nextDigit = reader.get() - L'0';
-            if(exponent > (INT32_MAX - nextDigit) / 10)
-            {
-                errorHandler.handleError(
-                    Error::LEXER_INT_TOO_LARGE, L"Maximum integer literal size exceeded in float literal exponent part",
-                    tokenBuilt.position
-                );
-            }
-            exponent *= 10;
-            exponent += nextDigit;
-            reader.next();
-        }
-    }
-    if(exponentNegative)
-        exponent *= -1;
+    int32_t exponent = buildExponent();
     double value = integralPart * std::pow(10., exponent) +
                    static_cast<double>(fractionalPart) * std::pow(10., exponent - fractionalPartDigits);
     tokenBuilt.type = TokenType::FLOAT_LITERAL;
@@ -363,7 +346,7 @@ Token Lexer::getNextToken()
         tokenBuilt.type = TokenType::EOT;
         return tokenBuilt;
     }
-    if(buildOperator() || buildNumberLiteral() || buildStringLiteral() || buildComment() || buildIdentifier())
+    if(buildOperator() || tryBuildNumber() || tryBuildString() || tryBuildComment() || tryBuildIdentifier())
         return tokenBuilt;
 
     errorHandler.handleError(

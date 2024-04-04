@@ -22,13 +22,13 @@ private:
     IErrorHandler &errorHandler;
     void skipWhitespace();
     // Will also build keywords and bool literals
-    bool buildIdentifier();
-    bool buildComment();
-    bool buildStringLiteral();
+    bool tryBuildIdentifier();
+    bool tryBuildComment();
+    bool tryBuildString();
     // Will build int or float literals
-    bool buildNumberLiteral();
-    int32_t buildIntLiteral();
-    int32_t buildIntLiteralWithLeadingZeros();
+    bool tryBuildNumber();
+    int32_t buildInteger(bool leadingZeroPermitted = false);
+    int32_t buildExponent();
     bool buildOperator();
     void build2CharOp(wchar_t second, TokenType oneCharType, TokenType twoCharType);
     void build3CharOp(

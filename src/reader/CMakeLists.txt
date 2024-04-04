@@ -1,7 +1,7 @@
 add_library(
     Reader OBJECT
     include/position.hpp
-    include/ireader.hpp
+    include/iReader.hpp
     include/streamReader.hpp
     streamReader.cpp
     position.cpp

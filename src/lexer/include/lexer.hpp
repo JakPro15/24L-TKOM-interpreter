@@ -2,8 +2,8 @@
 #define LEXER_HPP
 
 #include "iErrorHandler.hpp"
-#include "ilexer.hpp"
-#include "ireader.hpp"
+#include "iLexer.hpp"
+#include "iReader.hpp"
 
 #include <functional>
 #include <unordered_map>
@@ -29,7 +29,7 @@ private:
     bool tryBuildNumber();
     int32_t buildInteger(bool leadingZeroPermitted = false);
     int32_t buildExponent();
-    bool buildOperator();
+    bool tryBuildOperator();
     void build2CharOp(wchar_t second, TokenType oneCharType, TokenType twoCharType);
     void build3CharOp(
         wchar_t second, wchar_t third, TokenType oneCharType, TokenType twoCharType, TokenType threeCharType

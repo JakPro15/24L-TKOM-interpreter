@@ -327,7 +327,7 @@ void Lexer::build3CharOp(
         tokenBuilt.type = oneCharType;
 }
 
-bool Lexer::buildOperator()
+bool Lexer::tryBuildOperator()
 {
     wchar_t firstChar = reader.get();
     if(firstCharToFunction.find(firstChar) == firstCharToFunction.end())
@@ -346,7 +346,7 @@ Token Lexer::getNextToken()
         tokenBuilt.type = TokenType::EOT;
         return tokenBuilt;
     }
-    if(buildOperator() || tryBuildNumber() || tryBuildString() || tryBuildComment() || tryBuildIdentifier())
+    if(tryBuildOperator() || tryBuildNumber() || tryBuildString() || tryBuildComment() || tryBuildIdentifier())
         return tokenBuilt;
 
     errorHandler.handleError(

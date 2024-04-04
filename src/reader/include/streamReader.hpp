@@ -2,7 +2,7 @@
 #define STREAMREADER_HPP
 
 #include "iErrorHandler.hpp"
-#include "ireader.hpp"
+#include "iReader.hpp"
 
 #include <istream>
 

@@ -8,30 +8,32 @@
 #include <string>
 #include <unordered_map>
 
+using enum TokenType;
+
 const std::unordered_map<std::wstring, TokenType> keywordToTokenType = {
-    {L"include", TokenType::KW_INCLUDE},
-    {L"struct", TokenType::KW_STRUCT},
-    {L"variant", TokenType::KW_VARIANT},
-    {L"func", TokenType::KW_FUNC},
-    {L"continue", TokenType::KW_CONTINUE},
-    {L"break", TokenType::KW_BREAK},
-    {L"return", TokenType::KW_RETURN},
-    {L"if", TokenType::KW_IF},
-    {L"elif", TokenType::KW_ELIF},
-    {L"else", TokenType::KW_ELSE},
-    {L"while", TokenType::KW_WHILE},
-    {L"do", TokenType::KW_DO},
-    {L"is", TokenType::KW_IS},
-    {L"or", TokenType::KW_OR},
-    {L"xor", TokenType::KW_XOR},
-    {L"and", TokenType::KW_AND},
-    {L"not", TokenType::KW_NOT},
-    {L"int", TokenType::KW_INT},
-    {L"float", TokenType::KW_FLOAT},
-    {L"bool", TokenType::KW_BOOL},
-    {L"str", TokenType::KW_STR},
-    {L"true", TokenType::TRUE_LITERAL},
-    {L"false", TokenType::FALSE_LITERAL},
+    {L"include", KW_INCLUDE},
+    {L"struct", KW_STRUCT},
+    {L"variant", KW_VARIANT},
+    {L"func", KW_FUNC},
+    {L"continue", KW_CONTINUE},
+    {L"break", KW_BREAK},
+    {L"return", KW_RETURN},
+    {L"if", KW_IF},
+    {L"elif", KW_ELIF},
+    {L"else", KW_ELSE},
+    {L"while", KW_WHILE},
+    {L"do", KW_DO},
+    {L"is", KW_IS},
+    {L"or", KW_OR},
+    {L"xor", KW_XOR},
+    {L"and", KW_AND},
+    {L"not", KW_NOT},
+    {L"int", KW_INT},
+    {L"float", KW_FLOAT},
+    {L"bool", KW_BOOL},
+    {L"str", KW_STR},
+    {L"true", TRUE_LITERAL},
+    {L"false", FALSE_LITERAL},
 };
 
 Lexer::Lexer(IReader &reader, IErrorHandler &errorHandler): reader(reader), errorHandler(errorHandler)
@@ -68,7 +70,7 @@ bool Lexer::tryBuildIdentifier()
         tokenBuilt.type = keywordToTokenType.at(result);
     else
     {
-        tokenBuilt.type = TokenType::IDENTIFIER;
+        tokenBuilt.type = IDENTIFIER;
         tokenBuilt.value = result;
     }
     return true;
@@ -91,7 +93,7 @@ bool Lexer::tryBuildComment()
             );
         reader.next();
     }
-    tokenBuilt.type = TokenType::COMMENT;
+    tokenBuilt.type = COMMENT;
     tokenBuilt.value = tokenValue.str();
     return true;
 }
@@ -184,7 +186,7 @@ bool Lexer::tryBuildString()
     }
     reader.next();
 
-    tokenBuilt.type = TokenType::STR_LITERAL;
+    tokenBuilt.type = STR_LITERAL;
     tokenBuilt.value = tokenValue.str();
     return true;
 }
@@ -247,7 +249,7 @@ bool Lexer::tryBuildNumber()
 
     if(reader.get() != L'.' && reader.get() != L'e' && reader.get() != L'E')
     {
-        tokenBuilt.type = TokenType::INT_LITERAL;
+        tokenBuilt.type = INT_LITERAL;
         tokenBuilt.value = integralPart;
         return true;
     }
@@ -267,14 +269,13 @@ bool Lexer::tryBuildNumber()
     int32_t exponent = buildExponent();
     double value = integralPart * std::pow(10., exponent) +
                    static_cast<double>(fractionalPart) * std::pow(10., exponent - fractionalPartDigits);
-    tokenBuilt.type = TokenType::FLOAT_LITERAL;
+    tokenBuilt.type = FLOAT_LITERAL;
     tokenBuilt.value = value;
     return true;
 }
 
 void Lexer::prepareOperatorMap()
 {
-    using enum TokenType;
     firstCharToFunction.emplace(L'{', [&]() { tokenBuilt.type = LBRACE; });
     firstCharToFunction.emplace(L'}', [&]() { tokenBuilt.type = RBRACE; });
     firstCharToFunction.emplace(L';', [&]() { tokenBuilt.type = SEMICOLON; });
@@ -343,7 +344,7 @@ Token Lexer::getNextToken()
     tokenBuilt.position = reader.getPosition();
     if(reader.get() == IReader::EOT)
     {
-        tokenBuilt.type = TokenType::EOT;
+        tokenBuilt.type = EOT;
         return tokenBuilt;
     }
     if(tryBuildOperator() || tryBuildNumber() || tryBuildString() || tryBuildComment() || tryBuildIdentifier())
@@ -354,6 +355,6 @@ Token Lexer::getNextToken()
         tokenBuilt.position
     );
 
-    tokenBuilt.type = TokenType::UNKNOWN;
+    tokenBuilt.type = UNKNOWN;
     return tokenBuilt;
 }

@@ -27,8 +27,11 @@ private:
     std::optional<Token> tryBuildString();
     // Will build int or float literals
     std::optional<Token> tryBuildNumber();
+    std::optional<Token> tryBuildFraction(int32_t integralPart);
+    // Returns the built integer and the number of leading zeros
     std::pair<int32_t, int> buildIntegerWithLeadingZeros();
-    int32_t buildExponent();
+    std::optional<std::pair<int32_t, int>> tryBuildFractionalPart();
+    std::optional<int32_t> tryBuildExponent();
     std::optional<Token> tryBuildOperator();
     TokenType build2CharOp(wchar_t second, TokenType oneCharType, TokenType twoCharType);
     TokenType build3CharOp(

@@ -192,24 +192,57 @@ std::pair<int32_t, int> Lexer::buildIntegerWithLeadingZeros()
     return {value, leadingZeros};
 }
 
-int32_t Lexer::buildExponent()
+std::optional<std::pair<int32_t, int>> Lexer::tryBuildFractionalPart()
 {
+    int32_t fractionalPart = 0;
+    int digits = 0;
+    if(reader.get().first != L'.')
+        return std::nullopt;
+
+    if(std::iswdigit(reader.next().first))
+    {
+        int columnBefore = static_cast<int>(reader.get().second.column);
+        fractionalPart = buildIntegerWithLeadingZeros().first;
+        digits = static_cast<int>(reader.get().second.column) - columnBefore;
+    }
+    return {{fractionalPart, digits}};
+}
+
+std::optional<int32_t> Lexer::tryBuildExponent()
+{
+    if(reader.get().first != L'e' && reader.get().first != L'E')
+        return std::nullopt;
+
     bool exponentNegative = false;
     int32_t exponent = 0;
-    if(reader.get().first == L'e' || reader.get().first == L'E')
+    if(reader.next().first == L'-')
     {
-        if(reader.next().first == L'-')
-        {
-            exponentNegative = true;
-            if(!std::iswdigit(reader.next().first))
-                throw InvalidExponentError(L"Exponent consisting of only a minus sign is not permitted", tokenStart);
-        }
-        if(std::iswdigit(reader.get().first))
-            exponent = buildIntegerWithLeadingZeros().first;
+        exponentNegative = true;
+        if(!std::iswdigit(reader.next().first))
+            throw InvalidExponentError(L"Exponent consisting of only a minus sign is not permitted", tokenStart);
     }
+    if(std::iswdigit(reader.get().first))
+        exponent = buildIntegerWithLeadingZeros().first;
+
     if(exponentNegative)
         exponent *= -1;
     return exponent;
+}
+
+std::optional<Token> Lexer::tryBuildFraction(int32_t integralPart)
+{
+    auto fractionalPart = tryBuildFractionalPart();
+    auto exponent = tryBuildExponent();
+    if(!fractionalPart && !exponent)
+        return std::nullopt;
+    if(!fractionalPart)
+        fractionalPart = {0, 0};
+    if(!exponent)
+        exponent = 0;
+
+    double value = integralPart * std::pow(10., *exponent) +
+                   static_cast<double>(fractionalPart->first) * std::pow(10., *exponent - fractionalPart->second);
+    return Token{FLOAT_LITERAL, tokenStart, value};
 }
 
 std::optional<Token> Lexer::tryBuildNumber()
@@ -220,24 +253,11 @@ std::optional<Token> Lexer::tryBuildNumber()
     if((integralPart != 0 && leadingZeros > 0) || leadingZeros > 1)
         throw IntWithLeadingZeroError(L"Leading zeros in numeric constant are not permitted", tokenStart);
 
-    if(reader.get().first != L'.' && reader.get().first != L'e' && reader.get().first != L'E')
-        return Token{INT_LITERAL, tokenStart, integralPart};
+    std::optional<Token> tokenBuilt;
+    if((tokenBuilt = tryBuildFraction(integralPart)))
+        return tokenBuilt;
 
-    int32_t fractionalPart = 0;
-    int fractionalPartDigits = 0;
-    if(reader.get().first == L'.')
-    {
-        if(std::iswdigit(reader.next().first))
-        {
-            int columnBefore = static_cast<int>(reader.get().second.column);
-            fractionalPart = buildIntegerWithLeadingZeros().first;
-            fractionalPartDigits = static_cast<int>(reader.get().second.column) - columnBefore;
-        }
-    }
-    int32_t exponent = buildExponent();
-    double value = integralPart * std::pow(10., exponent) +
-                   static_cast<double>(fractionalPart) * std::pow(10., exponent - fractionalPartDigits);
-    return Token{FLOAT_LITERAL, tokenStart, value};
+    return Token{INT_LITERAL, tokenStart, integralPart};
 }
 
 #define ADD_OPERATOR(firstChar, returnedType) \

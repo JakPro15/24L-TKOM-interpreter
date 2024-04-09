@@ -139,6 +139,10 @@ void Lexer::buildEscapeSequence(std::wstringstream &tokenValue)
         reader.next();
         tokenValue.put(buildHexChar());
         break;
+    case L'\n':
+        throw NewlineInStringError(L"Newline character in string literal encountered", tokenBuilt.position);
+    case IReader::EOT:
+        throw UnterminatedStringError(L"String literal not terminated", tokenBuilt.position);
     default:
         throw UnknownEscapeSequenceError(
             std::format(L"\\{} is not a valid escape sequence", reader.get()), tokenBuilt.position

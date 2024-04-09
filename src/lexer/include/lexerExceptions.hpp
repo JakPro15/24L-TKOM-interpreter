@@ -23,6 +23,7 @@ DECLARE_LEXER_ERROR(UnterminatedStringError);
 DECLARE_LEXER_ERROR(StringTooLongError);
 DECLARE_LEXER_ERROR(IntWithLeadingZeroError);
 DECLARE_LEXER_ERROR(IntTooLargeError);
+DECLARE_LEXER_ERROR(InvalidExponentError);
 DECLARE_LEXER_ERROR(UnknownTokenError);
 
 #endif

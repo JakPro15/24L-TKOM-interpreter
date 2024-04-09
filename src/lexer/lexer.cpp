@@ -201,7 +201,8 @@ int32_t Lexer::buildExponent()
         if(reader.next().first == L'-')
         {
             exponentNegative = true;
-            reader.next();
+            if(!std::iswdigit(reader.next().first))
+                throw InvalidExponentError(L"Exponent consisting of only a minus sign is not permitted", tokenStart);
         }
         if(std::iswdigit(reader.get().first))
             exponent = buildIntegerWithLeadingZeros().first;

@@ -178,12 +178,14 @@ TEST_CASE("float literals", "[Lexer]")
     checkToken(L"2.2e20", FLOAT_LITERAL, 2.2e20);
     checkToken(L"2.2E-20", FLOAT_LITERAL, 2.2E-20);
     checkToken(L"2.2E0", FLOAT_LITERAL, 2.2);
+    checkToken(L"2.2E-0", FLOAT_LITERAL, 2.2);
     checkToken(L"2.2E01", FLOAT_LITERAL, 22.0);
     checkToken(L"2.2E-01", FLOAT_LITERAL, 0.22);
     int64_t tooLargeInt = static_cast<int64_t>(INT32_MAX) + 1;
     checkTokenError<IntTooLargeError>(std::format(L"{}.2", tooLargeInt));
     checkTokenError<IntTooLargeError>(std::format(L"2.{}", tooLargeInt));
     checkTokenError<IntTooLargeError>(std::format(L"1e-{}", tooLargeInt));
+    checkTokenError<InvalidExponentError>(std::format(L"1e-", tooLargeInt));
     checkTokenError<IntWithLeadingZeroError>(L"012.3");
 }
 

@@ -9,10 +9,10 @@ StreamReader::StreamReader(std::wistream &source): source(source), current(0), c
     next(); // set to the first character of input
 }
 
-void StreamReader::next()
+std::pair<wchar_t, Position> StreamReader::next()
 {
     if(current == EOT)
-        return;
+        return get();
 
     if(current == L'\n')
     {
@@ -30,7 +30,7 @@ void StreamReader::next()
     if(source.eof())
     {
         current = EOT;
-        return;
+        return get();
     }
     else if(source.bad() || source.fail())
         throw ReaderInputError(L"Input stream returned error", currentPosition);
@@ -41,6 +41,7 @@ void StreamReader::next()
             source.get();
         current = L'\n';
     }
+    return get();
 }
 
 std::pair<wchar_t, Position> StreamReader::get()

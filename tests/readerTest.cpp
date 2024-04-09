@@ -40,10 +40,9 @@ TEST_CASE("empty string", "[StreamReader]")
     checkChar(reader, IReader::EOT, {1, 1});
 }
 
-void checkAndNext(StreamReader &reader, wchar_t character, Position position)
+void nextAndCheck(StreamReader &reader, wchar_t character, Position position)
 {
-    checkChar(reader, character, position);
-    reader.next();
+    REQUIRE(reader.next() == std::pair<wchar_t, Position>{character, position});
 }
 
 TEST_CASE("no newlines Unicode case", "[StreamReader]")
@@ -51,48 +50,28 @@ TEST_CASE("no newlines Unicode case", "[StreamReader]")
     std::wstringstream stream;
     stream.str(L"ść ඞ读");
     StreamReader reader(stream);
-    checkAndNext(reader, L'ś', {1, 1});
-    checkAndNext(reader, L'ć', {1, 2});
-    checkAndNext(reader, L' ', {1, 3});
-    checkAndNext(reader, L'ඞ', {1, 4});
-    checkAndNext(reader, L'读', {1, 5});
-    checkAndNext(reader, IReader::EOT, {1, 6});
+    checkChar(reader, L'ś', {1, 1});
+    nextAndCheck(reader, L'ć', {1, 2});
+    nextAndCheck(reader, L' ', {1, 3});
+    nextAndCheck(reader, L'ඞ', {1, 4});
+    nextAndCheck(reader, L'读', {1, 5});
+    nextAndCheck(reader, IReader::EOT, {1, 6});
 }
 
-TEST_CASE("LF newlines", "[StreamReader]")
+TEST_CASE("newlines conversion", "[StreamReader]")
 {
-    std::wstringstream stream;
-    stream.str(L"a\nb\n");
-    StreamReader reader(stream);
-    checkAndNext(reader, L'a', {1, 1});
-    checkAndNext(reader, L'\n', {1, 2});
-    checkAndNext(reader, L'b', {2, 1});
-    checkAndNext(reader, L'\n', {2, 2});
-    checkAndNext(reader, IReader::EOT, {3, 1});
-}
-
-TEST_CASE("CRLF newlines", "[StreamReader]")
-{
-    std::wstringstream stream;
-    stream.str(L"a\r\nb\r\n");
-    StreamReader reader(stream);
-    checkAndNext(reader, L'a', {1, 1});
-    checkAndNext(reader, L'\n', {1, 2});
-    checkAndNext(reader, L'b', {2, 1});
-    checkAndNext(reader, L'\n', {2, 2});
-    checkAndNext(reader, IReader::EOT, {3, 1});
-}
-
-TEST_CASE("CR newlines", "[StreamReader]")
-{
-    std::wstringstream stream;
-    stream.str(L"a\rb\r");
-    StreamReader reader(stream);
-    checkAndNext(reader, L'a', {1, 1});
-    checkAndNext(reader, L'\n', {1, 2});
-    checkAndNext(reader, L'b', {2, 1});
-    checkAndNext(reader, L'\n', {2, 2});
-    checkAndNext(reader, IReader::EOT, {3, 1});
+    std::vector<std::wstring> stringsToCheck = {L"a\nb\n", L"a\r\nb\r\n", L"a\rb\r"};
+    for(const auto &toCheck: stringsToCheck)
+    {
+        std::wstringstream stream;
+        stream.str(toCheck);
+        StreamReader reader(stream);
+        checkChar(reader, L'a', {1, 1});
+        nextAndCheck(reader, L'\n', {1, 2});
+        nextAndCheck(reader, L'b', {2, 1});
+        nextAndCheck(reader, L'\n', {2, 2});
+        nextAndCheck(reader, IReader::EOT, {3, 1});
+    }
 }
 
 TEST_CASE("control character in input", "[StreamReader]")

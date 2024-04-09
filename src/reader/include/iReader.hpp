@@ -11,7 +11,8 @@ public:
     static const wchar_t EOT = L'\3';
 
     // Advances to the next wide character of input.
-    virtual void next() = 0;
+    // Returns the character with position.
+    virtual std::pair<wchar_t, Position> next() = 0;
 
     // Returns the current character of input with its position.
     // Line and column numbers start from 1.

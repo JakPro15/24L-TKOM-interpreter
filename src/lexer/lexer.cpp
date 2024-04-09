@@ -111,8 +111,7 @@ unsigned Lexer::hexToNumber(wchar_t character)
 wchar_t Lexer::buildHexChar()
 {
     unsigned first = hexToNumber(reader.get().first);
-    reader.next();
-    unsigned second = hexToNumber(reader.get().first);
+    unsigned second = hexToNumber(reader.next().first);
     return static_cast<wchar_t>(first * 16 + second);
 }
 
@@ -187,8 +186,7 @@ int32_t Lexer::buildInteger(bool leadingZeroPermitted)
 {
     if(!leadingZeroPermitted && reader.get().first == L'0')
     {
-        reader.next();
-        if(std::iswdigit(reader.get().first))
+        if(std::iswdigit(reader.next().first))
             throw IntWithLeadingZeroError(L"Leading zeros in numeric constant are not permitted", tokenBuilt.position);
         return 0;
     }
@@ -212,8 +210,7 @@ int32_t Lexer::buildExponent()
     int32_t exponent = 0;
     if(reader.get().first == L'e' || reader.get().first == L'E')
     {
-        reader.next();
-        if(reader.get().first == L'-')
+        if(reader.next().first == L'-')
         {
             exponentNegative = true;
             reader.next();
@@ -243,8 +240,7 @@ bool Lexer::tryBuildNumber()
     int fractionalPartDigits = 0;
     if(reader.get().first == L'.')
     {
-        reader.next();
-        if(std::iswdigit(reader.get().first))
+        if(std::iswdigit(reader.next().first))
         {
             int columnBefore = static_cast<int>(reader.get().second.column);
             fractionalPart = buildInteger(true);
@@ -300,8 +296,7 @@ void Lexer::build3CharOp(
 {
     if(reader.get().first == second)
     {
-        reader.next();
-        if(reader.get().first == third)
+        if(reader.next().first == third)
         {
             tokenBuilt.type = threeCharType;
             reader.next();

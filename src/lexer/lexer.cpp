@@ -171,16 +171,16 @@ std::optional<Token> Lexer::tryBuildString()
     return Token{STR_LITERAL, tokenStart, tokenValue.str()};
 }
 
-int32_t Lexer::buildInteger(bool leadingZeroPermitted)
+std::pair<int32_t, int> Lexer::buildIntegerWithLeadingZeros()
 {
-    if(!leadingZeroPermitted && reader.get().first == L'0')
+    int leadingZeros = 0;
+    while(reader.get().first == L'0')
     {
-        if(std::iswdigit(reader.next().first))
-            throw IntWithLeadingZeroError(L"Leading zeros in numeric constant are not permitted", tokenStart);
-        return 0;
+        leadingZeros += 1;
+        reader.next();
     }
     int32_t value = 0;
-    do
+    while(std::iswdigit(reader.get().first))
     {
         int nextDigit = reader.get().first - L'0';
         if(value > (INT32_MAX - nextDigit) / 10)
@@ -189,8 +189,7 @@ int32_t Lexer::buildInteger(bool leadingZeroPermitted)
         value += nextDigit;
         reader.next();
     }
-    while(std::iswdigit(reader.get().first));
-    return value;
+    return {value, leadingZeros};
 }
 
 int32_t Lexer::buildExponent()
@@ -205,7 +204,7 @@ int32_t Lexer::buildExponent()
             reader.next();
         }
         if(std::iswdigit(reader.get().first))
-            exponent = buildInteger(true);
+            exponent = buildIntegerWithLeadingZeros().first;
     }
     if(exponentNegative)
         exponent *= -1;
@@ -216,7 +215,9 @@ std::optional<Token> Lexer::tryBuildNumber()
 {
     if(!std::iswdigit(reader.get().first))
         return std::nullopt;
-    int32_t integralPart = buildInteger();
+    auto [integralPart, leadingZeros] = buildIntegerWithLeadingZeros();
+    if((integralPart != 0 && leadingZeros > 0) || leadingZeros > 1)
+        throw IntWithLeadingZeroError(L"Leading zeros in numeric constant are not permitted", tokenStart);
 
     if(reader.get().first != L'.' && reader.get().first != L'e' && reader.get().first != L'E')
         return Token{INT_LITERAL, tokenStart, integralPart};
@@ -228,7 +229,7 @@ std::optional<Token> Lexer::tryBuildNumber()
         if(std::iswdigit(reader.next().first))
         {
             int columnBefore = static_cast<int>(reader.get().second.column);
-            fractionalPart = buildInteger(true);
+            fractionalPart = buildIntegerWithLeadingZeros().first;
             fractionalPartDigits = static_cast<int>(reader.get().second.column) - columnBefore;
         }
     }

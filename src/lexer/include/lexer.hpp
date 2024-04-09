@@ -7,6 +7,7 @@
 #include <functional>
 #include <optional>
 #include <unordered_map>
+#include <utility>
 
 class Lexer: public ILexer
 {
@@ -26,7 +27,7 @@ private:
     std::optional<Token> tryBuildString();
     // Will build int or float literals
     std::optional<Token> tryBuildNumber();
-    int32_t buildInteger(bool leadingZeroPermitted = false);
+    std::pair<int32_t, int> buildIntegerWithLeadingZeros();
     int32_t buildExponent();
     std::optional<Token> tryBuildOperator();
     TokenType build2CharOp(wchar_t second, TokenType oneCharType, TokenType twoCharType);

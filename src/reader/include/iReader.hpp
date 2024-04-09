@@ -18,6 +18,8 @@ public:
     // Returns the position of the current character in input.
     // Line and column numbers start from 1.
     virtual Position getPosition() = 0;
+
+    virtual ~IReader() {}
 };
 
 #endif

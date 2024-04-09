@@ -325,6 +325,10 @@ std::optional<Token> Lexer::tryBuildOperator()
     return firstCharToFunction.at(firstChar)();
 }
 
+#define ATTEMPT(function)         \
+    if((tokenBuilt = function())) \
+        return *tokenBuilt;
+
 Token Lexer::getNextToken()
 {
     skipWhitespace();
@@ -333,16 +337,11 @@ Token Lexer::getNextToken()
         return Token{EOT, tokenStart};
 
     std::optional<Token> tokenBuilt;
-    if((tokenBuilt = tryBuildOperator()))
-        return *tokenBuilt;
-    if((tokenBuilt = tryBuildNumber()))
-        return *tokenBuilt;
-    if((tokenBuilt = tryBuildString()))
-        return *tokenBuilt;
-    if((tokenBuilt = tryBuildComment()))
-        return *tokenBuilt;
-    if((tokenBuilt = tryBuildIdentifier()))
-        return *tokenBuilt;
+    ATTEMPT(tryBuildOperator);
+    ATTEMPT(tryBuildNumber);
+    ATTEMPT(tryBuildString);
+    ATTEMPT(tryBuildComment);
+    ATTEMPT(tryBuildIdentifier);
 
     throw UnknownTokenError(std::format(L"No known token begins with character {}", reader.get().first), tokenStart);
 }

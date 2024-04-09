@@ -1,5 +1,6 @@
 #include "lexer.hpp"
 
+#include "lexerExceptions.hpp"
 #include "token.hpp"
 
 #include <cmath>
@@ -36,7 +37,7 @@ const std::unordered_map<std::wstring, TokenType> keywordToTokenType = {
     {L"false", FALSE_LITERAL},
 };
 
-Lexer::Lexer(IReader &reader, IErrorHandler &errorHandler): reader(reader), errorHandler(errorHandler)
+Lexer::Lexer(IReader &reader): reader(reader)
 {
     prepareOperatorMap();
 }
@@ -60,9 +61,7 @@ bool Lexer::tryBuildIdentifier()
     {
         tokenValue.put(reader.get());
         if(tokenValue.tellp() > MAX_IDENTIFIER_SIZE)
-            errorHandler.handleError(
-                Error::LEXER_IDENTIFIER_TOO_LONG, L"Maximum identifier size exceeded", tokenBuilt.position
-            );
+            throw IdentifierTooLongError(L"Maximum identifier size exceeded", tokenBuilt.position);
         reader.next();
     }
     std::wstring result = tokenValue.str();
@@ -88,9 +87,7 @@ bool Lexer::tryBuildComment()
     {
         tokenValue.put(reader.get());
         if(tokenValue.tellp() > MAX_COMMENT_SIZE)
-            errorHandler.handleError(
-                Error::LEXER_COMMENT_TOO_LONG, L"Maximum comment size exceeded", tokenBuilt.position
-            );
+            throw CommentTooLongError(L"Maximum comment size exceeded", tokenBuilt.position);
         reader.next();
     }
     tokenBuilt.type = COMMENT;
@@ -106,11 +103,9 @@ unsigned Lexer::hexToNumber(wchar_t character)
         return character - L'a' + 10;
     if(character >= L'A' && character <= L'F')
         return character - L'A' + 10;
-    errorHandler.handleError(
-        Error::LEXER_INVALID_HEX_CHAR, std::format(L"The character {} is not a valid hex digit", character),
-        tokenBuilt.position
+    throw InvalidHexCharError(
+        std::format(L"The character {} is not a valid hex digit", character), tokenBuilt.position
     );
-    return 0;
 }
 
 wchar_t Lexer::buildHexChar()
@@ -145,9 +140,8 @@ void Lexer::buildEscapeSequence(std::wstringstream &tokenValue)
         tokenValue.put(buildHexChar());
         break;
     default:
-        errorHandler.handleError(
-            Error::LEXER_UNKNOWN_ESCAPE, std::format(L"\\{} is not a valid escape sequence", reader.get()),
-            tokenBuilt.position
+        throw UnknownEscapeSequenceError(
+            std::format(L"\\{} is not a valid escape sequence", reader.get()), tokenBuilt.position
         );
     }
 }
@@ -162,13 +156,9 @@ bool Lexer::tryBuildString()
     while(reader.get() != L'"')
     {
         if(reader.get() == L'\n')
-            errorHandler.handleError(
-                Error::LEXER_NEWLINE_IN_STRING, L"Newline character in string literal encountered", tokenBuilt.position
-            );
+            throw NewlineInStringError(L"Newline character in string literal encountered", tokenBuilt.position);
         else if(reader.get() == IReader::EOT)
-            errorHandler.handleError(
-                Error::LEXER_STRING_UNTERMINATED, L"String literal not terminated", tokenBuilt.position
-            );
+            throw UnterminatedStringError(L"String literal not terminated", tokenBuilt.position);
         else if(reader.get() == L'\\')
         {
             reader.next();
@@ -178,9 +168,7 @@ bool Lexer::tryBuildString()
         {
             tokenValue.put(reader.get());
             if(tokenValue.tellp() > MAX_STRING_SIZE)
-                errorHandler.handleError(
-                    Error::LEXER_STRING_TOO_LONG, L"Maximum string literal size exceeded", tokenBuilt.position
-                );
+                throw StringTooLongError(L"Maximum string literal size exceeded", tokenBuilt.position);
         }
         reader.next();
     }
@@ -197,10 +185,7 @@ int32_t Lexer::buildInteger(bool leadingZeroPermitted)
     {
         reader.next();
         if(std::iswdigit(reader.get()))
-            errorHandler.handleError(
-                Error::LEXER_INT_WITH_LEADING_ZERO, L"Leading zeros in numeric constant are not permitted",
-                tokenBuilt.position
-            );
+            throw IntWithLeadingZeroError(L"Leading zeros in numeric constant are not permitted", tokenBuilt.position);
         return 0;
     }
     int32_t value = 0;
@@ -208,11 +193,7 @@ int32_t Lexer::buildInteger(bool leadingZeroPermitted)
     {
         int nextDigit = reader.get() - L'0';
         if(value > (INT32_MAX - nextDigit) / 10)
-        {
-            errorHandler.handleError(
-                Error::LEXER_INT_TOO_LARGE, L"Maximum integer literal size exceeded", tokenBuilt.position
-            );
-        }
+            throw IntTooLargeError(L"Maximum integer literal size exceeded", tokenBuilt.position);
         value *= 10;
         value += nextDigit;
         reader.next();
@@ -350,11 +331,5 @@ Token Lexer::getNextToken()
     if(tryBuildOperator() || tryBuildNumber() || tryBuildString() || tryBuildComment() || tryBuildIdentifier())
         return tokenBuilt;
 
-    errorHandler.handleError(
-        Error::LEXER_UNKNOWN_TOKEN, std::format(L"No known token begins with character {}", reader.get()),
-        tokenBuilt.position
-    );
-
-    tokenBuilt.type = UNKNOWN;
-    return tokenBuilt;
+    throw UnknownTokenError(std::format(L"No known token begins with character {}", reader.get()), tokenBuilt.position);
 }

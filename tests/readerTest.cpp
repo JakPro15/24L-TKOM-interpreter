@@ -1,5 +1,5 @@
+#include "readerExceptions.hpp"
 #include "streamReader.hpp"
-#include "testErrorHandler.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -8,9 +8,8 @@
 TEST_CASE("no newlines ASCII case", "[StreamReader]")
 {
     std::wstringstream stream;
-    TestErrorHandler errorHandler;
     stream.str(L"abc");
-    StreamReader reader(stream, errorHandler);
+    StreamReader reader(stream);
     REQUIRE(reader.get() == L'a');
     REQUIRE(reader.getPosition() == Position{1, 1});
     REQUIRE(reader.get() == L'a');
@@ -34,9 +33,8 @@ TEST_CASE("no newlines ASCII case", "[StreamReader]")
 TEST_CASE("empty string", "[StreamReader]")
 {
     std::wstringstream stream;
-    TestErrorHandler errorHandler;
     stream.str(L"");
-    StreamReader reader(stream, errorHandler);
+    StreamReader reader(stream);
     REQUIRE(reader.getPosition() == Position{1, 1});
     REQUIRE(reader.get() == IReader::EOT);
     REQUIRE(reader.get() == IReader::EOT);
@@ -55,9 +53,8 @@ wchar_t getAndNext(StreamReader &reader)
 TEST_CASE("no newlines Unicode case", "[StreamReader]")
 {
     std::wstringstream stream;
-    TestErrorHandler errorHandler;
     stream.str(L"ść ඞ读");
-    StreamReader reader(stream, errorHandler);
+    StreamReader reader(stream);
     REQUIRE(reader.getPosition() == Position{1, 1});
     REQUIRE(getAndNext(reader) == L'ś');
     REQUIRE(reader.getPosition() == Position{1, 2});
@@ -77,9 +74,8 @@ TEST_CASE("no newlines Unicode case", "[StreamReader]")
 TEST_CASE("LF newlines", "[StreamReader]")
 {
     std::wstringstream stream;
-    TestErrorHandler errorHandler;
     stream.str(L"a\nb\n");
-    StreamReader reader(stream, errorHandler);
+    StreamReader reader(stream);
     REQUIRE(reader.getPosition() == Position{1, 1});
     REQUIRE(getAndNext(reader) == L'a');
     REQUIRE(reader.getPosition() == Position{1, 2});
@@ -95,9 +91,8 @@ TEST_CASE("LF newlines", "[StreamReader]")
 TEST_CASE("CRLF newlines", "[StreamReader]")
 {
     std::wstringstream stream;
-    TestErrorHandler errorHandler;
     stream.str(L"a\r\nb\r\n");
-    StreamReader reader(stream, errorHandler);
+    StreamReader reader(stream);
     REQUIRE(reader.getPosition() == Position{1, 1});
     REQUIRE(getAndNext(reader) == L'a');
     REQUIRE(reader.getPosition() == Position{1, 2});
@@ -113,9 +108,8 @@ TEST_CASE("CRLF newlines", "[StreamReader]")
 TEST_CASE("CR newlines", "[StreamReader]")
 {
     std::wstringstream stream;
-    TestErrorHandler errorHandler;
     stream.str(L"a\rb\r");
-    StreamReader reader(stream, errorHandler);
+    StreamReader reader(stream);
     REQUIRE(reader.getPosition() == Position{1, 1});
     REQUIRE(getAndNext(reader) == L'a');
     REQUIRE(reader.getPosition() == Position{1, 2});
@@ -131,24 +125,18 @@ TEST_CASE("CR newlines", "[StreamReader]")
 TEST_CASE("control character in input", "[StreamReader]")
 {
     std::wstringstream stream;
-    TestErrorHandler errorHandler;
     stream.str(L"ab\3");
-    StreamReader reader(stream, errorHandler);
+    StreamReader reader(stream);
     reader.next();
-    REQUIRE_THROWS(reader.next());
-    REQUIRE(errorHandler.error == Error::READER_CONTROL_CHAR);
-    REQUIRE(errorHandler.position == Position{1, 3});
+    REQUIRE_THROWS_AS(reader.next(), ControlCharError);
 }
 
 TEST_CASE("error in input stream", "[StreamReader]")
 {
     std::wstringstream stream;
-    TestErrorHandler errorHandler;
     stream.str(L"ab\3");
-    StreamReader reader(stream, errorHandler);
+    StreamReader reader(stream);
     reader.next();
     stream.setstate(std::ios::badbit);
-    REQUIRE_THROWS(reader.next());
-    REQUIRE(errorHandler.error == Error::READER_INPUT_ERROR);
-    REQUIRE(errorHandler.position == Position{1, 3});
+    REQUIRE_THROWS_AS(reader.next(), ReaderInputError);
 }

@@ -1,7 +1,6 @@
 #ifndef LEXER_HPP
 #define LEXER_HPP
 
-#include "iErrorHandler.hpp"
 #include "iLexer.hpp"
 #include "iReader.hpp"
 
@@ -11,7 +10,7 @@
 class Lexer: public ILexer
 {
 public:
-    Lexer(IReader &reader, IErrorHandler &errorHandler);
+    Lexer(IReader &reader);
     Token getNextToken() override;
 
     static const int MAX_IDENTIFIER_SIZE = 40;
@@ -19,7 +18,6 @@ public:
     static const int MAX_STRING_SIZE = 100;
 private:
     IReader &reader;
-    IErrorHandler &errorHandler;
     void skipWhitespace();
     // Will also build keywords and bool literals
     bool tryBuildIdentifier();

@@ -1,5 +1,6 @@
 add_library(
     Lexer OBJECT
+    include/lexerExceptions.hpp
     include/tokenType.hpp
     include/token.hpp
     include/iLexer.hpp

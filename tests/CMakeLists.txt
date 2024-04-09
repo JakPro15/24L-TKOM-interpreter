@@ -16,7 +16,6 @@ endif()
 
 add_executable(
     UnitTests
-    testErrorHandler.hpp
     readerTest.cpp
     lexerTest.cpp
 )

@@ -1,20 +1,18 @@
 #include "lexer.hpp"
 
+#include "lexerExceptions.hpp"
 #include "streamReader.hpp"
-#include "testErrorHandler.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers_floating_point.hpp>
 
 using enum TokenType;
-using enum Error;
 
 Token lexSingleToken(std::wstring inputString)
 {
-    TestErrorHandler errorHandler;
     std::wstringstream input(inputString);
-    StreamReader reader(input, errorHandler);
-    Lexer lexer(reader, errorHandler);
+    StreamReader reader(input);
+    Lexer lexer(reader);
     return lexer.getNextToken();
 }
 
@@ -44,15 +42,13 @@ void checkToken(std::wstring inputString, TokenType tokenType, int32_t tokenValu
     REQUIRE(std::get<int32_t>(token.value) == tokenValue);
 }
 
-void checkTokenError(std::wstring inputString, Error error)
+template <typename ErrorType>
+void checkTokenError(std::wstring inputString)
 {
-    TestErrorHandler errorHandler;
     std::wstringstream input(inputString);
-    StreamReader reader(input, errorHandler);
-    Lexer lexer(reader, errorHandler);
-    REQUIRE_THROWS(lexer.getNextToken());
-    REQUIRE(errorHandler.error == error);
-    REQUIRE(errorHandler.position == Position{1, 1});
+    StreamReader reader(input);
+    Lexer lexer(reader);
+    REQUIRE_THROWS_AS(lexer.getNextToken(), ErrorType);
 }
 
 TEST_CASE("keywords tokens", "[Lexer]")
@@ -130,7 +126,7 @@ TEST_CASE("comments", "[Lexer]")
     checkToken(L"  \n # this is a comment\n hehe xd", COMMENT, L" this is a comment");
     std::wstring longString(Lexer::MAX_COMMENT_SIZE, L'a');
     checkToken(L"#" + longString, COMMENT, longString);
-    checkTokenError(L"#A" + longString, LEXER_COMMENT_TOO_LONG);
+    checkTokenError<CommentTooLongError>(L"#A" + longString);
 }
 
 TEST_CASE("strings", "[Lexer]")
@@ -146,11 +142,13 @@ TEST_CASE("strings", "[Lexer]")
     checkToken(L"\"czę\\x13\\x20\\xbF\"", STR_LITERAL, L"czę\x13 \xBF");
     std::wstring longString(Lexer::MAX_STRING_SIZE, L'A');
     checkToken(L"\"" + longString + L"\"", STR_LITERAL, longString);
-    checkTokenError(L"\"\\xag\"", LEXER_INVALID_HEX_CHAR);
-    checkTokenError(L"\"\\k\"", LEXER_UNKNOWN_ESCAPE);
-    checkTokenError(L"\"abc\ndef\"", LEXER_NEWLINE_IN_STRING);
-    checkTokenError(L"\"abcdef", LEXER_STRING_UNTERMINATED);
-    checkTokenError(L"\"A" + longString + L"\"", LEXER_STRING_TOO_LONG);
+    checkTokenError<InvalidHexCharError>(L"\"\\xag\"");
+    checkTokenError<UnknownEscapeSequenceError>(L"\"\\k\"");
+    checkTokenError<NewlineInStringError>(L"\"abc\ndef\"");
+    checkTokenError<UnterminatedStringError>(L"\"abcdef");
+    checkTokenError<StringTooLongError>(L"\"A" + longString + L"\"");
+    checkTokenError<UnterminatedStringError>(L"\"abc\\");
+    checkTokenError<NewlineInStringError>(L"\"abc\\\n");
 }
 
 TEST_CASE("integer literals", "[Lexer]")
@@ -158,12 +156,13 @@ TEST_CASE("integer literals", "[Lexer]")
     checkToken(L"234", INT_LITERAL, 234);
     checkToken(L"0", INT_LITERAL, 0);
     checkToken(L"-345", OP_MINUS);
-    checkTokenError(L"0123", LEXER_INT_WITH_LEADING_ZERO);
-    checkTokenError(std::format(L"{}", static_cast<int64_t>(INT32_MAX) + 1), LEXER_INT_TOO_LARGE);
+    checkTokenError<IntWithLeadingZeroError>(L"0123");
+    checkTokenError<IntTooLargeError>(std::format(L"{}", static_cast<int64_t>(INT32_MAX) + 1));
 }
 
 TEST_CASE("float literals", "[Lexer]")
 {
+    checkToken(L"1.001", FLOAT_LITERAL, 1.001);
     checkToken(L"234.432", FLOAT_LITERAL, 234.432);
     checkToken(L"-234.432", OP_MINUS);
     checkToken(L"234.", FLOAT_LITERAL, 234.);
@@ -175,24 +174,25 @@ TEST_CASE("float literals", "[Lexer]")
     checkToken(L"2.2E01", FLOAT_LITERAL, 22.0);
     checkToken(L"2.2E-01", FLOAT_LITERAL, 0.22);
     int64_t tooLargeInt = static_cast<int64_t>(INT32_MAX) + 1;
-    checkTokenError(std::format(L"{}.2", tooLargeInt), LEXER_INT_TOO_LARGE);
-    checkTokenError(std::format(L"2.{}", tooLargeInt), LEXER_INT_TOO_LARGE);
-    checkTokenError(std::format(L"1e-{}", tooLargeInt), LEXER_INT_TOO_LARGE);
+    checkTokenError<IntTooLargeError>(std::format(L"{}.2", tooLargeInt));
+    checkTokenError<IntTooLargeError>(std::format(L"2.{}", tooLargeInt));
+    checkTokenError<IntTooLargeError>(std::format(L"1e-{}", tooLargeInt));
 }
 
 TEST_CASE("identifiers", "[Lexer]")
 {
+    checkToken(L"ifident", IDENTIFIER, L"ifident");
     checkToken(L"identifier", IDENTIFIER, L"identifier");
     checkToken(L"_1dඞ'nt_1fi3文'", IDENTIFIER, L"_1dඞ'nt_1fi3文'");
     checkToken(L"2ident", INT_LITERAL, 2);
     std::wstring longString(Lexer::MAX_IDENTIFIER_SIZE, L'I');
     checkToken(longString, IDENTIFIER, longString);
-    checkTokenError(L"A" + longString, LEXER_IDENTIFIER_TOO_LONG);
+    checkTokenError<IdentifierTooLongError>(L"A" + longString);
 }
 
 TEST_CASE("unknown token", "[Lexer]")
 {
-    checkTokenError(L"^", LEXER_UNKNOWN_TOKEN);
+    checkTokenError<UnknownTokenError>(L"^");
 }
 
 void getAndCheckToken(ILexer &lexer, TokenType tokenType)
@@ -216,7 +216,6 @@ void getAndCheckToken(ILexer &lexer, TokenType tokenType, int32_t tokenValue)
 
 TEST_CASE("factorial code", "[Lexer]")
 {
-    TestErrorHandler errorHandler;
     std::wstringstream input(L"func factorial(int n) {\n"
                              "    if(n == 0 or n == 1) {\n"
                              "        return 1;\n"
@@ -226,8 +225,8 @@ TEST_CASE("factorial code", "[Lexer]")
                              "    }\n"
                              "}\n"
                              "\n");
-    StreamReader reader(input, errorHandler);
-    Lexer lexer(reader, errorHandler);
+    StreamReader reader(input);
+    Lexer lexer(reader);
 
     getAndCheckToken(lexer, KW_FUNC);
     getAndCheckToken(lexer, IDENTIFIER, L"factorial");

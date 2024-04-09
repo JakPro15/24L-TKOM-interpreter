@@ -1,8 +1,10 @@
 add_library(
     Reader OBJECT
+    include/readerExceptions.hpp
     include/position.hpp
     include/iReader.hpp
     include/streamReader.hpp
+    readerExceptions.cpp
     streamReader.cpp
     position.cpp
 )

@@ -5,7 +5,7 @@
 
 #include <istream>
 
-class StreamReader: public IReader
+class StreamReader final: public IReader
 {
 public:
     StreamReader(std::wistream &source);

@@ -3,6 +3,8 @@
 
 #include "position.hpp"
 
+#include <utility>
+
 class IReader
 {
 public:
@@ -11,13 +13,10 @@ public:
     // Advances to the next wide character of input.
     virtual void next() = 0;
 
-    // Returns the current character of input.
-    // Returns EOT when end of input is reached.
-    virtual wchar_t get() = 0;
-
-    // Returns the position of the current character in input.
+    // Returns the current character of input with its position.
     // Line and column numbers start from 1.
-    virtual Position getPosition() = 0;
+    // Returns EOT when end of input is reached.
+    virtual std::pair<wchar_t, Position> get() = 0;
 
     virtual ~IReader() {}
 };

@@ -44,22 +44,22 @@ Lexer::Lexer(IReader &reader): reader(reader)
 
 void Lexer::skipWhitespace()
 {
-    while(std::iswspace(reader.get()))
+    while(std::iswspace(reader.get().first))
         reader.next();
 }
 
 bool Lexer::tryBuildIdentifier()
 {
-    if(!(std::iswalpha(reader.get()) || reader.get() == L'_'))
+    if(!(std::iswalpha(reader.get().first) || reader.get().first == L'_'))
         return false;
 
     std::wstringstream tokenValue;
-    tokenValue.put(reader.get());
+    tokenValue.put(reader.get().first);
     reader.next();
 
-    while(std::isalnum(reader.get()) || reader.get() == L'_' || reader.get() == L'\'')
+    while(std::isalnum(reader.get().first) || reader.get().first == L'_' || reader.get().first == L'\'')
     {
-        tokenValue.put(reader.get());
+        tokenValue.put(reader.get().first);
         if(tokenValue.tellp() > MAX_IDENTIFIER_SIZE)
             throw IdentifierTooLongError(L"Maximum identifier size exceeded", tokenBuilt.position);
         reader.next();
@@ -77,15 +77,15 @@ bool Lexer::tryBuildIdentifier()
 
 bool Lexer::tryBuildComment()
 {
-    if(reader.get() != L'#')
+    if(reader.get().first != L'#')
         return false;
 
     reader.next();
 
     std::wstringstream tokenValue;
-    while(reader.get() != L'\n' && reader.get() != IReader::EOT)
+    while(reader.get().first != L'\n' && reader.get().first != IReader::EOT)
     {
-        tokenValue.put(reader.get());
+        tokenValue.put(reader.get().first);
         if(tokenValue.tellp() > MAX_COMMENT_SIZE)
             throw CommentTooLongError(L"Maximum comment size exceeded", tokenBuilt.position);
         reader.next();
@@ -110,15 +110,15 @@ unsigned Lexer::hexToNumber(wchar_t character)
 
 wchar_t Lexer::buildHexChar()
 {
-    unsigned first = hexToNumber(reader.get());
+    unsigned first = hexToNumber(reader.get().first);
     reader.next();
-    unsigned second = hexToNumber(reader.get());
+    unsigned second = hexToNumber(reader.get().first);
     return static_cast<wchar_t>(first * 16 + second);
 }
 
 void Lexer::buildEscapeSequence(std::wstringstream &tokenValue)
 {
-    switch(reader.get())
+    switch(reader.get().first)
     {
     case L't':
         tokenValue.put(L'\t');
@@ -145,32 +145,32 @@ void Lexer::buildEscapeSequence(std::wstringstream &tokenValue)
         throw UnterminatedStringError(L"String literal not terminated", tokenBuilt.position);
     default:
         throw UnknownEscapeSequenceError(
-            std::format(L"\\{} is not a valid escape sequence", reader.get()), tokenBuilt.position
+            std::format(L"\\{} is not a valid escape sequence", reader.get().first), tokenBuilt.position
         );
     }
 }
 
 bool Lexer::tryBuildString()
 {
-    if(reader.get() != L'"')
+    if(reader.get().first != L'"')
         return false;
     reader.next();
 
     std::wstringstream tokenValue;
-    while(reader.get() != L'"')
+    while(reader.get().first != L'"')
     {
-        if(reader.get() == L'\n')
+        if(reader.get().first == L'\n')
             throw NewlineInStringError(L"Newline character in string literal encountered", tokenBuilt.position);
-        else if(reader.get() == IReader::EOT)
+        else if(reader.get().first == IReader::EOT)
             throw UnterminatedStringError(L"String literal not terminated", tokenBuilt.position);
-        else if(reader.get() == L'\\')
+        else if(reader.get().first == L'\\')
         {
             reader.next();
             buildEscapeSequence(tokenValue);
         }
         else
         {
-            tokenValue.put(reader.get());
+            tokenValue.put(reader.get().first);
             if(tokenValue.tellp() > MAX_STRING_SIZE)
                 throw StringTooLongError(L"Maximum string literal size exceeded", tokenBuilt.position);
         }
@@ -185,24 +185,24 @@ bool Lexer::tryBuildString()
 
 int32_t Lexer::buildInteger(bool leadingZeroPermitted)
 {
-    if(!leadingZeroPermitted && reader.get() == L'0')
+    if(!leadingZeroPermitted && reader.get().first == L'0')
     {
         reader.next();
-        if(std::iswdigit(reader.get()))
+        if(std::iswdigit(reader.get().first))
             throw IntWithLeadingZeroError(L"Leading zeros in numeric constant are not permitted", tokenBuilt.position);
         return 0;
     }
     int32_t value = 0;
     do
     {
-        int nextDigit = reader.get() - L'0';
+        int nextDigit = reader.get().first - L'0';
         if(value > (INT32_MAX - nextDigit) / 10)
             throw IntTooLargeError(L"Maximum integer literal size exceeded", tokenBuilt.position);
         value *= 10;
         value += nextDigit;
         reader.next();
     }
-    while(std::iswdigit(reader.get()));
+    while(std::iswdigit(reader.get().first));
     return value;
 }
 
@@ -210,15 +210,15 @@ int32_t Lexer::buildExponent()
 {
     bool exponentNegative = false;
     int32_t exponent = 0;
-    if(reader.get() == L'e' || reader.get() == L'E')
+    if(reader.get().first == L'e' || reader.get().first == L'E')
     {
         reader.next();
-        if(reader.get() == L'-')
+        if(reader.get().first == L'-')
         {
             exponentNegative = true;
             reader.next();
         }
-        if(std::iswdigit(reader.get()))
+        if(std::iswdigit(reader.get().first))
             exponent = buildInteger(true);
     }
     if(exponentNegative)
@@ -228,11 +228,11 @@ int32_t Lexer::buildExponent()
 
 bool Lexer::tryBuildNumber()
 {
-    if(!std::iswdigit(reader.get()))
+    if(!std::iswdigit(reader.get().first))
         return false;
     int32_t integralPart = buildInteger();
 
-    if(reader.get() != L'.' && reader.get() != L'e' && reader.get() != L'E')
+    if(reader.get().first != L'.' && reader.get().first != L'e' && reader.get().first != L'E')
     {
         tokenBuilt.type = INT_LITERAL;
         tokenBuilt.value = integralPart;
@@ -241,14 +241,14 @@ bool Lexer::tryBuildNumber()
 
     int32_t fractionalPart = 0;
     int fractionalPartDigits = 0;
-    if(reader.get() == L'.')
+    if(reader.get().first == L'.')
     {
         reader.next();
-        if(std::iswdigit(reader.get()))
+        if(std::iswdigit(reader.get().first))
         {
-            int columnBefore = static_cast<int>(reader.getPosition().column);
+            int columnBefore = static_cast<int>(reader.get().second.column);
             fractionalPart = buildInteger(true);
-            fractionalPartDigits = static_cast<int>(reader.getPosition().column) - columnBefore;
+            fractionalPartDigits = static_cast<int>(reader.get().second.column) - columnBefore;
         }
     }
     int32_t exponent = buildExponent();
@@ -285,7 +285,7 @@ void Lexer::prepareOperatorMap()
 
 void Lexer::build2CharOp(wchar_t second, TokenType oneCharType, TokenType twoCharType)
 {
-    if(reader.get() == second)
+    if(reader.get().first == second)
     {
         tokenBuilt.type = twoCharType;
         reader.next();
@@ -298,10 +298,10 @@ void Lexer::build3CharOp(
     wchar_t second, wchar_t third, TokenType oneCharType, TokenType twoCharType, TokenType threeCharType
 )
 {
-    if(reader.get() == second)
+    if(reader.get().first == second)
     {
         reader.next();
-        if(reader.get() == third)
+        if(reader.get().first == third)
         {
             tokenBuilt.type = threeCharType;
             reader.next();
@@ -315,7 +315,7 @@ void Lexer::build3CharOp(
 
 bool Lexer::tryBuildOperator()
 {
-    wchar_t firstChar = reader.get();
+    wchar_t firstChar = reader.get().first;
     if(firstCharToFunction.find(firstChar) == firstCharToFunction.end())
         return false;
     reader.next();
@@ -326,8 +326,8 @@ bool Lexer::tryBuildOperator()
 Token Lexer::getNextToken()
 {
     skipWhitespace();
-    tokenBuilt.position = reader.getPosition();
-    if(reader.get() == IReader::EOT)
+    tokenBuilt.position = reader.get().second;
+    if(reader.get().first == IReader::EOT)
     {
         tokenBuilt.type = EOT;
         return tokenBuilt;
@@ -335,5 +335,7 @@ Token Lexer::getNextToken()
     if(tryBuildOperator() || tryBuildNumber() || tryBuildString() || tryBuildComment() || tryBuildIdentifier())
         return tokenBuilt;
 
-    throw UnknownTokenError(std::format(L"No known token begins with character {}", reader.get()), tokenBuilt.position);
+    throw UnknownTokenError(
+        std::format(L"No known token begins with character {}", reader.get().first), tokenBuilt.position
+    );
 }

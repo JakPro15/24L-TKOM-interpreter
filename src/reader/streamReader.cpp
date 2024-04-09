@@ -43,12 +43,7 @@ void StreamReader::next()
     }
 }
 
-wchar_t StreamReader::get()
+std::pair<wchar_t, Position> StreamReader::get()
 {
-    return current;
-}
-
-Position StreamReader::getPosition()
-{
-    return currentPosition;
+    return {current, currentPosition};
 }

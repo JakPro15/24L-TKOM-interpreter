@@ -48,10 +48,10 @@ void Lexer::skipWhitespace()
         reader.next();
 }
 
-bool Lexer::tryBuildIdentifier()
+std::optional<Token> Lexer::tryBuildIdentifier()
 {
     if(!(std::iswalpha(reader.get().first) || reader.get().first == L'_'))
-        return false;
+        return std::nullopt;
 
     std::wstringstream tokenValue;
     tokenValue.put(reader.get().first);
@@ -61,24 +61,20 @@ bool Lexer::tryBuildIdentifier()
     {
         tokenValue.put(reader.get().first);
         if(tokenValue.tellp() > MAX_IDENTIFIER_SIZE)
-            throw IdentifierTooLongError(L"Maximum identifier size exceeded", tokenBuilt.position);
+            throw IdentifierTooLongError(L"Maximum identifier size exceeded", tokenStart);
         reader.next();
     }
     std::wstring result = tokenValue.str();
     if(keywordToTokenType.find(result) != keywordToTokenType.end())
-        tokenBuilt.type = keywordToTokenType.at(result);
+        return Token{keywordToTokenType.at(result), tokenStart};
     else
-    {
-        tokenBuilt.type = IDENTIFIER;
-        tokenBuilt.value = result;
-    }
-    return true;
+        return Token{IDENTIFIER, tokenStart, result};
 }
 
-bool Lexer::tryBuildComment()
+std::optional<Token> Lexer::tryBuildComment()
 {
     if(reader.get().first != L'#')
-        return false;
+        return std::nullopt;
 
     reader.next();
 
@@ -87,12 +83,10 @@ bool Lexer::tryBuildComment()
     {
         tokenValue.put(reader.get().first);
         if(tokenValue.tellp() > MAX_COMMENT_SIZE)
-            throw CommentTooLongError(L"Maximum comment size exceeded", tokenBuilt.position);
+            throw CommentTooLongError(L"Maximum comment size exceeded", tokenStart);
         reader.next();
     }
-    tokenBuilt.type = COMMENT;
-    tokenBuilt.value = tokenValue.str();
-    return true;
+    return Token{COMMENT, tokenStart, tokenValue.str()};
 }
 
 unsigned Lexer::hexToNumber(wchar_t character)
@@ -103,9 +97,7 @@ unsigned Lexer::hexToNumber(wchar_t character)
         return character - L'a' + 10;
     if(character >= L'A' && character <= L'F')
         return character - L'A' + 10;
-    throw InvalidHexCharError(
-        std::format(L"The character {} is not a valid hex digit", character), tokenBuilt.position
-    );
+    throw InvalidHexCharError(std::format(L"The character {} is not a valid hex digit", character), tokenStart);
 }
 
 wchar_t Lexer::buildHexChar()
@@ -139,29 +131,29 @@ void Lexer::buildEscapeSequence(std::wstringstream &tokenValue)
         tokenValue.put(buildHexChar());
         break;
     case L'\n':
-        throw NewlineInStringError(L"Newline character in string literal encountered", tokenBuilt.position);
+        throw NewlineInStringError(L"Newline character in string literal encountered", tokenStart);
     case IReader::EOT:
-        throw UnterminatedStringError(L"String literal not terminated", tokenBuilt.position);
+        throw UnterminatedStringError(L"String literal not terminated", tokenStart);
     default:
         throw UnknownEscapeSequenceError(
-            std::format(L"\\{} is not a valid escape sequence", reader.get().first), tokenBuilt.position
+            std::format(L"\\{} is not a valid escape sequence", reader.get().first), tokenStart
         );
     }
 }
 
-bool Lexer::tryBuildString()
+std::optional<Token> Lexer::tryBuildString()
 {
     if(reader.get().first != L'"')
-        return false;
+        return std::nullopt;
     reader.next();
 
     std::wstringstream tokenValue;
     while(reader.get().first != L'"')
     {
         if(reader.get().first == L'\n')
-            throw NewlineInStringError(L"Newline character in string literal encountered", tokenBuilt.position);
+            throw NewlineInStringError(L"Newline character in string literal encountered", tokenStart);
         else if(reader.get().first == IReader::EOT)
-            throw UnterminatedStringError(L"String literal not terminated", tokenBuilt.position);
+            throw UnterminatedStringError(L"String literal not terminated", tokenStart);
         else if(reader.get().first == L'\\')
         {
             reader.next();
@@ -171,15 +163,12 @@ bool Lexer::tryBuildString()
         {
             tokenValue.put(reader.get().first);
             if(tokenValue.tellp() > MAX_STRING_SIZE)
-                throw StringTooLongError(L"Maximum string literal size exceeded", tokenBuilt.position);
+                throw StringTooLongError(L"Maximum string literal size exceeded", tokenStart);
         }
         reader.next();
     }
     reader.next();
-
-    tokenBuilt.type = STR_LITERAL;
-    tokenBuilt.value = tokenValue.str();
-    return true;
+    return Token{STR_LITERAL, tokenStart, tokenValue.str()};
 }
 
 int32_t Lexer::buildInteger(bool leadingZeroPermitted)
@@ -187,7 +176,7 @@ int32_t Lexer::buildInteger(bool leadingZeroPermitted)
     if(!leadingZeroPermitted && reader.get().first == L'0')
     {
         if(std::iswdigit(reader.next().first))
-            throw IntWithLeadingZeroError(L"Leading zeros in numeric constant are not permitted", tokenBuilt.position);
+            throw IntWithLeadingZeroError(L"Leading zeros in numeric constant are not permitted", tokenStart);
         return 0;
     }
     int32_t value = 0;
@@ -195,7 +184,7 @@ int32_t Lexer::buildInteger(bool leadingZeroPermitted)
     {
         int nextDigit = reader.get().first - L'0';
         if(value > (INT32_MAX - nextDigit) / 10)
-            throw IntTooLargeError(L"Maximum integer literal size exceeded", tokenBuilt.position);
+            throw IntTooLargeError(L"Maximum integer literal size exceeded", tokenStart);
         value *= 10;
         value += nextDigit;
         reader.next();
@@ -223,18 +212,14 @@ int32_t Lexer::buildExponent()
     return exponent;
 }
 
-bool Lexer::tryBuildNumber()
+std::optional<Token> Lexer::tryBuildNumber()
 {
     if(!std::iswdigit(reader.get().first))
-        return false;
+        return std::nullopt;
     int32_t integralPart = buildInteger();
 
     if(reader.get().first != L'.' && reader.get().first != L'e' && reader.get().first != L'E')
-    {
-        tokenBuilt.type = INT_LITERAL;
-        tokenBuilt.value = integralPart;
-        return true;
-    }
+        return Token{INT_LITERAL, tokenStart, integralPart};
 
     int32_t fractionalPart = 0;
     int fractionalPartDigits = 0;
@@ -250,47 +235,48 @@ bool Lexer::tryBuildNumber()
     int32_t exponent = buildExponent();
     double value = integralPart * std::pow(10., exponent) +
                    static_cast<double>(fractionalPart) * std::pow(10., exponent - fractionalPartDigits);
-    tokenBuilt.type = FLOAT_LITERAL;
-    tokenBuilt.value = value;
-    return true;
+    return Token{FLOAT_LITERAL, tokenStart, value};
 }
+
+#define ADD_OPERATOR(firstChar, returnedType) \
+    firstCharToFunction.emplace(L##firstChar, [&]() { return Token{returnedType, tokenStart}; });
 
 void Lexer::prepareOperatorMap()
 {
-    firstCharToFunction.emplace(L'{', [&]() { tokenBuilt.type = LBRACE; });
-    firstCharToFunction.emplace(L'}', [&]() { tokenBuilt.type = RBRACE; });
-    firstCharToFunction.emplace(L';', [&]() { tokenBuilt.type = SEMICOLON; });
-    firstCharToFunction.emplace(L'(', [&]() { tokenBuilt.type = LPAREN; });
-    firstCharToFunction.emplace(L')', [&]() { tokenBuilt.type = RPAREN; });
-    firstCharToFunction.emplace(L'-', [&]() { build2CharOp(L'>', OP_MINUS, ARROW); });
-    firstCharToFunction.emplace(L',', [&]() { tokenBuilt.type = COMMA; });
-    firstCharToFunction.emplace(L'$', [&]() { tokenBuilt.type = DOLLAR_SIGN; });
-    firstCharToFunction.emplace(L'=', [&]() { build3CharOp(L'=', L'=', OP_ASSIGN, OP_EQUAL, OP_IDENTICAL); });
-    firstCharToFunction.emplace(L'!', [&]() { build3CharOp(L'=', L'=', OP_CONCAT, OP_NOT_EQUAL, OP_NOT_IDENTICAL); });
-    firstCharToFunction.emplace(L'.', [&]() { tokenBuilt.type = OP_DOT; });
-    firstCharToFunction.emplace(L'@', [&]() { tokenBuilt.type = OP_STR_MULTIPLY; });
-    firstCharToFunction.emplace(L'>', [&]() { build2CharOp(L'=', OP_GREATER, OP_GREATER_EQUAL); });
-    firstCharToFunction.emplace(L'<', [&]() { build2CharOp(L'=', OP_LESSER, OP_LESSER_EQUAL); });
-    firstCharToFunction.emplace(L'+', [&]() { tokenBuilt.type = OP_PLUS; });
-    firstCharToFunction.emplace(L'*', [&]() { build2CharOp(L'*', OP_MULTIPLY, OP_EXPONENT); });
-    firstCharToFunction.emplace(L'/', [&]() { build2CharOp(L'/', OP_DIVIDE, OP_FLOOR_DIVIDE); });
-    firstCharToFunction.emplace(L'%', [&]() { tokenBuilt.type = OP_MODULO; });
-    firstCharToFunction.emplace(L'[', [&]() { tokenBuilt.type = LSQUAREBRACE; });
-    firstCharToFunction.emplace(L']', [&]() { tokenBuilt.type = RSQUAREBRACE; });
+    ADD_OPERATOR('{', LBRACE);
+    ADD_OPERATOR('}', RBRACE);
+    ADD_OPERATOR(';', SEMICOLON);
+    ADD_OPERATOR('(', LPAREN);
+    ADD_OPERATOR(')', RPAREN);
+    ADD_OPERATOR('-', build2CharOp(L'>', OP_MINUS, ARROW));
+    ADD_OPERATOR(',', COMMA);
+    ADD_OPERATOR('$', DOLLAR_SIGN);
+    ADD_OPERATOR('=', build3CharOp(L'=', L'=', OP_ASSIGN, OP_EQUAL, OP_IDENTICAL));
+    ADD_OPERATOR('!', build3CharOp(L'=', L'=', OP_CONCAT, OP_NOT_EQUAL, OP_NOT_IDENTICAL));
+    ADD_OPERATOR('.', OP_DOT);
+    ADD_OPERATOR('@', OP_STR_MULTIPLY);
+    ADD_OPERATOR('>', build2CharOp(L'=', OP_GREATER, OP_GREATER_EQUAL));
+    ADD_OPERATOR('<', build2CharOp(L'=', OP_LESSER, OP_LESSER_EQUAL));
+    ADD_OPERATOR('+', OP_PLUS);
+    ADD_OPERATOR('*', build2CharOp(L'*', OP_MULTIPLY, OP_EXPONENT));
+    ADD_OPERATOR('/', build2CharOp(L'/', OP_DIVIDE, OP_FLOOR_DIVIDE));
+    ADD_OPERATOR('%', OP_MODULO);
+    ADD_OPERATOR('[', LSQUAREBRACE);
+    ADD_OPERATOR(']', RSQUAREBRACE);
 }
 
-void Lexer::build2CharOp(wchar_t second, TokenType oneCharType, TokenType twoCharType)
+TokenType Lexer::build2CharOp(wchar_t second, TokenType oneCharType, TokenType twoCharType)
 {
     if(reader.get().first == second)
     {
-        tokenBuilt.type = twoCharType;
         reader.next();
+        return twoCharType;
     }
     else
-        tokenBuilt.type = oneCharType;
+        return oneCharType;
 }
 
-void Lexer::build3CharOp(
+TokenType Lexer::build3CharOp(
     wchar_t second, wchar_t third, TokenType oneCharType, TokenType twoCharType, TokenType threeCharType
 )
 {
@@ -298,39 +284,43 @@ void Lexer::build3CharOp(
     {
         if(reader.next().first == third)
         {
-            tokenBuilt.type = threeCharType;
             reader.next();
+            return threeCharType;
         }
         else
-            tokenBuilt.type = twoCharType;
+            return twoCharType;
     }
     else
-        tokenBuilt.type = oneCharType;
+        return oneCharType;
 }
 
-bool Lexer::tryBuildOperator()
+std::optional<Token> Lexer::tryBuildOperator()
 {
     wchar_t firstChar = reader.get().first;
     if(firstCharToFunction.find(firstChar) == firstCharToFunction.end())
-        return false;
+        return std::nullopt;
     reader.next();
-    firstCharToFunction.at(firstChar)();
-    return true;
+    return firstCharToFunction.at(firstChar)();
 }
 
 Token Lexer::getNextToken()
 {
     skipWhitespace();
-    tokenBuilt.position = reader.get().second;
+    tokenStart = reader.get().second;
     if(reader.get().first == IReader::EOT)
-    {
-        tokenBuilt.type = EOT;
-        return tokenBuilt;
-    }
-    if(tryBuildOperator() || tryBuildNumber() || tryBuildString() || tryBuildComment() || tryBuildIdentifier())
-        return tokenBuilt;
+        return Token{EOT, tokenStart};
 
-    throw UnknownTokenError(
-        std::format(L"No known token begins with character {}", reader.get().first), tokenBuilt.position
-    );
+    std::optional<Token> tokenBuilt;
+    if((tokenBuilt = tryBuildOperator()))
+        return *tokenBuilt;
+    if((tokenBuilt = tryBuildNumber()))
+        return *tokenBuilt;
+    if((tokenBuilt = tryBuildString()))
+        return *tokenBuilt;
+    if((tokenBuilt = tryBuildComment()))
+        return *tokenBuilt;
+    if((tokenBuilt = tryBuildIdentifier()))
+        return *tokenBuilt;
+
+    throw UnknownTokenError(std::format(L"No known token begins with character {}", reader.get().first), tokenStart);
 }

@@ -1,3 +1,6 @@
+#ifndef LEXEREXCEPTIONS_HPP
+#define LEXEREXCEPTIONS_HPP
+
 #include "readerExceptions.hpp"
 
 class LexerException: public ErrorAtPosition
@@ -21,3 +24,5 @@ DECLARE_LEXER_ERROR(StringTooLongError);
 DECLARE_LEXER_ERROR(IntWithLeadingZeroError);
 DECLARE_LEXER_ERROR(IntTooLargeError);
 DECLARE_LEXER_ERROR(UnknownTokenError);
+
+#endif

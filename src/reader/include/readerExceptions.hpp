@@ -1,3 +1,6 @@
+#ifndef READEREXCEPTIONS_HPP
+#define READEREXCEPTIONS_HPP
+
 #include "position.hpp"
 
 #include <stdexcept>
@@ -27,3 +30,5 @@ class ReaderException: public ErrorAtPosition
 
 DECLARE_READER_ERROR(ControlCharError);
 DECLARE_READER_ERROR(ReaderInputError);
+
+#endif

@@ -11,8 +11,11 @@
 struct Token
 {
     TokenType type;
-    std::variant<std::wstring, int32_t, double> value;
     Position position;
+    std::variant<std::wstring, int32_t, double> value;
+
+    Token(TokenType type, Position position);
+    Token(TokenType type, Position position, std::variant<std::wstring, int32_t, double> value);
 };
 
 #endif

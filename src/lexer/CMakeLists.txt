@@ -6,5 +6,6 @@ add_library(
     include/iLexer.hpp
     include/lexer.hpp
     lexer.cpp
+    token.cpp
 )
 target_compile_options(Lexer PUBLIC -fprofile-arcs -ftest-coverage)

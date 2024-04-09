@@ -12,12 +12,12 @@ const char *ErrorAtPosition::what() const noexcept
     return converter.to_bytes(message).c_str();
 }
 
-std::wstring ErrorAtPosition::getMessage()
+std::wstring ErrorAtPosition::getMessage() const
 {
     return message;
 }
 
-Position ErrorAtPosition::getPosition()
+Position ErrorAtPosition::getPosition() const
 {
     return position;
 }

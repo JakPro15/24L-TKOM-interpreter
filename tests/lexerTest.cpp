@@ -48,7 +48,14 @@ void checkTokenError(std::wstring inputString)
     std::wstringstream input(inputString);
     StreamReader reader(input);
     Lexer lexer(reader);
-    REQUIRE_THROWS_AS(lexer.getNextToken(), ErrorType);
+    try
+    {
+        lexer.getNextToken();
+    }
+    catch(const ErrorType &e)
+    {
+        REQUIRE(e.getPosition() == Position{1, 1});
+    }
 }
 
 TEST_CASE("keywords tokens", "[Lexer]")
@@ -177,6 +184,7 @@ TEST_CASE("float literals", "[Lexer]")
     checkTokenError<IntTooLargeError>(std::format(L"{}.2", tooLargeInt));
     checkTokenError<IntTooLargeError>(std::format(L"2.{}", tooLargeInt));
     checkTokenError<IntTooLargeError>(std::format(L"1e-{}", tooLargeInt));
+    checkTokenError<IntWithLeadingZeroError>(L"012.3");
 }
 
 TEST_CASE("identifiers", "[Lexer]")

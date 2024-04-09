@@ -7,8 +7,8 @@ class ErrorAtPosition: public std::exception
 public:
     ErrorAtPosition(std::wstring message, Position position);
     const char *what() const noexcept override;
-    std::wstring getMessage();
-    Position getPosition();
+    std::wstring getMessage() const;
+    Position getPosition() const;
 private:
     std::wstring message;
     Position position;

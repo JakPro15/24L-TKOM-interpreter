@@ -526,7 +526,7 @@ func main() {
 
 Możliwe jest rekurencyjne wywoływanie funkcji.
 ```
-func factorial(int n) {
+func factorial(int n) -> int {
     if(n == 0 or n == 1) {
         return 1;
     }
@@ -542,7 +542,7 @@ func main() {
 ```
 Liczba funkcji w stosie wywołań jest ograniczona - przekroczenie limitu powoduje błąd czasu wykonania.
 ```
-func factorial(int n) {
+func factorial(int n) -> int {
     return n * factorial(n - 1);
 }
 

@@ -233,7 +233,7 @@ void getAndCheckToken(ILexer &lexer, TokenType tokenType, int32_t tokenValue)
 
 TEST_CASE("factorial code example", "[Lexer]")
 {
-    std::wstringstream input(L"func factorial(int n) {\n"
+    std::wstringstream input(L"func factorial(int n) -> int {\n"
                              "    if(n == 0 or n == 1) {\n"
                              "        return 1;\n"
                              "    }\n"
@@ -251,6 +251,8 @@ TEST_CASE("factorial code example", "[Lexer]")
     getAndCheckToken(lexer, KW_INT);
     getAndCheckToken(lexer, IDENTIFIER, L"n");
     getAndCheckToken(lexer, RPAREN);
+    getAndCheckToken(lexer, ARROW);
+    getAndCheckToken(lexer, KW_INT);
     getAndCheckToken(lexer, LBRACE);
     getAndCheckToken(lexer, KW_IF);
     getAndCheckToken(lexer, LPAREN);

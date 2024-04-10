@@ -130,6 +130,7 @@ TEST_CASE("control sequence tokens", "[Lexer]")
 TEST_CASE("comments", "[Lexer]")
 {
     checkToken(L"# this is a comment", COMMENT, L" this is a comment");
+    checkToken(L"# double # hash #comment", COMMENT, L" double # hash #comment");
     checkToken(L"  \n # this is a comment\n hehe xd", COMMENT, L" this is a comment");
     std::wstring longString(Lexer::MAX_COMMENT_SIZE, L'a');
     checkToken(L"#" + longString, COMMENT, longString);
@@ -181,6 +182,8 @@ TEST_CASE("float literals", "[Lexer]")
     checkToken(L"2.2E-0", FLOAT_LITERAL, 2.2);
     checkToken(L"2.2E01", FLOAT_LITERAL, 22.0);
     checkToken(L"2.2E-01", FLOAT_LITERAL, 0.22);
+    checkToken(L"2E01", FLOAT_LITERAL, 20.0);
+    checkToken(L"2E-01", FLOAT_LITERAL, 0.2);
     int64_t largeInt = static_cast<int64_t>(INT32_MAX);
     checkToken(std::format(L"{}.0", largeInt), FLOAT_LITERAL, static_cast<double>(largeInt));
     checkToken(std::format(L"{}.E2", largeInt), FLOAT_LITERAL, static_cast<double>(largeInt) * 100);
@@ -206,6 +209,7 @@ TEST_CASE("identifiers", "[Lexer]")
 TEST_CASE("unknown token", "[Lexer]")
 {
     checkTokenError<UnknownTokenError>(L"^");
+    checkTokenError<UnknownTokenError>(L"\\n");
 }
 
 void getAndCheckToken(ILexer &lexer, TokenType tokenType)
@@ -227,7 +231,7 @@ void getAndCheckToken(ILexer &lexer, TokenType tokenType, int32_t tokenValue)
     REQUIRE(std::get<int32_t>(token.value) == tokenValue);
 }
 
-TEST_CASE("factorial code", "[Lexer]")
+TEST_CASE("factorial code example", "[Lexer]")
 {
     std::wstringstream input(L"func factorial(int n) {\n"
                              "    if(n == 0 or n == 1) {\n"
@@ -280,4 +284,81 @@ TEST_CASE("factorial code", "[Lexer]")
     getAndCheckToken(lexer, EOT);
     getAndCheckToken(lexer, EOT);
     getAndCheckToken(lexer, EOT);
+}
+
+TEST_CASE("nested structs example", "[Lexer]")
+{
+    std::wstringstream input(L"struct S1 {\n"
+                             "    int a;\n"
+                             "    int b;\n"
+                             "}\n"
+                             "variant V {\n"
+                             "    S1 s;\n"
+                             "    int i;\n"
+                             "}\n"
+                             "struct S2 {\n"
+                             "    V v;\n"
+                             "    int i;\n"
+                             "}\n"
+                             "\n"
+                             "func main() {\n"
+                             "    S2 s = {S1({2, 3}), 2};\n"
+                             "    # konieczne jest podanie typu S1\n"
+                             "}\n");
+    StreamReader reader(input);
+    Lexer lexer(reader);
+
+    getAndCheckToken(lexer, KW_STRUCT);
+    getAndCheckToken(lexer, IDENTIFIER, L"S1");
+    getAndCheckToken(lexer, LBRACE);
+    getAndCheckToken(lexer, KW_INT);
+    getAndCheckToken(lexer, IDENTIFIER, L"a");
+    getAndCheckToken(lexer, SEMICOLON);
+    getAndCheckToken(lexer, KW_INT);
+    getAndCheckToken(lexer, IDENTIFIER, L"b");
+    getAndCheckToken(lexer, SEMICOLON);
+    getAndCheckToken(lexer, RBRACE);
+    getAndCheckToken(lexer, KW_VARIANT);
+    getAndCheckToken(lexer, IDENTIFIER, L"V");
+    getAndCheckToken(lexer, LBRACE);
+    getAndCheckToken(lexer, IDENTIFIER, L"S1");
+    getAndCheckToken(lexer, IDENTIFIER, L"s");
+    getAndCheckToken(lexer, SEMICOLON);
+    getAndCheckToken(lexer, KW_INT);
+    getAndCheckToken(lexer, IDENTIFIER, L"i");
+    getAndCheckToken(lexer, SEMICOLON);
+    getAndCheckToken(lexer, RBRACE);
+    getAndCheckToken(lexer, KW_STRUCT);
+    getAndCheckToken(lexer, IDENTIFIER, L"S2");
+    getAndCheckToken(lexer, LBRACE);
+    getAndCheckToken(lexer, IDENTIFIER, L"V");
+    getAndCheckToken(lexer, IDENTIFIER, L"v");
+    getAndCheckToken(lexer, SEMICOLON);
+    getAndCheckToken(lexer, KW_INT);
+    getAndCheckToken(lexer, IDENTIFIER, L"i");
+    getAndCheckToken(lexer, SEMICOLON);
+    getAndCheckToken(lexer, RBRACE);
+    getAndCheckToken(lexer, KW_FUNC);
+    getAndCheckToken(lexer, IDENTIFIER, L"main");
+    getAndCheckToken(lexer, LPAREN);
+    getAndCheckToken(lexer, RPAREN);
+    getAndCheckToken(lexer, LBRACE);
+    getAndCheckToken(lexer, IDENTIFIER, L"S2");
+    getAndCheckToken(lexer, IDENTIFIER, L"s");
+    getAndCheckToken(lexer, OP_ASSIGN);
+    getAndCheckToken(lexer, LBRACE);
+    getAndCheckToken(lexer, IDENTIFIER, L"S1");
+    getAndCheckToken(lexer, LPAREN);
+    getAndCheckToken(lexer, LBRACE);
+    getAndCheckToken(lexer, INT_LITERAL, 2);
+    getAndCheckToken(lexer, COMMA);
+    getAndCheckToken(lexer, INT_LITERAL, 3);
+    getAndCheckToken(lexer, RBRACE);
+    getAndCheckToken(lexer, RPAREN);
+    getAndCheckToken(lexer, COMMA);
+    getAndCheckToken(lexer, INT_LITERAL, 2);
+    getAndCheckToken(lexer, RBRACE);
+    getAndCheckToken(lexer, SEMICOLON);
+    getAndCheckToken(lexer, COMMENT, L" konieczne jest podanie typu S1");
+    getAndCheckToken(lexer, RBRACE);
 }

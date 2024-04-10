@@ -775,6 +775,9 @@ LITERAL =       STRING_LITERAL
               | FLOAT_LITERAL
               | BOOL_LITERAL ;
 
+BOOL_LITERAL =  'true'
+              | 'false' ;
+
 TYPE_IDENT =    'int'
               | 'float'
               | 'str'
@@ -809,9 +812,6 @@ FLOAT_LITERAL
 ```
 Sekwencje rozpoczynające się od znaku `-` są traktowane jako literał nieujemny i unarny operator `-`.
 ```
-BOOL_LITERAL
-true|false
-
 COMMENT
 #[^\n]*\n
 ```
@@ -842,6 +842,8 @@ Poza powyższymi lekser emituje tokeny słów kluczowych:
 'float'
 'bool'
 'str'
+'true'
+'false'
 ```
 oraz innych znaków sterujących:
 ```

@@ -23,7 +23,7 @@ std::pair<wchar_t, Position> StreamReader::next()
         currentPosition.column += 1;
 
     current = source.get();
-    if(current != L'\r' && current != L'\n' && std::iswcntrl(current))
+    if(!std::iswspace(current) && std::iswcntrl(current))
         throw ControlCharError(
             std::format(L"Control character encountered in input: \\x{:x}", current), currentPosition
         );

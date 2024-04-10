@@ -13,6 +13,7 @@ public:
     std::wstring getMessage() const;
     Position getPosition() const;
 private:
+    std::string whatMessage;
     std::wstring message;
     Position position;
 };

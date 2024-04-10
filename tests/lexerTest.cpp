@@ -231,6 +231,30 @@ void getAndCheckToken(ILexer &lexer, TokenType tokenType, int32_t tokenValue)
     REQUIRE(std::get<int32_t>(token.value) == tokenValue);
 }
 
+TEST_CASE("no whitespace input", "[Lexer]")
+{
+    std::wstringstream input(L"abc+-abc");
+    StreamReader reader(input);
+    Lexer lexer(reader);
+
+    getAndCheckToken(lexer, IDENTIFIER, L"abc");
+    getAndCheckToken(lexer, OP_PLUS);
+    getAndCheckToken(lexer, OP_MINUS);
+    getAndCheckToken(lexer, IDENTIFIER, L"abc");
+}
+
+TEST_CASE("a lot of whitespace input", "[Lexer]")
+{
+    std::wstringstream input(L"abc\t  +  \t-\n\n\nabc");
+    StreamReader reader(input);
+    Lexer lexer(reader);
+
+    getAndCheckToken(lexer, IDENTIFIER, L"abc");
+    getAndCheckToken(lexer, OP_PLUS);
+    getAndCheckToken(lexer, OP_MINUS);
+    getAndCheckToken(lexer, IDENTIFIER, L"abc");
+}
+
 TEST_CASE("factorial code example", "[Lexer]")
 {
     std::wstringstream input(L"func factorial(int n) -> int {\n"

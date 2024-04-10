@@ -50,19 +50,20 @@ void Lexer::skipWhitespace()
 
 std::optional<Token> Lexer::tryBuildIdentifier()
 {
-    if(!(std::iswalpha(reader.get().first) || reader.get().first == L'_'))
+    wchar_t current = reader.get().first;
+    if(!(std::iswalpha(current) || current == L'_'))
         return std::nullopt;
 
     std::wstringstream tokenValue;
-    tokenValue.put(reader.get().first);
-    reader.next();
+    tokenValue.put(current);
+    current = reader.next().first;
 
-    while(std::isalnum(reader.get().first) || reader.get().first == L'_' || reader.get().first == L'\'')
+    while(std::isalnum(current) || current == L'_' || current == L'\'')
     {
-        tokenValue.put(reader.get().first);
+        tokenValue.put(current);
         if(tokenValue.tellp() > MAX_IDENTIFIER_SIZE)
             throw IdentifierTooLongError(L"Maximum identifier size exceeded", tokenStart);
-        reader.next();
+        current = reader.next().first;
     }
     std::wstring result = tokenValue.str();
     if(keywordToTokenType.find(result) != keywordToTokenType.end())
@@ -76,15 +77,14 @@ std::optional<Token> Lexer::tryBuildComment()
     if(reader.get().first != L'#')
         return std::nullopt;
 
-    reader.next();
-
+    wchar_t current = reader.next().first;
     std::wstringstream tokenValue;
-    while(reader.get().first != L'\n' && reader.get().first != IReader::EOT)
+    while(current != L'\n' && current != IReader::EOT)
     {
-        tokenValue.put(reader.get().first);
+        tokenValue.put(current);
         if(tokenValue.tellp() > MAX_COMMENT_SIZE)
             throw CommentTooLongError(L"Maximum comment size exceeded", tokenStart);
-        reader.next();
+        current = reader.next().first;
     }
     return Token{COMMENT, tokenStart, tokenValue.str()};
 }
@@ -145,27 +145,27 @@ std::optional<Token> Lexer::tryBuildString()
 {
     if(reader.get().first != L'"')
         return std::nullopt;
-    reader.next();
+    wchar_t current = reader.next().first;
 
     std::wstringstream tokenValue;
-    while(reader.get().first != L'"')
+    while(current != L'"')
     {
-        if(reader.get().first == L'\n')
+        if(current == L'\n')
             throw NewlineInStringError(L"Newline character in string literal encountered", tokenStart);
-        else if(reader.get().first == IReader::EOT)
+        else if(current == IReader::EOT)
             throw UnterminatedStringError(L"String literal not terminated", tokenStart);
-        else if(reader.get().first == L'\\')
+        else if(current == L'\\')
         {
             reader.next();
             buildEscapeSequence(tokenValue);
         }
         else
         {
-            tokenValue.put(reader.get().first);
+            tokenValue.put(current);
             if(tokenValue.tellp() > MAX_STRING_SIZE)
                 throw StringTooLongError(L"Maximum string literal size exceeded", tokenStart);
         }
-        reader.next();
+        current = reader.next().first;
     }
     reader.next();
     return Token{STR_LITERAL, tokenStart, tokenValue.str()};
@@ -173,21 +173,22 @@ std::optional<Token> Lexer::tryBuildString()
 
 std::pair<int32_t, int> Lexer::buildIntegerWithLeadingZeros()
 {
+    wchar_t current = reader.get().first;
     int leadingZeros = 0;
-    while(reader.get().first == L'0')
+    while(current == L'0')
     {
         leadingZeros += 1;
-        reader.next();
+        current = reader.next().first;
     }
     int32_t value = 0;
-    while(std::iswdigit(reader.get().first))
+    while(std::iswdigit(current))
     {
-        int nextDigit = reader.get().first - L'0';
+        int nextDigit = current - L'0';
         if(value > (INT32_MAX - nextDigit) / 10)
             throw IntTooLargeError(L"Maximum integer literal size exceeded", tokenStart);
         value *= 10;
         value += nextDigit;
-        reader.next();
+        current = reader.next().first;
     }
     return {value, leadingZeros};
 }
@@ -217,9 +218,9 @@ std::optional<int32_t> Lexer::tryBuildExponent()
     int32_t exponent = 0;
     if(reader.next().first == L'-')
     {
-        exponentNegative = true;
         if(!std::iswdigit(reader.next().first))
             throw InvalidExponentError(L"Exponent consisting of only a minus sign is not permitted", tokenStart);
+        exponentNegative = true;
     }
     if(std::iswdigit(reader.get().first))
         exponent = buildIntegerWithLeadingZeros().first;

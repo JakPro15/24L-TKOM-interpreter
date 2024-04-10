@@ -128,13 +128,15 @@ Poniższa tabela prezentuje wspierane operatory. Wszystkie operatory, poza `(` `
 
 `/`, `//`, `%` dla drugiego argumentu 0 powodują błąd czasu wykonania.
 
+Jeżeli operacja potęgowania (operator `**`) nie zwróciłaby liczby rzeczywistej, następuje błąd czasu wykonania.
+
 `===`, `!==` traktują wartości jako różne jeżeli argumenty są różnych typów.
 
 `is` dla rekordów wariantowych zwraca `true`, jeżeli typ podany jako prawy argument jest typem aktualnie przechowywanym w rekordzie.
 
 Operator `.` jest jedynym, którego można używać po lewej stronie przypisania.
 
-Wszelkie przekroczenia zakresu zmiennych typu `int` oraz `float` powodują błąd czasu wykonania.
+Wszelkie przekroczenia zakresu zmiennych typu `int` powodują błąd czasu wykonania.
 
 Operatory `==`, `===`, `!=` i `!==` dla struktur wymagają tego samego typu dla obu argumentów i wykonują porównanie każdego elementu struktury  odpowiednim operatorem.
 
@@ -784,7 +786,10 @@ TYPE_IDENT =    'int'
 ### Reguły leksera (wyrażenia regularne)
 ```
 IDENTIFIER
-[a-zA-Z_][a-zA-Z0-9_']*
+[[:alpha:]_][[:alnum:]_']*
+
+[:alpha:] - dowolny znak, dla którego std::iswalpha zwraca true
+[:alnum:] - dowolny znak, dla którego std::iswalnum zwraca true
 ```
 Identyfikator nie może być słowem kluczowym. Maksymalna długość identyfikatora jest ograniczona.
 
@@ -870,24 +875,21 @@ oraz innych znaków sterujących:
 '['
 ']'
 ```
-Liczba tokenów w wejściu będzie ograniczona, w celu uniknięcia błędów interpretera związanych z przepełnieniem stosu, itp., które mogłyby wystąpić przy bardzo dużych programach.
+Rozmiar programu będzie ograniczony, w celu uniknięcia błędów interpretera związanych z przepełnieniem stosu, itp., które mogłyby wystąpić przy bardzo dużych programach.
 
 ## 3. Struktura programu
-Interpreter będzie pisany w języku C++.
+Interpreter jest pisany w języku C++.
 
 W ogólności kod języka będzie przetwarzany kolejno przez następujące klasy:
-- InputReader - przyjmuje dowolny std::ostream oraz ErrorHandler, leniwie produkuje kolejne znaki. Zamienia wszystkie sekwencje oznaczające koniec linii na pojedynczy znak `\n`. Posiada metodę zwracającą kolejny znak z wejścia wraz z jego pozycją (numer linii i kolumny).
-- Lexer - wykonuje analizę leksykalną, leniwie produkuje kolejne tokeny. Przyjmuje InputReader i ErrorHandler; posiada metodę zwracającą kolejny token, wraz z jego pozycją w źródle.
-- CommentDiscarder - przyjmuje Lexer, ze strumienia tokenów usuwa tokeny komentarzy.
-- Parser - przyjmuje CommentDiscarder i ErrorHandler, ze strumienia tokenów tworzy drzewo składniowe. Klasy węzłów drzewa składniowego będą wspierać wzorzec wizytatora, w celu umożliwienia wypisania drzewa do stringa.
-- SemanticAnalyzer - przyjmuje drzewo składniowe wyprodukowane przez Parser oraz ErrorHandler, sprawdza jego poprawność semantyczną oraz w razie potrzeby je modyfikuje, np. dodając instrukcje konwersji typów.
-- CodeGenerator - przyjmuje sprawdzone przez SemanticAnalyzer drzewo składniowe oraz ErrorHandler, produkuje sekwencję instrukcji kodu pośredniego.
-- Interpreter - przyjmuje wygenerowaną sekwencję instrukcji kodu pośredniego, ErrorHandler oraz strumień wyjściowy programu, wykonuje program.
-- ErrorHandler - wypisuje podany błąd na wyjście standardowe i kończy wykonanie programu.
+- StreamReader - przyjmuje dowolny std::istream, leniwie produkuje kolejne znaki. Zamienia wszystkie sekwencje oznaczające koniec linii na pojedynczy znak `\n`. Rzuca wyjątek, jeżeli napotka znak kontrolny niebędący białym znakiem. Posiada metodę zwracającą kolejny znak z wejścia wraz z jego pozycją (numer linii i kolumny).
+- Lexer - wykonuje analizę leksykalną, leniwie produkuje kolejne tokeny. Przyjmuje obiekt spełniający interfejs IReader; posiada metodę zwracającą kolejny token, wraz z jego pozycją w źródle.
+- CommentDiscarder - przyjmuje obiekt spełniający interfejs ILexer, ze strumienia tokenów usuwa tokeny komentarzy.
+- Parser - przyjmuje obiekt spełniający interfejs ILexer, ze strumienia tokenów tworzy drzewo składniowe. Klasy węzłów drzewa składniowego będą wspierać wzorzec wizytatora, w celu umożliwienia wypisania drzewa do stringa oraz dla dalszych elementów programu.
+- SemanticAnalyzer - przyjmuje drzewo składniowe wyprodukowane przez Parser, sprawdza jego poprawność semantyczną oraz w razie potrzeby je modyfikuje, np. dodając instrukcje konwersji typów.
+- CodeGenerator - przyjmuje sprawdzone przez SemanticAnalyzer drzewo składniowe, produkuje sekwencję instrukcji kodu pośredniego.
+- Interpreter - przyjmuje wygenerowaną sekwencję instrukcji kodu pośredniego oraz strumień wyjściowy programu, wykonuje program.
 
-Żeby umożliwić testy jednostkowe poszczególnych klas, jako argumenty przyjmowane będą interfejsy klas: ILexer (wspólny interfejs dla klas Lexer i CommentDiscarder), IParser, IErrorHandler. Interfejs dla InputReadera nie jest potrzebny; klasa zastępująca go w testach musiałaby i tak zaimplementować większość jego funkcjonalności. Interfejsy dla pozostałych klas nie są potrzebne, bo nie są one przekazywane jako argument dalszym częściom potoku.
-
-Wartości takie jak maksymalna długość identyfikatora lub stałej tekstowej, zakresy typów `int` i `float`, maksymalna liczba tokenów w wejściu będą określone w kodzie, jako argumenty dla leksera.
+Wartości takie jak maksymalna długość identyfikatora lub stałej tekstowej, zakres typu `int` będą określone w kodzie, jako argumenty dla leksera.
 
 ### Obsługa błędów
 
@@ -930,7 +932,7 @@ Wszystkie argumenty po opcji `--args` są traktowane jak argumenty wywołania in
 
 Głównym sposobem testowania programu będą testy jednostkowe poszczególnych części programu.
 
-Testy jednostkowe InputReadera będą polegać na sprawdzeniu poprawnych konwersji różnych zakończeń linii oraz sprawdzaniu poprawności wyliczania pozycji znaków w źródle.
+Testy jednostkowe StreamReadera polegają na sprawdzeniu poprawnych konwersji różnych zakończeń linii oraz sprawdzaniu poprawności wyliczania pozycji znaków w źródle. Ponadto, sprawdzane jest poprawne rzucanie wyjątków dla niepoprawnych znaków lub przy błędzie strumienia wejściowego.
 
 Testy jednostkowe Lexera będą polegać na sprawdzaniu poprawnej generacji różnego typu tokenów (min. jeden test na jeden token). Testowane będą błędne sekwencje dla każdego z tokenów: zbyt długi identyfikator, zbyt duży literał całkowity, zmiennoprzecinkowy i stringowy, zbyt długi komentarz. Ponadto, będą testowane również przypadki różnej ilości białych znaków między tokenami, np.:
 ```

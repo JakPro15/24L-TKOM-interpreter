@@ -18,28 +18,29 @@ Token lexSingleToken(std::wstring inputString)
 
 void checkToken(std::wstring inputString, TokenType tokenType)
 {
-    REQUIRE(lexSingleToken(inputString).type == tokenType);
+    REQUIRE(lexSingleToken(inputString).getType() == tokenType);
+    REQUIRE_NOTHROW(std::get<std::monostate>(lexSingleToken(inputString).getValue()));
 }
 
 void checkToken(std::wstring inputString, TokenType tokenType, std::wstring tokenValue)
 {
     Token token = lexSingleToken(inputString);
-    REQUIRE(token.type == tokenType);
-    REQUIRE(std::get<std::wstring>(token.value) == tokenValue);
+    REQUIRE(token.getType() == tokenType);
+    REQUIRE(std::get<std::wstring>(token.getValue()) == tokenValue);
 }
 
 void checkToken(std::wstring inputString, TokenType tokenType, double tokenValue)
 {
     Token token = lexSingleToken(inputString);
-    REQUIRE(token.type == tokenType);
-    REQUIRE_THAT(std::get<double>(token.value), Catch::Matchers::WithinAbsMatcher(tokenValue, 1e-6));
+    REQUIRE(token.getType() == tokenType);
+    REQUIRE_THAT(std::get<double>(token.getValue()), Catch::Matchers::WithinAbsMatcher(tokenValue, 1e-6));
 }
 
 void checkToken(std::wstring inputString, TokenType tokenType, int32_t tokenValue)
 {
     Token token = lexSingleToken(inputString);
-    REQUIRE(token.type == tokenType);
-    REQUIRE(std::get<int32_t>(token.value) == tokenValue);
+    REQUIRE(token.getType() == tokenType);
+    REQUIRE(std::get<int32_t>(token.getValue()) == tokenValue);
 }
 
 template <typename ErrorType>
@@ -218,21 +219,23 @@ TEST_CASE("unknown token", "[Lexer]")
 
 void getAndCheckToken(ILexer &lexer, TokenType tokenType)
 {
-    REQUIRE(lexer.getNextToken().type == tokenType);
+    Token token = lexer.getNextToken();
+    REQUIRE(token.getType() == tokenType);
+    REQUIRE_NOTHROW(std::get<std::monostate>(token.getValue()));
 }
 
 void getAndCheckToken(ILexer &lexer, TokenType tokenType, std::wstring tokenValue)
 {
     Token token = lexer.getNextToken();
-    REQUIRE(token.type == tokenType);
-    REQUIRE(std::get<std::wstring>(token.value) == tokenValue);
+    REQUIRE(token.getType() == tokenType);
+    REQUIRE(std::get<std::wstring>(token.getValue()) == tokenValue);
 }
 
 void getAndCheckToken(ILexer &lexer, TokenType tokenType, int32_t tokenValue)
 {
     Token token = lexer.getNextToken();
-    REQUIRE(token.type == tokenType);
-    REQUIRE(std::get<int32_t>(token.value) == tokenValue);
+    REQUIRE(token.getType() == tokenType);
+    REQUIRE(std::get<int32_t>(token.getValue()) == tokenValue);
 }
 
 TEST_CASE("no whitespace input", "[Lexer]")

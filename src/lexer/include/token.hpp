@@ -8,14 +8,21 @@
 #include <string>
 #include <variant>
 
-struct Token
+class Token
 {
+public:
+    Token(TokenType type, Position position);
+    Token(TokenType type, Position position, std::wstring value);
+    Token(TokenType type, Position position, int32_t value);
+    Token(TokenType type, Position position, double value);
+
+    TokenType getType() const;
+    Position getPosition() const;
+    std::variant<std::monostate, std::wstring, int32_t, double> getValue() const;
+private:
     TokenType type;
     Position position;
-    std::variant<std::wstring, int32_t, double> value;
-
-    Token(TokenType type, Position position);
-    Token(TokenType type, Position position, std::variant<std::wstring, int32_t, double> value);
+    std::variant<std::monostate, std::wstring, int32_t, double> value;
 };
 
 #endif

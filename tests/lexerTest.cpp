@@ -157,6 +157,10 @@ TEST_CASE("strings", "[Lexer]")
     checkTokenError<StringTooLongError>(L"\"A" + longString + L"\"");
     checkTokenError<UnterminatedStringError>(L"\"abc\\");
     checkTokenError<NewlineInStringError>(L"\"abc\\\n");
+    checkTokenError<UnterminatedStringError>(L"\"\\x");
+    checkTokenError<NewlineInStringError>(L"\"\\x\n\"");
+    checkTokenError<UnterminatedStringError>(L"\"\\xA");
+    checkTokenError<NewlineInStringError>(L"\"\\xA\n\"");
 }
 
 TEST_CASE("integer literals", "[Lexer]")

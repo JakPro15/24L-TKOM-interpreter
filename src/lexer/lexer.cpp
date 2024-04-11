@@ -91,6 +91,10 @@ std::optional<Token> Lexer::tryBuildComment()
 
 unsigned Lexer::hexToNumber(wchar_t character)
 {
+    if(character == L'\n')
+        throw NewlineInStringError(L"Newline character in string literal encountered", tokenStart);
+    if(character == IReader::EOT)
+        throw UnterminatedStringError(L"String literal not terminated", tokenStart);
     if(character >= L'0' && character <= L'9')
         return character - L'0';
     if(character >= L'a' && character <= L'f')

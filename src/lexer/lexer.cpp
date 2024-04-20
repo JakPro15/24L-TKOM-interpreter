@@ -69,9 +69,9 @@ std::optional<Token> Lexer::tryBuildIdentifier()
     }
     std::wstring result = tokenValue.str();
     if(keywordToTokenType.find(result) != keywordToTokenType.end())
-        return Token{keywordToTokenType.at(result), tokenStart};
+        return Token(keywordToTokenType.at(result), tokenStart);
     else
-        return Token{IDENTIFIER, tokenStart, result};
+        return Token(IDENTIFIER, tokenStart, result);
 }
 
 std::optional<Token> Lexer::tryBuildComment()
@@ -88,7 +88,7 @@ std::optional<Token> Lexer::tryBuildComment()
             throw CommentTooLongError(L"Maximum comment size exceeded", tokenStart);
         current = reader.next().first;
     }
-    return Token{COMMENT, tokenStart, tokenValue.str()};
+    return Token(COMMENT, tokenStart, tokenValue.str());
 }
 
 unsigned Lexer::hexToNumber(wchar_t character)
@@ -174,7 +174,7 @@ std::optional<Token> Lexer::tryBuildString()
         current = reader.next().first;
     }
     reader.next();
-    return Token{STR_LITERAL, tokenStart, tokenValue.str()};
+    return Token(STR_LITERAL, tokenStart, tokenValue.str());
 }
 
 std::pair<int32_t, int> Lexer::buildIntegerWithLeadingZeros()
@@ -249,7 +249,7 @@ std::optional<Token> Lexer::tryBuildFraction(int32_t integralPart)
 
     double value = integralPart * std::pow(10., *exponent) +
                    static_cast<double>(fractionalPart->first) * std::pow(10., *exponent - fractionalPart->second);
-    return Token{FLOAT_LITERAL, tokenStart, value};
+    return Token(FLOAT_LITERAL, tokenStart, value);
 }
 
 std::optional<Token> Lexer::tryBuildNumber()
@@ -264,11 +264,11 @@ std::optional<Token> Lexer::tryBuildNumber()
     if((tokenBuilt = tryBuildFraction(integralPart)))
         return tokenBuilt;
 
-    return Token{INT_LITERAL, tokenStart, integralPart};
+    return Token(INT_LITERAL, tokenStart, integralPart);
 }
 
 #define ADD_OPERATOR(firstChar, returnedType) \
-    firstCharToFunction.emplace(L##firstChar, [&]() { return Token{returnedType, tokenStart}; });
+    firstCharToFunction.emplace(L##firstChar, [&]() { return Token(returnedType, tokenStart); });
 
 void Lexer::prepareOperatorMap()
 {
@@ -341,7 +341,7 @@ Token Lexer::getNextToken()
     skipWhitespace();
     tokenStart = reader.get().second;
     if(reader.get().first == IReader::EOT)
-        return Token{EOT, tokenStart};
+        return Token(EOT, tokenStart);
 
     std::optional<Token> tokenBuilt;
     ATTEMPT(tryBuildOperator);

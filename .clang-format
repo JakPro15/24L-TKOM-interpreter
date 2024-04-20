@@ -99,7 +99,7 @@ IntegerLiteralSeparator:
   Hex: 0
 KeepEmptyLinesAtTheStartOfBlocks: false
 LambdaBodyIndentation: Signature
-LineEnding: CRLF
+LineEnding: LF
 MacroBlockBegin: ''
 MacroBlockEnd: ''
 MaxEmptyLinesToKeep: 2

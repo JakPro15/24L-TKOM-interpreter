@@ -4,7 +4,7 @@
 
 #include <format>
 
-StreamReader::StreamReader(std::wistream &source): source(source), current(0), currentPosition(Position{1, 0})
+StreamReader::StreamReader(std::wistream &source): source(source), current(0), currentPosition(Position(1, 0))
 {
     next(); // set to the first character of input
 }

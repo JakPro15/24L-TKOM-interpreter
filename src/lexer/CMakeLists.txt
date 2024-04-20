@@ -8,4 +8,6 @@ add_library(
     lexer.cpp
     token.cpp
 )
+target_include_directories(Lexer PUBLIC include)
 target_compile_options(Lexer PUBLIC -fprofile-arcs -ftest-coverage)
+target_link_libraries(Lexer Reader)

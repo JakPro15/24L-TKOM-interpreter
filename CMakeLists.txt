@@ -6,9 +6,6 @@ set(CMAKE_SKIP_INSTALL_RULES True)
 
 add_compile_options(-std=c++20 -Wall -Wextra -Wpedantic -Werror -Og -g)
 
-include_directories(src/reader/include)
-include_directories(src/lexer/include)
-
 enable_testing()
 
 add_subdirectory(src/reader)

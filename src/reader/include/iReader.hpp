@@ -19,7 +19,7 @@ public:
     // Returns EOT when end of input is reached.
     virtual std::pair<wchar_t, Position> get() = 0;
 
-    virtual ~IReader() {}
+    virtual ~IReader() = default;
 };
 
 #endif

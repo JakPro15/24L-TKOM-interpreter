@@ -5,8 +5,10 @@ add_library(
     include/token.hpp
     include/iLexer.hpp
     include/lexer.hpp
+    include/commentDiscarder.hpp
     lexer.cpp
     token.cpp
+    commentDiscarder.cpp
 )
 target_include_directories(Lexer PUBLIC include)
 target_compile_options(Lexer PUBLIC -fprofile-arcs -ftest-coverage)

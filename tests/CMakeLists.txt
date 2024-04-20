@@ -16,10 +16,13 @@ endif()
 
 add_executable(
     UnitTests
+    include/fakeLexer.hpp
     readerTest.cpp
     lexerTest.cpp
+    commentDiscarderTest.cpp
 )
 target_compile_options(UnitTests PUBLIC -fprofile-arcs -ftest-coverage)
+target_include_directories(UnitTests PUBLIC include)
 target_link_options(UnitTests PUBLIC -lgcov --coverage)
 
 target_link_libraries(UnitTests Reader)

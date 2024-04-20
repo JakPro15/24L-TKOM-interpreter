@@ -19,6 +19,7 @@ public:
     TokenType getType() const;
     Position getPosition() const;
     std::variant<std::monostate, std::wstring, int32_t, double> getValue() const;
+    bool operator==(const Token &) const = default;
 private:
     TokenType type;
     Position position;

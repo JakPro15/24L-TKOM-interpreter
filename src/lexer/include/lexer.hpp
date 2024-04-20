@@ -12,7 +12,7 @@
 class Lexer: public ILexer
 {
 public:
-    Lexer(IReader &reader);
+    explicit Lexer(IReader &reader);
     Token getNextToken() override;
 
     static const int MAX_IDENTIFIER_SIZE = 40;

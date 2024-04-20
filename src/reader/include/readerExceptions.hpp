@@ -5,17 +5,10 @@
 
 #include <stdexcept>
 
-class ErrorAtPosition: public std::exception
+class ErrorAtPosition: public std::runtime_error
 {
 public:
     ErrorAtPosition(std::wstring message, Position position);
-    const char *what() const noexcept override;
-    std::wstring getMessage() const;
-    Position getPosition() const;
-private:
-    std::string whatMessage;
-    std::wstring message;
-    Position position;
 };
 
 class ReaderException: public ErrorAtPosition

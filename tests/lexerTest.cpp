@@ -49,14 +49,7 @@ void checkTokenError(std::wstring inputString)
     std::wstringstream input(inputString);
     StreamReader reader(input);
     Lexer lexer(reader);
-    try
-    {
-        lexer.getNextToken();
-    }
-    catch(const ErrorType &e)
-    {
-        REQUIRE(e.getPosition() == Position{1, 1});
-    }
+    REQUIRE_THROWS_AS(lexer.getNextToken(), ErrorType);
 }
 
 TEST_CASE("keywords tokens", "[Lexer]")

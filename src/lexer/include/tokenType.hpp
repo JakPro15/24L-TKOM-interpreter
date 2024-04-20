@@ -60,8 +60,7 @@ enum class TokenType
     TRUE_LITERAL,
     FALSE_LITERAL,
     COMMENT,
-    EOT,
-    UNKNOWN
+    EOT
 };
 
 #endif

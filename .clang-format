@@ -33,7 +33,7 @@ BraceWrapping:
     AfterControlStatement: Always
     AfterEnum: true
     AfterFunction: true
-    AfterNamespace: true
+    AfterNamespace: false
     AfterObjCDeclaration: true
     AfterStruct: true
     AfterUnion: true
@@ -103,7 +103,7 @@ LineEnding: CRLF
 MacroBlockBegin: ''
 MacroBlockEnd: ''
 MaxEmptyLinesToKeep: 2
-NamespaceIndentation: All
+NamespaceIndentation: None
 PPIndentWidth: 0
 PackConstructorInitializers: BinPack
 PenaltyBreakAssignment: 1000

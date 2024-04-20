@@ -11,6 +11,7 @@
 
 using enum TokenType;
 
+namespace {
 const std::unordered_map<std::wstring, TokenType> keywordToTokenType = {
     {L"include", KW_INCLUDE},
     {L"struct", KW_STRUCT},
@@ -36,6 +37,7 @@ const std::unordered_map<std::wstring, TokenType> keywordToTokenType = {
     {L"true", TRUE_LITERAL},
     {L"false", FALSE_LITERAL},
 };
+}
 
 Lexer::Lexer(IReader &reader): reader(reader)
 {

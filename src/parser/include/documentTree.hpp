@@ -1,4 +1,8 @@
-#include "iVisitable.hpp"
+#ifndef DOCUMENTTREE_HPP
+#define DOCUMENTTREE_HPP
+
+#include "documentTreeVisitor.hpp"
+#include "position.hpp"
 
 #include <memory>
 #include <optional>
@@ -7,275 +11,352 @@
 #include <variant>
 #include <vector>
 
-#define DECLARE_ACCEPT                      \
-    void accept(IVisitor &visitor) override \
-    {                                       \
-        visitor.visit(*this);               \
-    }
+class DocumentTreeNode
+{
+public:
+    DocumentTreeNode(Position position);
+    Position getPosition();
+    virtual void accept(DocumentTreeVisitor &visitor) = 0;
+    virtual ~DocumentTreeNode() = default;
+private:
+    Position position;
+};
 
-struct Expression: public IVisitable
-{};
+struct Expression: public DocumentTreeNode
+{
+    using DocumentTreeNode::DocumentTreeNode;
+};
 
 struct Literal: public Expression
 {
+    Literal(Position position, std::variant<std::wstring, int32_t, double, bool> value);
+
     std::variant<std::wstring, int32_t, double, bool> value;
-    DECLARE_ACCEPT
+    void accept(DocumentTreeVisitor &visitor) override;
 };
 
-struct IsExpression: public Expression
+struct BinaryOperation: public Expression
 {
+    BinaryOperation(Position position, std::unique_ptr<Expression> left, std::unique_ptr<Expression> right);
     std::unique_ptr<Expression> left, right;
-    DECLARE_ACCEPT
 };
 
-struct OrExpression: public Expression
+struct IsExpression: public BinaryOperation
 {
-    std::unique_ptr<Expression> left, right;
-    DECLARE_ACCEPT
+    using BinaryOperation::BinaryOperation;
+    void accept(DocumentTreeVisitor &visitor) override;
 };
 
-struct XorExpression: public Expression
+struct OrExpression: public BinaryOperation
 {
-    std::unique_ptr<Expression> left, right;
-    DECLARE_ACCEPT
+    using BinaryOperation::BinaryOperation;
+    void accept(DocumentTreeVisitor &visitor) override;
 };
 
-struct AndExpression: public Expression
+struct XorExpression: public BinaryOperation
 {
-    std::unique_ptr<Expression> left, right;
-    DECLARE_ACCEPT
+    using BinaryOperation::BinaryOperation;
+    void accept(DocumentTreeVisitor &visitor) override;
 };
 
-struct EqualExpression: public Expression
+struct AndExpression: public BinaryOperation
 {
-    std::unique_ptr<Expression> left, right;
-    DECLARE_ACCEPT
+    using BinaryOperation::BinaryOperation;
+    void accept(DocumentTreeVisitor &visitor) override;
 };
 
-struct NotEqualExpression: public Expression
+struct EqualExpression: public BinaryOperation
 {
-    std::unique_ptr<Expression> left, right;
-    DECLARE_ACCEPT
+    using BinaryOperation::BinaryOperation;
+    void accept(DocumentTreeVisitor &visitor) override;
 };
 
-struct IdenticalExpression: public Expression
+struct NotEqualExpression: public BinaryOperation
 {
-    std::unique_ptr<Expression> left, right;
-    DECLARE_ACCEPT
+    using BinaryOperation::BinaryOperation;
+    void accept(DocumentTreeVisitor &visitor) override;
 };
 
-struct NotIdenticalExpression: public Expression
+struct IdenticalExpression: public BinaryOperation
 {
-    std::unique_ptr<Expression> left, right;
-    DECLARE_ACCEPT
+    using BinaryOperation::BinaryOperation;
+    void accept(DocumentTreeVisitor &visitor) override;
 };
 
-struct ConcatExpression: public Expression
+struct NotIdenticalExpression: public BinaryOperation
 {
-    std::unique_ptr<Expression> left, right;
-    DECLARE_ACCEPT
+    using BinaryOperation::BinaryOperation;
+    void accept(DocumentTreeVisitor &visitor) override;
 };
 
-struct StringMultiplyExpression: public Expression
+struct ConcatExpression: public BinaryOperation
 {
-    std::unique_ptr<Expression> left, right;
-    DECLARE_ACCEPT
+    using BinaryOperation::BinaryOperation;
+    void accept(DocumentTreeVisitor &visitor) override;
 };
 
-struct GreaterExpression: public Expression
+struct StringMultiplyExpression: public BinaryOperation
 {
-    std::unique_ptr<Expression> left, right;
-    DECLARE_ACCEPT
+    using BinaryOperation::BinaryOperation;
+    void accept(DocumentTreeVisitor &visitor) override;
 };
 
-struct LesserExpression: public Expression
+struct GreaterExpression: public BinaryOperation
 {
-    std::unique_ptr<Expression> left, right;
-    DECLARE_ACCEPT
+    using BinaryOperation::BinaryOperation;
+    void accept(DocumentTreeVisitor &visitor) override;
 };
 
-struct GreaterEqualExpression: public Expression
+struct LesserExpression: public BinaryOperation
 {
-    std::unique_ptr<Expression> left, right;
-    DECLARE_ACCEPT
+    using BinaryOperation::BinaryOperation;
+    void accept(DocumentTreeVisitor &visitor) override;
 };
 
-struct LesserEqualExpression: public Expression
+struct GreaterEqualExpression: public BinaryOperation
 {
-    std::unique_ptr<Expression> left, right;
-    DECLARE_ACCEPT
+    using BinaryOperation::BinaryOperation;
+    void accept(DocumentTreeVisitor &visitor) override;
 };
 
-struct PlusExpression: public Expression
+struct LesserEqualExpression: public BinaryOperation
 {
-    std::unique_ptr<Expression> left, right;
-    DECLARE_ACCEPT
+    using BinaryOperation::BinaryOperation;
+    void accept(DocumentTreeVisitor &visitor) override;
 };
 
-struct MinusExpression: public Expression
+struct PlusExpression: public BinaryOperation
 {
-    std::unique_ptr<Expression> left, right;
-    DECLARE_ACCEPT
+    using BinaryOperation::BinaryOperation;
+    void accept(DocumentTreeVisitor &visitor) override;
 };
 
-struct MultiplyExpression: public Expression
+struct MinusExpression: public BinaryOperation
 {
-    std::unique_ptr<Expression> left, right;
-    DECLARE_ACCEPT
+    using BinaryOperation::BinaryOperation;
+    void accept(DocumentTreeVisitor &visitor) override;
 };
 
-struct DivideExpression: public Expression
+struct MultiplyExpression: public BinaryOperation
 {
-    std::unique_ptr<Expression> left, right;
-    DECLARE_ACCEPT
+    using BinaryOperation::BinaryOperation;
+    void accept(DocumentTreeVisitor &visitor) override;
 };
 
-struct FloorDivideExpression: public Expression
+struct DivideExpression: public BinaryOperation
 {
-    std::unique_ptr<Expression> left, right;
-    DECLARE_ACCEPT
+    using BinaryOperation::BinaryOperation;
+    void accept(DocumentTreeVisitor &visitor) override;
 };
 
-struct ModuloExpression: public Expression
+struct FloorDivideExpression: public BinaryOperation
 {
-    std::unique_ptr<Expression> left, right;
-    DECLARE_ACCEPT
+    using BinaryOperation::BinaryOperation;
+    void accept(DocumentTreeVisitor &visitor) override;
 };
 
-struct ExponentExpression: public Expression
+struct ModuloExpression: public BinaryOperation
 {
-    std::unique_ptr<Expression> left, right;
-    DECLARE_ACCEPT
+    using BinaryOperation::BinaryOperation;
+    void accept(DocumentTreeVisitor &visitor) override;
+};
+
+struct ExponentExpression: public BinaryOperation
+{
+    using BinaryOperation::BinaryOperation;
+    void accept(DocumentTreeVisitor &visitor) override;
 };
 
 struct UnaryMinusExpression: public Expression
 {
+    UnaryMinusExpression(Position position, std::unique_ptr<Expression> value);
     std::unique_ptr<Expression> value;
-    DECLARE_ACCEPT
+    void accept(DocumentTreeVisitor &visitor) override;
 };
 
 struct NotExpression: public Expression
 {
+    NotExpression(Position position, std::unique_ptr<Expression> value);
     std::unique_ptr<Expression> value;
-    DECLARE_ACCEPT
+    void accept(DocumentTreeVisitor &visitor) override;
 };
 
-struct SubscriptExpression: public Expression
+struct SubscriptExpression: public BinaryOperation
 {
-    std::unique_ptr<Expression> subscripted, index;
-    DECLARE_ACCEPT
+    using BinaryOperation::BinaryOperation;
+    void accept(DocumentTreeVisitor &visitor) override;
 };
 
 struct DotExpression: public Expression
 {
+    DotExpression(Position position, std::unique_ptr<Expression> value, std::wstring field);
     std::unique_ptr<Expression> value;
     std::wstring field;
-    DECLARE_ACCEPT
+    void accept(DocumentTreeVisitor &visitor) override;
 };
 
 struct StructExpression: public Expression
 {
+    StructExpression(Position position, std::vector<std::unique_ptr<Expression>> arguments);
     std::vector<std::unique_ptr<Expression>> arguments;
-    DECLARE_ACCEPT
+    void accept(DocumentTreeVisitor &visitor) override;
 };
 
-struct Instruction: public IVisitable
-{};
+struct Instruction: public DocumentTreeNode
+{
+    using DocumentTreeNode::DocumentTreeNode;
+};
 
 struct VariableDeclaration: public Instruction
 {
+    VariableDeclaration(Position position, std::wstring type, std::wstring name, std::unique_ptr<Expression> value);
     std::wstring type, name;
     std::unique_ptr<Expression> value;
-    DECLARE_ACCEPT
+    void accept(DocumentTreeVisitor &visitor) override;
 };
 
-struct Assignable: public IVisitable
+struct Assignable: public DocumentTreeNode
 {
+    Assignable(Position position, std::unique_ptr<Assignable> left, std::wstring right);
     std::unique_ptr<Assignable> left;
     std::wstring right;
-    DECLARE_ACCEPT
+    void accept(DocumentTreeVisitor &visitor) override;
 };
 
 struct AssignmentStatement: public Instruction
 {
+    AssignmentStatement(Position position, Assignable left, std::unique_ptr<Expression> right);
     Assignable left;
     std::unique_ptr<Expression> right;
-    DECLARE_ACCEPT
+    void accept(DocumentTreeVisitor &visitor) override;
 };
 
-struct FunctionCall: public IVisitable
+struct FunctionCall: public Instruction
 {
+    FunctionCall(Position position, std::wstring functionName, std::vector<std::unique_ptr<Expression>> parameters);
     std::wstring functionName;
     std::vector<std::unique_ptr<Expression>> parameters;
-    DECLARE_ACCEPT
+    void accept(DocumentTreeVisitor &visitor) override;
 };
 
-struct ReturnStatement: public IVisitable
+struct ReturnStatement: public Instruction
 {
+    ReturnStatement(Position position, std::unique_ptr<Expression> returnValue = nullptr);
     std::unique_ptr<Expression> returnValue;
-    DECLARE_ACCEPT
+    void accept(DocumentTreeVisitor &visitor) override;
 };
 
-struct ContinueStatement: public IVisitable
-{};
-
-struct BreakStatement: public IVisitable
-{};
-
-struct IfStatement: public IVisitable
+struct ContinueStatement: public Instruction
 {
+    using Instruction::Instruction;
+    void accept(DocumentTreeVisitor &visitor) override;
+};
+
+struct BreakStatement: public Instruction
+{
+    using Instruction::Instruction;
+    void accept(DocumentTreeVisitor &visitor) override;
+};
+
+struct IfStatement: public Instruction
+{
+    IfStatement(Position position, VariableDeclaration condition, std::vector<std::unique_ptr<Instruction>> body);
+    IfStatement(
+        Position position, std::unique_ptr<Expression> condition, std::vector<std::unique_ptr<Instruction>> body
+    );
     std::variant<VariableDeclaration, std::unique_ptr<Expression>> condition;
-    std::vector<Instruction> body;
-    DECLARE_ACCEPT
+    std::vector<std::unique_ptr<Instruction>> body;
+    void accept(DocumentTreeVisitor &visitor) override;
 };
 
-struct WhileStatement: public IVisitable
+struct WhileStatement: public Instruction
 {
+    WhileStatement(
+        Position position, std::unique_ptr<Expression> condition, std::vector<std::unique_ptr<Instruction>> body
+    );
     std::unique_ptr<Expression> condition;
     std::vector<std::unique_ptr<Instruction>> body;
-    DECLARE_ACCEPT
+    void accept(DocumentTreeVisitor &visitor) override;
 };
 
-struct DoWhileStatement: public IVisitable
+struct DoWhileStatement: public Instruction
 {
+    DoWhileStatement(
+        Position position, std::unique_ptr<Expression> condition, std::vector<std::unique_ptr<Instruction>> body
+    );
     std::unique_ptr<Expression> condition;
     std::vector<std::unique_ptr<Instruction>> body;
-    DECLARE_ACCEPT
+    void accept(DocumentTreeVisitor &visitor) override;
 };
 
-struct FunctionIdentification: public IVisitable
+struct FunctionIdentification
 {
+    FunctionIdentification(std::wstring name, std::vector<std::wstring> parameterTypes);
     std::wstring name;
     std::vector<std::wstring> parameterTypes;
-    DECLARE_ACCEPT
+    bool operator==(const FunctionIdentification &other) const = default;
 };
 
-struct Field: public IVisitable
+template <>
+struct std::hash<FunctionIdentification>
 {
+    std::size_t operator()(const FunctionIdentification &id) const
+    {
+        std::size_t value = std::hash<std::wstring>()(id.name);
+        for(const std::wstring &type: id.parameterTypes)
+            value ^= std::hash<std::wstring>()(type);
+        return value;
+    }
+};
+
+struct Field: public DocumentTreeNode
+{
+    Field(Position position, std::wstring type, std::wstring name);
     std::wstring type, name;
-    DECLARE_ACCEPT
+    void accept(DocumentTreeVisitor &visitor) override;
 };
 
-struct FunctionDeclaration: public IVisitable
+struct StructDeclaration: public DocumentTreeNode
 {
-    std::wstring name;
+    StructDeclaration(Position position, std::vector<Field> fields);
+    std::vector<Field> fields;
+    void accept(DocumentTreeVisitor &visitor) override;
+};
+
+struct VariantDeclaration: public DocumentTreeNode
+{
+    VariantDeclaration(Position position, std::vector<Field> fields);
+    std::vector<Field> fields;
+    void accept(DocumentTreeVisitor &visitor) override;
+};
+
+struct FunctionDeclaration: public DocumentTreeNode
+{
+    FunctionDeclaration(
+        Position position, std::vector<Field> parameters, std::wstring returnType,
+        std::vector<std::unique_ptr<Instruction>> body
+    );
     std::vector<Field> parameters;
     std::wstring returnType;
     std::vector<std::unique_ptr<Instruction>> body;
-    DECLARE_ACCEPT
+    void accept(DocumentTreeVisitor &visitor) override;
 };
 
-struct IncludeStatement: public IVisitable
+struct IncludeStatement: public DocumentTreeNode
 {
+    IncludeStatement(Position position, std::wstring filePath);
     std::wstring filePath;
-    DECLARE_ACCEPT
+    void accept(DocumentTreeVisitor &visitor) override;
 };
 
-struct Program: public IVisitable
+struct Program: public DocumentTreeNode
 {
+    Program(Position position);
     std::unordered_map<FunctionIdentification, FunctionDeclaration> functions;
     std::vector<IncludeStatement> includes;
-    std::unordered_map<std::wstring, std::vector<Field>> structs;
-    std::unordered_map<std::wstring, std::vector<Field>> variants;
-    DECLARE_ACCEPT
+    std::unordered_map<std::wstring, StructDeclaration> structs;
+    std::unordered_map<std::wstring, VariantDeclaration> variants;
+    void accept(DocumentTreeVisitor &visitor) override;
 };
+
+#endif

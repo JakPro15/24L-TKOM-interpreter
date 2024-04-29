@@ -27,6 +27,7 @@ target_link_options(UnitTests PUBLIC -lgcov --coverage)
 
 target_link_libraries(UnitTests Reader)
 target_link_libraries(UnitTests Lexer)
+target_link_libraries(UnitTests Parser)
 target_link_libraries(UnitTests Catch2::Catch2WithMain)
 
 add_test(NAME UnitTests COMMAND UnitTests)

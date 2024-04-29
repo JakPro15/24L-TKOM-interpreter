@@ -10,4 +10,5 @@ enable_testing()
 
 add_subdirectory(src/reader)
 add_subdirectory(src/lexer)
+add_subdirectory(src/parser)
 add_subdirectory(tests)

@@ -1,3 +1,6 @@
+#ifndef DOCUMENTTREEVISITOR_HPP
+#define DOCUMENTTREEVISITOR_HPP
+
 struct Literal;
 struct IsExpression;
 struct OrExpression;
@@ -37,14 +40,16 @@ struct WhileStatement;
 struct DoWhileStatement;
 struct FunctionIdentification;
 struct Field;
+struct StructDeclaration;
+struct VariantDeclaration;
 struct FunctionDeclaration;
 struct IncludeStatement;
 struct Program;
 
-class IVisitor
+class DocumentTreeVisitor
 {
 public:
-    virtual ~IVisitor() = default;
+    virtual ~DocumentTreeVisitor() = default;
     virtual void visit(Literal &visited) = 0;
     virtual void visit(IsExpression &visited) = 0;
     virtual void visit(OrExpression &visited) = 0;
@@ -84,7 +89,11 @@ public:
     virtual void visit(DoWhileStatement &visited) = 0;
     virtual void visit(FunctionIdentification &visited) = 0;
     virtual void visit(Field &visited) = 0;
+    virtual void visit(StructDeclaration &visited) = 0;
+    virtual void visit(VariantDeclaration &visited) = 0;
     virtual void visit(FunctionDeclaration &visited) = 0;
     virtual void visit(IncludeStatement &visited) = 0;
     virtual void visit(Program &visited) = 0;
 };
+
+#endif

@@ -671,34 +671,34 @@ VARIANT_DECL =  'variant', IDENTIFIER, DECL_BLOCK ;
 
 DECL_BLOCK =    '{', FIELD_DECL, { FIELD_DECL } , '}' ;
 
-FIELD_DECL =    CONSTANT_DECL, ';' ;
-
-CONSTANT_DECL = TYPE_IDENT, IDENTIFIER ;
+FIELD_DECL =    TYPE_IDENT, IDENTIFIER, ';' ;
 
 FUNCTION_DECL = 'func', IDENTIFIER, '(', [ PARAMETERS ], ')', [ '->', TYPE_IDENT ] , INSTR_BLOCK ;
 
 PARAMETERS =    VARIABLE_DECL, { ',', VARIABLE_DECL } ;
 
-VARIABLE_DECL = CONSTANT_DECL
-              | TYPE_IDENT, '$', IDENTIFIER ;
+VARIABLE_DECL = TYPE_IDENT, VAR_DECL_BODY ;
+
+VAR_DECL_BODY = IDENTIFIER
+              | '$', IDENTIFIER ;
 
 INSTR_BLOCK =   '{', { INSTRUCTION } , '}' ;
 
-INSTRUCTION =   DECL_ASSIGN, ';'
-              | ASSIGNMENT
+INSTRUCTION =   IDENTIFIER, DECL_OR_ASSIGN_OR_FUNCALL, ';'
+              | BUILTIN_DECL
               | RETURN_STMT
               | 'continue', ';'
               | 'break', ';'
               | IF_STMT
               | WHILE_STMT
-              | DO_WHILE_STMT
-              | EXPRESSION, ';' ;
+              | DO_WHILE_STMT ;
 
-DECL_ASSIGN =   VARIABLE_DECL, '=', EXPRESSION ;
+DECL_OR_ASSIGN_OR_FUNCALL =
+                VAR_DECL_BODY, '=', EXPRESSION
+              | { '.', IDENTIFIER }, '=', EXPRESSION
+              | '(', [ EXPRESSION, { ',', EXPRESSION } ] , ')' ;
 
-ASSIGNMENT =    ASSIGNABLE, '=', EXPRESSION, ';' ;
-
-ASSIGNABLE =    IDENTIFIER, { '.', IDENTIFIER } ;
+BUILTIN_DECL =  BUILTIN_TYPE, VAR_DECL_BODY, '=', EXPRESSION, ';' ;
 
 RETURN_STMT =   'return', [ EXPRESSION ] , ';' ;
 
@@ -707,7 +707,7 @@ IF_STMT =       'if', '(', IF_CONDITION, ')', INSTR_BLOCK,
                 [ 'else', INSTR_BLOCK ] ;
 
 IF_CONDITION =  EXPRESSION
-              | DECL_ASSIGN ;
+              | VARIABLE_DECL, '=', EXPRESSION ;
 
 WHILE_STMT =    'while', '(', EXPRESSION, ')', INSTR_BLOCK ;
 
@@ -741,7 +741,7 @@ COMPARISON_OP = '>'
 
 ADDITIVE_EXPR = TERM, { ADDITIVE_OP, TERM } ;
 
-ADDITIVE_OP = '+'
+ADDITIVE_OP =   '+'
               | '-' ;
 
 TERM =          FACTOR, { MULTIPL_OP, FACTOR } ;
@@ -765,9 +765,8 @@ DOT_EXPR =      STRUCT_EXPR, { '.', IDENTIFIER } ;
 STRUCT_EXPR =   '{', EXPRESSION, { ',', EXPRESSION } , '}'
               | PARENTH_EXPR ;
 
-PARENTH_EXPR =  IDENTIFIER, '(', [ EXPRESSION, { ',', EXPRESSION } ] , ')'
+PARENTH_EXPR =  IDENTIFIER, [ '(', [ EXPRESSION, { ',', EXPRESSION } ] , ')' ]
               | '(', EXPRESSION, ')'
-              | IDENTIFIER
               | LITERAL ;
 
 LITERAL =       STRING_LITERAL
@@ -778,11 +777,14 @@ LITERAL =       STRING_LITERAL
 BOOL_LITERAL =  'true'
               | 'false' ;
 
-TYPE_IDENT =    'int'
+TYPE_IDENT =    BUILTIN_TYPE
+              | IDENTIFIER ;
+
+BUILTIN_TYPE =  'int'
               | 'float'
               | 'str'
-              | 'bool'
-              | IDENTIFIER ;
+              | 'bool' ;
+
 ```
 
 

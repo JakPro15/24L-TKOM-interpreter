@@ -21,6 +21,24 @@ void Parser::checkAndAdvance(TokenType type)
     advance();
 }
 
+std::wstring Parser::loadAndAdvance(TokenType type)
+{
+    if(current.getType() != type)
+        throw SyntaxError(std::format(L"Expected {}, got {}", type, current), current.getPosition());
+    std::wstring loaded = std::get<std::wstring>(current.getValue());
+    advance();
+    return loaded;
+}
+
+// PROGRAM = { TOP_STMT } ;
+Program Parser::parseProgram()
+{
+    Program program(current.getPosition());
+    while(tryAddTopLevelStatement(program))
+        ;
+    return program;
+}
+
 // TOP_STMT = INCLUDE_STMT
 //          | STRUCT_DECL
 //          | VARIANT_DECL
@@ -62,7 +80,7 @@ std::optional<IncludeStatement> Parser::parseIncludeStatement()
     Position begin = current.getPosition();
     advance();
 
-    std::wstring filePath = loadAndAdvance<std::wstring>(STR_LITERAL);
+    std::wstring filePath = loadAndAdvance(STR_LITERAL);
     checkAndAdvance(SEMICOLON);
     return IncludeStatement(begin, filePath);
 }
@@ -94,7 +112,7 @@ std::optional<std::pair<std::wstring, VariantDeclaration>> Parser::parseVariantD
 // DECL_BLOCK = IDENTIFIER, '{', FIELD_DECL, { FIELD_DECL } , '}' ;
 std::pair<std::wstring, std::vector<Field>> Parser::parseDeclarationBlock()
 {
-    std::wstring name = loadAndAdvance<std::wstring>(IDENTIFIER);
+    std::wstring name = loadAndAdvance(IDENTIFIER);
     checkAndAdvance(LBRACE);
 
     std::vector<Field> fields;
@@ -119,7 +137,7 @@ std::optional<Field> Parser::parseField()
     if(!(type = parseTypeIdentifier()))
         return std::nullopt;
 
-    std::wstring name = loadAndAdvance<std::wstring>(IDENTIFIER);
+    std::wstring name = loadAndAdvance(IDENTIFIER);
     checkAndAdvance(SEMICOLON);
     return Field(begin, *type, name);
 }
@@ -160,7 +178,7 @@ std::optional<std::pair<FunctionIdentification, FunctionDeclaration>> Parser::pa
     Position begin = current.getPosition();
     advance();
 
-    std::wstring name = loadAndAdvance<std::wstring>(IDENTIFIER);
+    std::wstring name = loadAndAdvance(IDENTIFIER);
     checkAndAdvance(LPAREN);
     std::vector<VariableDeclaration> parameters = parseParameters();
     checkAndAdvance(RPAREN);
@@ -225,7 +243,7 @@ std::pair<bool, std::wstring> Parser::parseVariableDeclarationBody()
         isMutable = true;
         advance();
     }
-    std::wstring name = loadAndAdvance<std::wstring>(IDENTIFIER);
+    std::wstring name = loadAndAdvance(IDENTIFIER);
     return {isMutable, name};
 }
 
@@ -267,11 +285,96 @@ std::unique_ptr<Instruction> Parser::parseInstruction()
     return std::unique_ptr<Instruction>(nullptr);
 }
 
-// PROGRAM = { TOP_STMT } ;
-Program Parser::parseProgram()
+std::unique_ptr<Instruction> Parser::parseDeclOrAssignOrFunCall()
 {
-    Program program(current.getPosition());
-    while(tryAddTopLevelStatement(program))
-        ;
-    return program;
+    if(current.getType() != IDENTIFIER)
+        return std::unique_ptr<Instruction>(nullptr);
+    Token firstIdentifier = current;
+    advance();
+
+    std::unique_ptr<Instruction> instruction;
+    if(!(instruction = parseVariableDeclStatement(firstIdentifier)) &&
+       !(instruction = parseAssignmentStatement(firstIdentifier)) &&
+       !(instruction = parseFunctionCall(firstIdentifier)))
+        throw SyntaxError(
+            std::format(L"Expected a variable declaration, an assignment or a function call, got {}", current),
+            current.getPosition()
+        );
+    checkAndAdvance(SEMICOLON);
+    return instruction;
+}
+
+// IDENTIFIER, VAR_DECL_BODY, '=', EXPRESSION
+std::unique_ptr<VariableDeclStatement> Parser::parseVariableDeclStatement(Token firstToken)
+{
+    if(current.getType() != DOLLAR_SIGN && current.getType() != IDENTIFIER)
+        return std::unique_ptr<VariableDeclStatement>(nullptr);
+
+    Position begin = firstToken.getPosition();
+    std::wstring type = std::get<std::wstring>(firstToken.getValue());
+    auto [isMutable, name] = parseVariableDeclarationBody();
+    checkAndAdvance(OP_ASSIGN);
+    std::unique_ptr<Expression> value;
+    if(!(value = parseExpression()))
+        throw SyntaxError(std::format(L"Expected expression, got {}", current), current.getPosition());
+    return std::make_unique<VariableDeclStatement>(
+        begin, VariableDeclaration(begin, type, name, isMutable), std::move(value)
+    );
+}
+
+// IDENTIFIER, { '.', IDENTIFIER }, '=', EXPRESSION
+std::unique_ptr<AssignmentStatement> Parser::parseAssignmentStatement(Token firstToken)
+{
+    if(current.getType() != OP_DOT || current.getType() != OP_ASSIGN)
+        return std::unique_ptr<AssignmentStatement>(nullptr);
+
+    Position begin = firstToken.getPosition();
+    Assignable leftAssignable(begin, std::get<std::wstring>(firstToken.getValue()));
+    while(current.getType() == OP_DOT)
+    {
+        advance();
+        std::wstring right = loadAndAdvance(IDENTIFIER);
+        leftAssignable = Assignable(begin, std::make_unique<Assignable>(std::move(leftAssignable)), right);
+    }
+    std::unique_ptr<Expression> value;
+    if(!(value = parseExpression()))
+        throw SyntaxError(std::format(L"Expected expression, got {}", current), current.getPosition());
+    return std::make_unique<AssignmentStatement>(firstToken.getPosition(), std::move(leftAssignable), std::move(value));
+}
+
+// IDENTIFIER, '(', [ EXPRESSION, { ',', EXPRESSION } ] , ')'
+std::unique_ptr<FunctionCall> Parser::parseFunctionCall(Token firstToken)
+{
+    Position begin = firstToken.getPosition();
+    std::wstring name = std::get<std::wstring>(firstToken.getValue());
+    checkAndAdvance(LPAREN);
+
+    std::vector<std::unique_ptr<Expression>> parameters;
+    std::unique_ptr<Expression> parameterBuilt;
+    if(!(parameterBuilt = parseExpression()))
+        throw SyntaxError(std::format(L"Expected expression, got {}", current), current.getPosition());
+    parameters.push_back(std::move(parameterBuilt));
+    while(current.getType() == COMMA)
+    {
+        advance();
+        if(!(parameterBuilt = parseExpression()))
+            throw SyntaxError(std::format(L"Expected expression, got {}", current), current.getPosition());
+        parameters.push_back(std::move(parameterBuilt));
+    }
+    checkAndAdvance(RPAREN);
+    return std::make_unique<FunctionCall>(begin, name, std::move(parameters));
+}
+
+std::unique_ptr<FunctionCall> Parser::parseFunctionCall()
+{
+    if(current.getType() != IDENTIFIER)
+        return std::unique_ptr<FunctionCall>(nullptr);
+    Token firstToken = current;
+    advance();
+    return parseFunctionCall(firstToken);
+}
+
+std::unique_ptr<Expression> Parser::parseExpression()
+{
+    return parseFunctionCall();
 }

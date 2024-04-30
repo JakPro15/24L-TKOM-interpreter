@@ -15,16 +15,7 @@ private:
     Token current, next;
     void advance();
     void checkAndAdvance(TokenType type);
-
-    template <typename TypeToLoad>
-    TypeToLoad loadAndAdvance(TokenType type)
-    {
-        if(current.getType() != type)
-            throw SyntaxError(std::format(L"Expected {}, got {}", type, current), current.getPosition());
-        TypeToLoad loaded = std::get<TypeToLoad>(current.getValue());
-        advance();
-        return loaded;
-    }
+    std::wstring loadAndAdvance(TokenType type);
 
     bool tryAddTopLevelStatement(Program &program);
     std::optional<IncludeStatement> parseIncludeStatement();
@@ -40,6 +31,12 @@ private:
     std::vector<std::unique_ptr<Instruction>> parseInstructionBlock();
     std::unique_ptr<Instruction> parseInstruction();
     std::pair<bool, std::wstring> parseVariableDeclarationBody();
+    std::unique_ptr<Instruction> parseDeclOrAssignOrFunCall();
+    std::unique_ptr<VariableDeclStatement> parseVariableDeclStatement(Token firstToken);
+    std::unique_ptr<AssignmentStatement> parseAssignmentStatement(Token firstToken);
+    std::unique_ptr<FunctionCall> parseFunctionCall(Token firstToken);
+    std::unique_ptr<FunctionCall> parseFunctionCall();
+    std::unique_ptr<Expression> parseExpression();
 };
 
 #endif

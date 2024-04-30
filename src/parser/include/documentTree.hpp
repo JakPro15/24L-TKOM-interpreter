@@ -22,9 +22,9 @@ private:
     Position position;
 };
 
-struct Expression: public DocumentTreeNode
+struct Expression: public virtual DocumentTreeNode
 {
-    using DocumentTreeNode::DocumentTreeNode;
+    Expression();
 };
 
 struct Literal: public Expression
@@ -202,9 +202,9 @@ struct StructExpression: public Expression
     void accept(DocumentTreeVisitor &visitor) override;
 };
 
-struct Instruction: public DocumentTreeNode
+struct Instruction: public virtual DocumentTreeNode
 {
-    using DocumentTreeNode::DocumentTreeNode;
+    Instruction();
 };
 
 struct VariableDeclaration: public DocumentTreeNode
@@ -226,6 +226,7 @@ struct VariableDeclStatement: public Instruction
 struct Assignable: public DocumentTreeNode
 {
     Assignable(Position position, std::unique_ptr<Assignable> left, std::wstring right);
+    Assignable(Position position, std::wstring value);
     std::unique_ptr<Assignable> left;
     std::wstring right;
     void accept(DocumentTreeVisitor &visitor) override;
@@ -239,7 +240,8 @@ struct AssignmentStatement: public Instruction
     void accept(DocumentTreeVisitor &visitor) override;
 };
 
-struct FunctionCall: public Instruction
+struct FunctionCall: public Instruction,
+                     public Expression
 {
     FunctionCall(Position position, std::wstring functionName, std::vector<std::unique_ptr<Expression>> parameters);
     std::wstring functionName;
@@ -256,13 +258,13 @@ struct ReturnStatement: public Instruction
 
 struct ContinueStatement: public Instruction
 {
-    using Instruction::Instruction;
+    ContinueStatement(Position position);
     void accept(DocumentTreeVisitor &visitor) override;
 };
 
 struct BreakStatement: public Instruction
 {
-    using Instruction::Instruction;
+    BreakStatement(Position position);
     void accept(DocumentTreeVisitor &visitor) override;
 };
 

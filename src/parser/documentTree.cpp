@@ -7,30 +7,34 @@ Position DocumentTreeNode::getPosition() const
     return position;
 }
 
+Expression::Expression(): DocumentTreeNode({0, 0}) {}
+
 Literal::Literal(Position position, std::variant<std::wstring, int32_t, double, bool> value):
-    Expression(position), value(value)
+    DocumentTreeNode(position), value(value)
 {}
 
 BinaryOperation::BinaryOperation(
     Position position, std::unique_ptr<Expression> left, std::unique_ptr<Expression> right
-): Expression(position), left(std::move(left)), right(std::move(right))
+): DocumentTreeNode(position), left(std::move(left)), right(std::move(right))
 {}
 
 UnaryMinusExpression::UnaryMinusExpression(Position position, std::unique_ptr<Expression> value):
-    Expression(position), value(std::move(value))
+    DocumentTreeNode(position), value(std::move(value))
 {}
 
 NotExpression::NotExpression(Position position, std::unique_ptr<Expression> value):
-    Expression(position), value(std::move(value))
+    DocumentTreeNode(position), value(std::move(value))
 {}
 
 DotExpression::DotExpression(Position position, std::unique_ptr<Expression> value, std::wstring field):
-    Expression(position), value(std::move(value)), field(field)
+    DocumentTreeNode(position), value(std::move(value)), field(field)
 {}
 
 StructExpression::StructExpression(Position position, std::vector<std::unique_ptr<Expression>> arguments):
-    Expression(position), arguments(std::move(arguments))
+    DocumentTreeNode(position), arguments(std::move(arguments))
 {}
+
+Instruction::Instruction(): DocumentTreeNode({0, 0}) {}
 
 VariableDeclaration::VariableDeclaration(Position position, std::wstring type, std::wstring name, bool isMutable):
     DocumentTreeNode(position), type(type), name(name), isMutable(isMutable)
@@ -38,44 +42,51 @@ VariableDeclaration::VariableDeclaration(Position position, std::wstring type, s
 
 VariableDeclStatement::VariableDeclStatement(
     Position position, VariableDeclaration declaration, std::unique_ptr<Expression> value
-): Instruction(position), declaration(declaration), value(std::move(value))
+): DocumentTreeNode(position), declaration(declaration), value(std::move(value))
 {}
 
 Assignable::Assignable(Position position, std::unique_ptr<Assignable> left, std::wstring right):
     DocumentTreeNode(position), left(std::move(left)), right(right)
 {}
 
+Assignable::Assignable(Position position, std::wstring value): DocumentTreeNode(position), left(nullptr), right(value)
+{}
+
 AssignmentStatement::AssignmentStatement(Position position, Assignable left, std::unique_ptr<Expression> right):
-    Instruction(position), left(std::move(left)), right(std::move(right))
+    DocumentTreeNode(position), left(std::move(left)), right(std::move(right))
 {}
 
 FunctionCall::FunctionCall(
     Position position, std::wstring functionName, std::vector<std::unique_ptr<Expression>> parameters
-): Instruction(position), functionName(functionName), parameters(std::move(parameters))
+): DocumentTreeNode(position), functionName(functionName), parameters(std::move(parameters))
 {}
 
+ContinueStatement::ContinueStatement(Position position): DocumentTreeNode(position) {}
+
+BreakStatement::BreakStatement(Position position): DocumentTreeNode(position) {}
+
 ReturnStatement::ReturnStatement(Position position, std::unique_ptr<Expression> returnValue):
-    Instruction(position), returnValue(std::move(returnValue))
+    DocumentTreeNode(position), returnValue(std::move(returnValue))
 {}
 
 IfStatement::IfStatement(
     Position position, VariableDeclStatement condition, std::vector<std::unique_ptr<Instruction>> body
-): Instruction(position), condition(std::move(condition)), body(std::move(body))
+): DocumentTreeNode(position), condition(std::move(condition)), body(std::move(body))
 {}
 
 IfStatement::IfStatement(
     Position position, std::unique_ptr<Expression> condition, std::vector<std::unique_ptr<Instruction>> body
-): Instruction(position), condition(std::move(condition)), body(std::move(body))
+): DocumentTreeNode(position), condition(std::move(condition)), body(std::move(body))
 {}
 
 WhileStatement::WhileStatement(
     Position position, std::unique_ptr<Expression> condition, std::vector<std::unique_ptr<Instruction>> body
-): Instruction(position), condition(std::move(condition)), body(std::move(body))
+): DocumentTreeNode(position), condition(std::move(condition)), body(std::move(body))
 {}
 
 DoWhileStatement::DoWhileStatement(
     Position position, std::unique_ptr<Expression> condition, std::vector<std::unique_ptr<Instruction>> body
-): Instruction(position), condition(std::move(condition)), body(std::move(body))
+): DocumentTreeNode(position), condition(std::move(condition)), body(std::move(body))
 {}
 
 FunctionIdentification::FunctionIdentification(std::wstring name, std::vector<std::wstring> parameterTypes):

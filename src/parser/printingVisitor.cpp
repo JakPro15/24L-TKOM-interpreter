@@ -382,10 +382,10 @@ void PrintingVisitor::visit(Program &visited)
     if(visited.variants.size() > 0)
     {
         out << std::wstring(indent, L' ') << L"Variants:\n";
-        for(auto it = visited.structs.begin(); it != visited.structs.end(); it++)
+        for(auto it = visited.variants.begin(); it != visited.variants.end(); it++)
         {
             out << std::wstring(indent, L' ');
-            if(std::next(it) != visited.structs.end())
+            if(std::next(it) != visited.variants.end())
                 out << L"|-";
             else
                 out << L"`-";

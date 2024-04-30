@@ -1,6 +1,10 @@
 #ifndef TOKENTYPE_HPP
 #define TOKENTYPE_HPP
 
+#include <format>
+#include <ostream>
+#include <sstream>
+
 enum class TokenType
 {
     KW_INCLUDE,
@@ -61,6 +65,20 @@ enum class TokenType
     FALSE_LITERAL,
     COMMENT,
     EOT
+};
+
+std::wostream &operator<<(std::wostream &out, TokenType tokenType);
+
+template <>
+struct std::formatter<TokenType, wchar_t>: std::formatter<std::wstring, wchar_t>
+{
+    template <class FormatContext>
+    auto format(TokenType token, FormatContext &context) const
+    {
+        std::wstringstream out;
+        out << token;
+        return std::formatter<std::wstring, wchar_t>::format(out.str(), context);
+    }
 };
 
 #endif

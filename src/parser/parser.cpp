@@ -14,6 +14,13 @@ void Parser::advance()
     this->next = source.getNextToken();
 }
 
+void Parser::checkAndAdvance(TokenType type)
+{
+    if(current.getType() != type)
+        throw SyntaxError(std::format(L"Expected {}, got {}", type, current), current.getPosition());
+    advance();
+}
+
 // TOP_STMT = INCLUDE_STMT
 //          | STRUCT_DECL
 //          | VARIANT_DECL
@@ -54,15 +61,10 @@ std::optional<IncludeStatement> Parser::parseIncludeStatement()
         return std::nullopt;
     Position begin = current.getPosition();
     advance();
-    if(current.getType() != STR_LITERAL)
-        throw SyntaxError(std::format(L"Expected a string literal, got {}", current), current.getPosition());
 
-    IncludeStatement built(begin, std::get<std::wstring>(current.getValue()));
-    advance();
-    if(current.getType() != SEMICOLON)
-        throw SyntaxError(std::format(L"Expected ;, got {}", current), current.getPosition());
-    advance();
-    return built;
+    std::wstring filePath = loadAndAdvance<std::wstring>(STR_LITERAL);
+    checkAndAdvance(SEMICOLON);
+    return IncludeStatement(begin, filePath);
 }
 
 // STRUCT_DECL = 'struct', DECL_BLOCK ;
@@ -72,6 +74,7 @@ std::optional<std::pair<std::wstring, StructDeclaration>> Parser::parseStructDec
         return std::nullopt;
     Position begin = current.getPosition();
     advance();
+
     auto [structName, fields] = parseDeclarationBlock();
     return std::pair{structName, StructDeclaration(begin, fields)};
 }
@@ -83,6 +86,7 @@ std::optional<std::pair<std::wstring, VariantDeclaration>> Parser::parseVariantD
         return std::nullopt;
     Position begin = current.getPosition();
     advance();
+
     auto [variantName, fields] = parseDeclarationBlock();
     return std::pair{variantName, VariantDeclaration(begin, fields)};
 }
@@ -90,14 +94,8 @@ std::optional<std::pair<std::wstring, VariantDeclaration>> Parser::parseVariantD
 // DECL_BLOCK = IDENTIFIER, '{', FIELD_DECL, { FIELD_DECL } , '}' ;
 std::pair<std::wstring, std::vector<Field>> Parser::parseDeclarationBlock()
 {
-    if(current.getType() != IDENTIFIER)
-        throw SyntaxError(std::format(L"Expected an identifier, got {}", current), current.getPosition());
-    std::wstring name = std::get<std::wstring>(current.getValue());
-    advance();
-
-    if(current.getType() != LBRACE)
-        throw SyntaxError(std::format(L"Expected {{, got {}", current), current.getPosition());
-    advance();
+    std::wstring name = loadAndAdvance<std::wstring>(IDENTIFIER);
+    checkAndAdvance(LBRACE);
 
     std::vector<Field> fields;
     std::optional<Field> fieldBuilt = parseField();
@@ -109,9 +107,7 @@ std::pair<std::wstring, std::vector<Field>> Parser::parseDeclarationBlock()
     }
     while((fieldBuilt = parseField()));
 
-    if(current.getType() != RBRACE)
-        throw SyntaxError(std::format(L"Expected }}, got {}", current), current.getPosition());
-    advance();
+    checkAndAdvance(RBRACE);
     return {name, fields};
 }
 
@@ -123,14 +119,8 @@ std::optional<Field> Parser::parseField()
     if(!(type = parseTypeIdentifier()))
         return std::nullopt;
 
-    if(current.getType() != IDENTIFIER)
-        throw SyntaxError(std::format(L"Expected an identifier, got {}", current), current.getPosition());
-    std::wstring name = std::get<std::wstring>(current.getValue());
-    advance();
-
-    if(current.getType() != SEMICOLON)
-        throw SyntaxError(std::format(L"Expected ;, got {}", current), current.getPosition());
-    advance();
+    std::wstring name = loadAndAdvance<std::wstring>(IDENTIFIER);
+    checkAndAdvance(SEMICOLON);
     return Field(begin, *type, name);
 }
 

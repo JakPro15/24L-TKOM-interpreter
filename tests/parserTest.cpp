@@ -153,7 +153,6 @@ TEST_CASE("StructDeclaration errors", "[Parser]")
         Token(EOT, {3, 2}),
     };
     checkParseError<SyntaxError>(tokens); // invalid token instead of field type
-
     tokens = {
         Token(KW_STRUCT, {1, 1}),  Token(IDENTIFIER, {1, 3}, L"a_structure"),
         Token(LBRACE, {1, 6}),     Token(KW_INT, {1, 9}),
@@ -164,6 +163,110 @@ TEST_CASE("StructDeclaration errors", "[Parser]")
     tokens = {
         Token(KW_STRUCT, {1, 1}),
         Token(IDENTIFIER, {1, 3}, L"a_structure"),
+        Token(LBRACE, {1, 6}),
+        Token(KW_INT, {1, 9}),
+        Token(IDENTIFIER, {1, 12}, L"field_name"),
+        Token(SEMICOLON, {1, 15}),
+        Token(IDENTIFIER, {2, 1}, L"typename"),
+        Token(IDENTIFIER, {2, 3}, L"field_name_2"),
+        Token(RBRACE, {3, 1}),
+        Token(EOT, {3, 2}),
+    };
+    checkParseError<SyntaxError>(tokens); // no semicolon after field declaration
+}
+
+TEST_CASE("VariantDeclaration", "[Parser]")
+{
+    std::array tokens = {
+        Token(KW_VARIANT, {1, 1}),
+        Token(IDENTIFIER, {1, 3}, L"a_variant"),
+        Token(LBRACE, {1, 6}),
+        Token(KW_INT, {1, 9}),
+        Token(IDENTIFIER, {1, 12}, L"field_name"),
+        Token(SEMICOLON, {1, 15}),
+        Token(IDENTIFIER, {2, 1}, L"typename"),
+        Token(IDENTIFIER, {2, 3}, L"field_name_2"),
+        Token(SEMICOLON, {2, 8}),
+        Token(RBRACE, {3, 1}),
+        Token(EOT, {3, 2}),
+    };
+    checkParsing(
+        tokens, L"Program containing:\n"
+                L"Variants:\n"
+                L"`-a_variant: VariantDeclaration <line: 1, col: 1>\n"
+                L" |-Field <line: 1, col: 9> type=int name=field_name\n"
+                L" `-Field <line: 2, col: 1> type=typename name=field_name_2\n"
+    );
+}
+
+TEST_CASE("VariantDeclaration errors", "[Parser]")
+{
+    std::vector tokens = {
+        Token(KW_VARIANT, {1, 1}),
+        Token(LBRACE, {1, 6}),
+        Token(KW_INT, {1, 9}),
+        Token(IDENTIFIER, {1, 12}, L"field_name"),
+        Token(SEMICOLON, {1, 15}),
+        Token(IDENTIFIER, {2, 1}, L"typename"),
+        Token(IDENTIFIER, {2, 3}, L"field_name_2"),
+        Token(SEMICOLON, {2, 8}),
+        Token(RBRACE, {3, 1}),
+        Token(EOT, {3, 2}),
+    };
+    checkParseError<SyntaxError>(tokens); // no variant name
+    tokens = {
+        Token(KW_VARIANT, {1, 1}), Token(IDENTIFIER, {1, 3}, L"a_variant"),
+        Token(LBRACE, {1, 6}),     Token(RBRACE, {3, 1}),
+        Token(EOT, {3, 2}),
+    };
+    checkParseError<SyntaxError>(tokens); // zero variant fields
+    tokens = {
+        Token(KW_VARIANT, {1, 1}),
+        Token(IDENTIFIER, {1, 3}, L"a_variant"),
+        Token(KW_INT, {1, 9}),
+        Token(IDENTIFIER, {1, 12}, L"field_name"),
+        Token(SEMICOLON, {1, 15}),
+        Token(IDENTIFIER, {2, 1}, L"typename"),
+        Token(IDENTIFIER, {2, 3}, L"field_name_2"),
+        Token(SEMICOLON, {2, 8}),
+        Token(RBRACE, {3, 1}),
+        Token(EOT, {3, 2}),
+    };
+    checkParseError<SyntaxError>(tokens); // left brace missing
+    tokens = {
+        Token(KW_VARIANT, {1, 1}),
+        Token(IDENTIFIER, {1, 3}, L"a_variant"),
+        Token(LBRACE, {1, 6}),
+        Token(KW_INT, {1, 9}),
+        Token(IDENTIFIER, {1, 12}, L"field_name"),
+        Token(SEMICOLON, {1, 15}),
+        Token(IDENTIFIER, {2, 1}, L"typename"),
+        Token(IDENTIFIER, {2, 3}, L"field_name_2"),
+        Token(SEMICOLON, {2, 8}),
+        Token(EOT, {3, 2}),
+    };
+    checkParseError<SyntaxError>(tokens); // right brace missing
+    tokens = {
+        Token(KW_VARIANT, {1, 1}),
+        Token(IDENTIFIER, {1, 3}, L"a_variant"),
+        Token(LBRACE, {1, 6}),
+        Token(KW_IF, {1, 9}),
+        Token(IDENTIFIER, {1, 12}, L"field_name"),
+        Token(SEMICOLON, {1, 15}),
+        Token(RBRACE, {3, 1}),
+        Token(EOT, {3, 2}),
+    };
+    checkParseError<SyntaxError>(tokens); // invalid token instead of field type
+    tokens = {
+        Token(KW_VARIANT, {1, 1}), Token(IDENTIFIER, {1, 3}, L"a_variant"),
+        Token(LBRACE, {1, 6}),     Token(KW_INT, {1, 9}),
+        Token(SEMICOLON, {1, 15}), Token(RBRACE, {3, 1}),
+        Token(EOT, {3, 2}),
+    };
+    checkParseError<SyntaxError>(tokens); // no field name
+    tokens = {
+        Token(KW_VARIANT, {1, 1}),
+        Token(IDENTIFIER, {1, 3}, L"a_variant"),
         Token(LBRACE, {1, 6}),
         Token(KW_INT, {1, 9}),
         Token(IDENTIFIER, {1, 12}, L"field_name"),

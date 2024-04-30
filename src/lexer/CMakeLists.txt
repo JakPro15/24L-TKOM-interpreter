@@ -8,6 +8,7 @@ add_library(
     include/commentDiscarder.hpp
     lexer.cpp
     token.cpp
+    tokenType.cpp
     commentDiscarder.cpp
 )
 target_include_directories(Lexer PUBLIC include)

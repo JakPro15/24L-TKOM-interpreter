@@ -29,15 +29,15 @@ private:
     std::variant<std::monostate, std::wstring, int32_t, double> value;
 };
 
-template <class CharT>
-struct std::formatter<Token, CharT>: std::formatter<std::wstring, CharT>
+template <>
+struct std::formatter<Token, wchar_t>: std::formatter<std::wstring, wchar_t>
 {
     template <class FormatContext>
     auto format(Token token, FormatContext &context) const
     {
         std::wstringstream out;
         out << token;
-        return std::formatter<std::wstring, CharT>::format(out.str(), context);
+        return std::formatter<std::wstring, wchar_t>::format(out.str(), context);
     }
 };
 

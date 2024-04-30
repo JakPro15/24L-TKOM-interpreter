@@ -278,3 +278,129 @@ TEST_CASE("VariantDeclaration errors", "[Parser]")
     };
     checkParseError<SyntaxError>(tokens); // no semicolon after field declaration
 }
+
+TEST_CASE("FunctionDeclaration - empty function", "[Parser]")
+{
+    std::array tokens = {
+        Token(KW_FUNC, {1, 1}), Token(IDENTIFIER, {1, 3}, L"a_function"),
+        Token(LPAREN, {1, 6}),  Token(RPAREN, {1, 9}),
+        Token(LBRACE, {1, 12}), Token(RBRACE, {1, 15}),
+        Token(EOT, {1, 18}),
+    };
+    checkParsing(
+        tokens, L"Program containing:\n"
+                L"Functions:\n"
+                L"`-a_function: FunctionDeclaration <line: 1, col: 1>\n"
+    );
+}
+
+TEST_CASE("FunctionDeclaration - parameter list and return type", "[Parser]")
+{
+    std::array tokens = {
+        Token(KW_FUNC, {1, 1}),
+        Token(IDENTIFIER, {1, 3}, L"a_function"),
+        Token(LPAREN, {1, 6}),
+        Token(KW_STR, {1, 9}),
+        Token(DOLLAR_SIGN, {1, 14}),
+        Token(IDENTIFIER, {1, 15}, L"param1"),
+        Token(COMMA, {1, 26}),
+        Token(IDENTIFIER, {1, 27}, L"typename"),
+        Token(IDENTIFIER, {2, 1}, L"param2"),
+        Token(RPAREN, {2, 9}),
+        Token(ARROW, {2, 13}),
+        Token(IDENTIFIER, {2, 15}, L"type_name"),
+        Token(LBRACE, {3, 12}),
+        Token(RBRACE, {3, 15}),
+        Token(EOT, {3, 18}),
+    };
+    checkParsing(
+        tokens, L"Program containing:\n"
+                L"Functions:\n"
+                L"`-a_function: FunctionDeclaration <line: 1, col: 1> returnType=type_name\n"
+                L" Parameters:\n"
+                L" |-VariableDeclaration <line: 1, col: 9> type=str name=param1 mutable=1\n"
+                L" `-VariableDeclaration <line: 1, col: 27> type=typename name=param2 mutable=0\n"
+    );
+}
+
+TEST_CASE("FunctionDeclaration - errors", "[Parser]")
+{
+    std::vector tokens = {
+        Token(KW_FUNC, {1, 1}), Token(LPAREN, {1, 6}),  Token(RPAREN, {2, 9}),
+        Token(LBRACE, {3, 12}), Token(RBRACE, {3, 15}), Token(EOT, {3, 18}),
+    };
+    checkParseError<SyntaxError>(tokens); // no function name
+    tokens = {
+        Token(KW_FUNC, {1, 1}), Token(IDENTIFIER, {1, 3}, L"a_function"),
+        Token(LBRACE, {1, 12}), Token(RBRACE, {1, 15}),
+        Token(EOT, {1, 18}),
+    };
+    checkParseError<SyntaxError>(tokens); // parameter parentheses missing
+    tokens = {
+        Token(KW_FUNC, {1, 1}), Token(IDENTIFIER, {1, 3}, L"a_function"),
+        Token(LPAREN, {1, 6}),  Token(LBRACE, {1, 12}),
+        Token(RBRACE, {1, 15}), Token(EOT, {1, 18}),
+    };
+    checkParseError<SyntaxError>(tokens); // parameter list not closed
+    tokens = {
+        Token(KW_FUNC, {1, 1}), Token(IDENTIFIER, {1, 3}, L"a_function"), Token(LPAREN, {1, 6}), Token(RPAREN, {1, 9}),
+        Token(EOT, {1, 18}),
+    };
+    checkParseError<SyntaxError>(tokens); // missing body
+    tokens = {
+        Token(KW_FUNC, {1, 1}), Token(IDENTIFIER, {1, 3}, L"a_function"),
+        Token(LPAREN, {1, 6}),  Token(RPAREN, {1, 9}),
+        Token(LBRACE, {1, 12}), Token(EOT, {1, 18}),
+    };
+    checkParseError<SyntaxError>(tokens); // body not closed
+    tokens = {
+        Token(KW_FUNC, {1, 1}), Token(IDENTIFIER, {1, 3}, L"a_function"),
+        Token(LPAREN, {1, 6}),  Token(RPAREN, {1, 9}),
+        Token(ARROW, {2, 1}),   Token(LBRACE, {1, 12}),
+        Token(RBRACE, {1, 15}), Token(EOT, {1, 18}),
+    };
+    checkParseError<SyntaxError>(tokens); // invalid return type
+}
+
+TEST_CASE("FunctionDeclaration parameters - errors", "[Parser]")
+{
+    std::vector tokens = {
+        Token(KW_FUNC, {1, 1}), Token(IDENTIFIER, {1, 3}, L"a_function"),
+        Token(LPAREN, {1, 6}),  Token(KW_IF, {1, 9}),
+        Token(RPAREN, {2, 9}),  Token(LBRACE, {3, 12}),
+        Token(RBRACE, {3, 15}), Token(EOT, {3, 18}),
+    };
+    checkParseError<SyntaxError>(tokens); // invalid token in place of parameter
+    tokens = {
+        Token(KW_FUNC, {1, 1}),
+        Token(IDENTIFIER, {1, 3}, L"a_function"),
+        Token(LPAREN, {1, 6}),
+        Token(KW_STR, {1, 9}),
+        Token(DOLLAR_SIGN, {1, 14}),
+        Token(COMMA, {1, 26}),
+        Token(IDENTIFIER, {1, 27}, L"typename"),
+        Token(IDENTIFIER, {2, 1}, L"param2"),
+        Token(RPAREN, {2, 9}),
+        Token(ARROW, {2, 13}),
+        Token(IDENTIFIER, {2, 15}, L"type_name"),
+        Token(LBRACE, {3, 12}),
+        Token(RBRACE, {3, 15}),
+        Token(EOT, {3, 18}),
+    };
+    checkParseError<SyntaxError>(tokens); // parameter name missing
+    tokens = {
+        Token(KW_FUNC, {1, 1}),
+        Token(IDENTIFIER, {1, 3}, L"a_function"),
+        Token(LPAREN, {1, 6}),
+        Token(IDENTIFIER, {1, 27}, L"typename"),
+        Token(IDENTIFIER, {2, 1}, L"param2"),
+        Token(COMMA, {2, 8}),
+        Token(RPAREN, {2, 9}),
+        Token(ARROW, {2, 13}),
+        Token(IDENTIFIER, {2, 15}, L"type_name"),
+        Token(LBRACE, {3, 12}),
+        Token(RBRACE, {3, 15}),
+        Token(EOT, {3, 18}),
+    };
+    checkParseError<SyntaxError>(tokens); // trailing comma in parameter list
+}

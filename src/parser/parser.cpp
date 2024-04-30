@@ -157,6 +157,8 @@ std::optional<std::pair<FunctionIdentification, FunctionDeclaration>> Parser::pa
 {
     if(current.getType() != KW_FUNC)
         return std::nullopt;
+    Position begin = current.getPosition();
+    advance();
 
     std::wstring name = loadAndAdvance<std::wstring>(IDENTIFIER);
     checkAndAdvance(LPAREN);
@@ -171,6 +173,15 @@ std::optional<std::pair<FunctionIdentification, FunctionDeclaration>> Parser::pa
                 std::format(L"Expected type identifier, got {}", current.getType()), current.getPosition()
             );
     }
+    std::vector<std::unique_ptr<Instruction>> body = parseInstructionBlock();
+    std::vector<std::wstring> parameterTypes;
+    for(VariableDeclaration parameter: parameters)
+        parameterTypes.push_back(parameter.type);
+
+    return std::pair{
+        FunctionIdentification(name, parameterTypes),
+        FunctionDeclaration(begin, parameters, returnType, std::move(body))
+    };
 }
 
 // PARAMETERS = VARIABLE_DECL, {',', VARIABLE_DECL};
@@ -189,6 +200,7 @@ std::vector<VariableDeclaration> Parser::parseParameters()
             );
         parameters.push_back(*parameter);
     }
+    return parameters;
 }
 
 // VARIABLE_DECL = TYPE_IDENT, VAR_DECL_BODY ;
@@ -224,7 +236,7 @@ std::vector<std::unique_ptr<Instruction>> Parser::parseInstructionBlock()
     std::vector<std::unique_ptr<Instruction>> instructions;
     std::unique_ptr<Instruction> instruction;
     while((instruction = parseInstruction()))
-        instructions.push_back(instruction);
+        instructions.push_back(std::move(instruction));
     checkAndAdvance(RBRACE);
     return instructions;
 }

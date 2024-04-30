@@ -204,8 +204,8 @@ void PrintingVisitor::visit(StructExpression &visited)
 
 void PrintingVisitor::visit(VariableDeclaration &visited)
 {
-    out << L"Field " << visited.getPosition() << L" type=" << visited.type << L" name=" << visited.name << L" mutable="
-        << visited.isMutable << L"\n";
+    out << L"VariableDeclaration " << visited.getPosition() << L" type=" << visited.type << L" name=" << visited.name
+        << L" mutable=" << visited.isMutable << L"\n";
 }
 
 void PrintingVisitor::visit(VariableDeclStatement &visited)
@@ -342,20 +342,29 @@ void PrintingVisitor::visit(VariantDeclaration &visited)
 
 void PrintingVisitor::visit(FunctionDeclaration &visited)
 {
-    out << L"FunctionDeclaration " << visited.getPosition() << L" returnType=" << visited.returnType << L"\n";
-    out << std::wstring(indent, L' ') << L"Parameters:\n";
+    out << L"FunctionDeclaration " << visited.getPosition();
+    if(visited.returnType.has_value())
+        out << L" returnType=" << *visited.returnType;
+    out << L"\n";
     indent += 1;
-    for(auto &parameter: visited.parameters)
+    if(visited.parameters.size() > 0)
     {
-        out << std::wstring(indent, L' ');
-        if(&parameter != &visited.parameters.back())
-            out << L"|-";
-        else
-            out << L"`-";
-        parameter.accept(*this);
+        out << std::wstring(indent, L' ') << L"Parameters:\n";
+        for(auto &parameter: visited.parameters)
+        {
+            out << std::wstring(indent, L' ');
+            if(&parameter != &visited.parameters.back())
+                out << L"|-";
+            else
+                out << L"`-";
+            parameter.accept(*this);
+        }
     }
-    out << std::wstring(indent - 1, L' ') << L"Body:\n";
-    visitInstructionBlock(visited.body);
+    if(visited.body.size() > 0)
+    {
+        out << std::wstring(indent, L' ') << L"Body:\n";
+        visitInstructionBlock(visited.body);
+    }
     indent -= 1;
 }
 

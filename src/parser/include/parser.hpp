@@ -17,7 +17,7 @@ private:
     std::optional<IncludeStatement> parseIncludeStatement();
     std::optional<std::pair<std::wstring, StructDeclaration>> parseStructDeclaration();
     std::optional<std::pair<std::wstring, VariantDeclaration>> parseVariantDeclaration();
-    std::optional<std::pair<FunctionIdentification, FunctionDeclaration>> parseFunctionDeclaration();
+    // std::optional<std::pair<FunctionIdentification, FunctionDeclaration>> parseFunctionDeclaration();
     std::pair<std::wstring, std::vector<Field>> parseDeclarationBlock();
     std::optional<Field> parseField();
     std::optional<std::wstring> parseTypeIdentifier();

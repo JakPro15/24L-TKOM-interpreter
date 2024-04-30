@@ -20,6 +20,7 @@ add_executable(
     readerTest.cpp
     lexerTest.cpp
     commentDiscarderTest.cpp
+    parserTest.cpp
 )
 target_compile_options(UnitTests PUBLIC -fprofile-arcs -ftest-coverage)
 target_include_directories(UnitTests PUBLIC include)

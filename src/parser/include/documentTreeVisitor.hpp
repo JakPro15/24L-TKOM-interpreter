@@ -87,7 +87,6 @@ public:
     virtual void visit(IfStatement &visited) = 0;
     virtual void visit(WhileStatement &visited) = 0;
     virtual void visit(DoWhileStatement &visited) = 0;
-    virtual void visit(FunctionIdentification &visited) = 0;
     virtual void visit(Field &visited) = 0;
     virtual void visit(StructDeclaration &visited) = 0;
     virtual void visit(VariantDeclaration &visited) = 0;

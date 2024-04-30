@@ -2,7 +2,7 @@
 
 DocumentTreeNode::DocumentTreeNode(Position position): position(position) {}
 
-Position DocumentTreeNode::getPosition()
+Position DocumentTreeNode::getPosition() const
 {
     return position;
 }

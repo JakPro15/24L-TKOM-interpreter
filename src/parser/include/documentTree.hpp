@@ -15,7 +15,7 @@ class DocumentTreeNode
 {
 public:
     DocumentTreeNode(Position position);
-    Position getPosition();
+    Position getPosition() const;
     virtual void accept(DocumentTreeVisitor &visitor) = 0;
     virtual ~DocumentTreeNode() = default;
 private:

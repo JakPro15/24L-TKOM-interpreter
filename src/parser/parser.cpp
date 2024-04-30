@@ -38,12 +38,12 @@ bool Parser::tryAddTopLevelStatement(Program &program)
         program.variants.insert(std::move(*variantBuilt));
         return true;
     }
-    std::optional<std::pair<FunctionIdentification, FunctionDeclaration>> functionBuilt;
-    if((functionBuilt = parseFunctionDeclaration()))
-    {
-        program.functions.insert(std::move(*functionBuilt));
-        return true;
-    }
+    // std::optional<std::pair<FunctionIdentification, FunctionDeclaration>> functionBuilt;
+    // if((functionBuilt = parseFunctionDeclaration()))
+    // {
+    //     program.functions.insert(std::move(*functionBuilt));
+    //     return true;
+    // }
     return false;
 }
 
@@ -58,6 +58,9 @@ std::optional<IncludeStatement> Parser::parseIncludeStatement()
         throw SyntaxError(std::format(L"Expected a string literal, got {}", current), current.getPosition());
 
     IncludeStatement built(begin, std::get<std::wstring>(current.getValue()));
+    advance();
+    if(current.getType() != SEMICOLON)
+        throw SyntaxError(std::format(L"Expected ;, got {}", current), current.getPosition());
     advance();
     return built;
 }
@@ -94,6 +97,7 @@ std::pair<std::wstring, std::vector<Field>> Parser::parseDeclarationBlock()
 
     if(current.getType() != LBRACE)
         throw SyntaxError(std::format(L"Expected {{, got {}", current), current.getPosition());
+    advance();
 
     std::vector<Field> fields;
     std::optional<Field> fieldBuilt = parseField();

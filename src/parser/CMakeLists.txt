@@ -4,8 +4,10 @@ add_library(
     include/parser.hpp
     include/documentTreeVisitor.hpp
     include/parserExceptions.hpp
+    include/printingVisitor.hpp
     documentTree.cpp
     parser.cpp
+    printingVisitor.cpp
 )
 target_include_directories(Parser PUBLIC include)
 target_compile_options(Parser PUBLIC -fprofile-arcs -ftest-coverage)

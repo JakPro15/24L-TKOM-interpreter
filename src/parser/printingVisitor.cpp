@@ -2,6 +2,8 @@
 
 #include "documentTree.hpp"
 
+#include <iomanip>
+
 PrintingVisitor::PrintingVisitor(std::wostream &out): out(out) {}
 
 void PrintingVisitor::popIndent()
@@ -11,12 +13,14 @@ void PrintingVisitor::popIndent()
 
 void PrintingVisitor::visit(Literal &visited)
 {
-    out << L"Literal " << visited.getPosition() << L" value=";
+    auto outFlags = out.flags();
+    out << L"Literal " << visited.getPosition() << L" value=" << std::boolalpha;
     if(std::holds_alternative<std::wstring>(visited.value))
         out << L"\"" << std::get<std::wstring>(visited.value) << L"\"";
     else
         std::visit([&](auto &value) { out << value; }, visited.value);
     out << L"\n";
+    out.flags(outFlags);
 }
 
 void PrintingVisitor::visitUnaryOperation(std::wstring name, Position position, DocumentTreeNode &child)
@@ -234,8 +238,10 @@ void PrintingVisitor::visit(StructExpression &visited)
 
 void PrintingVisitor::visit(VariableDeclaration &visited)
 {
+    auto outFlags = out.flags();
     out << L"VariableDeclaration " << visited.getPosition() << L" type=" << visited.type << L" name=" << visited.name
-        << L" mutable=" << visited.isMutable << L"\n";
+        << L" mutable=" << std::boolalpha << visited.isMutable << L"\n";
+    out.flags(outFlags);
 }
 
 void PrintingVisitor::visit(VariableDeclStatement &visited)
@@ -302,7 +308,7 @@ void PrintingVisitor::visit(ReturnStatement &visited)
     out << L"ReturnStatement " << visited.getPosition() << L"\n";
     if(visited.returnValue)
     {
-        out << L"`-";
+        out << indent << L"`-";
         indent += L" ";
         visited.returnValue->accept(*this);
         popIndent();

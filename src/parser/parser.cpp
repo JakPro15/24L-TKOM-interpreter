@@ -269,23 +269,10 @@ std::vector<std::unique_ptr<Instruction>> Parser::parseInstructionBlock()
 //               | DO_WHILE_STMT ;
 std::unique_ptr<Instruction> Parser::parseInstruction()
 {
-    Position begin = current.getPosition();
-    if(current.getType() == KW_CONTINUE)
-    {
-        advance();
-        checkAndAdvance(SEMICOLON);
-        return std::make_unique<ContinueStatement>(begin);
-    }
-    else if(current.getType() == KW_BREAK)
-    {
-        advance();
-        checkAndAdvance(SEMICOLON);
-        return std::make_unique<BreakStatement>(begin);
-    }
     std::unique_ptr<Instruction> instruction;
-    if((instruction = parseDeclOrAssignOrFunCall()))
-        return instruction;
-    if((instruction = parseBuiltinDeclStatement()))
+    if((instruction = parseContinueStatement()) || (instruction = parseBreakStatement()) ||
+       (instruction = parseReturnStatement()) || (instruction = parseDeclOrAssignOrFunCall()) ||
+       (instruction = parseBuiltinDeclStatement()))
         return instruction;
     return std::unique_ptr<Instruction>(nullptr);
 }
@@ -397,6 +384,43 @@ std::unique_ptr<FunctionCall> Parser::parseFunctionCall(Token functionNameToken)
     }
     checkAndAdvance(RPAREN);
     return std::make_unique<FunctionCall>(begin, name, std::move(parameters));
+}
+
+// 'continue', ';'
+std::unique_ptr<ContinueStatement> Parser::parseContinueStatement()
+{
+    if(current.getType() != KW_CONTINUE)
+        return std::unique_ptr<ContinueStatement>(nullptr);
+
+    Position begin = current.getPosition();
+    advance();
+    checkAndAdvance(SEMICOLON);
+    return std::make_unique<ContinueStatement>(begin);
+}
+
+// 'break', ';'
+std::unique_ptr<BreakStatement> Parser::parseBreakStatement()
+{
+    if(current.getType() != KW_BREAK)
+        return std::unique_ptr<BreakStatement>(nullptr);
+
+    Position begin = current.getPosition();
+    advance();
+    checkAndAdvance(SEMICOLON);
+    return std::make_unique<BreakStatement>(begin);
+}
+
+// RETURN_STMT = 'return', [ EXPRESSION ] , ';' ;
+std::unique_ptr<ReturnStatement> Parser::parseReturnStatement()
+{
+    if(current.getType() != KW_RETURN)
+        return std::unique_ptr<ReturnStatement>(nullptr);
+
+    Position begin = current.getPosition();
+    advance();
+    std::unique_ptr<Expression> returnValue = parseExpression();
+    checkAndAdvance(SEMICOLON);
+    return std::make_unique<ReturnStatement>(begin, std::move(returnValue));
 }
 
 std::unique_ptr<Expression> Parser::parseExpression()

@@ -250,7 +250,7 @@ struct FunctionCall: public Instruction,
 
 struct ReturnStatement: public Instruction
 {
-    ReturnStatement(Position position, std::unique_ptr<Expression> returnValue = nullptr);
+    ReturnStatement(Position position, std::unique_ptr<Expression> returnValue);
     std::unique_ptr<Expression> returnValue;
     void accept(DocumentTreeVisitor &visitor) override;
 };

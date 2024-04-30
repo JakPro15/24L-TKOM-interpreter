@@ -37,7 +37,9 @@ private:
     std::tuple<bool, std::wstring, std::unique_ptr<Expression>> parseNoTypeDecl();
     std::unique_ptr<AssignmentStatement> parseAssignmentStatement(Token firstToken);
     std::unique_ptr<FunctionCall> parseFunctionCall(Token firstToken);
-    std::unique_ptr<FunctionCall> parseFunctionCall();
+    std::unique_ptr<ContinueStatement> parseContinueStatement();
+    std::unique_ptr<BreakStatement> parseBreakStatement();
+    std::unique_ptr<ReturnStatement> parseReturnStatement();
     std::unique_ptr<Expression> parseExpression();
     std::unique_ptr<Literal> parseLiteral();
 };

@@ -41,8 +41,8 @@ std::vector<Token> wrapInFunction(std::vector<Token> tokens)
         Token(RPAREN, {2, 9}),
         Token(LBRACE, {3, 12}),
         // here will be the body of the function
-        Token(RBRACE, {6, 1}),
-        Token(EOT, {6, 2}),
+        Token(RBRACE, {12, 1}),
+        Token(EOT, {12, 2}),
     };
     wrapped.insert(wrapped.begin() + 5, tokens.begin(), tokens.end());
     return wrapped;
@@ -328,8 +328,8 @@ TEST_CASE("FunctionDeclaration - parameter list and return type", "[Parser]")
                 L"Functions:\n"
                 L"`-a_function: FunctionDeclaration <line: 1, col: 1> returnType=type_name\n"
                 L" `-Parameters:\n"
-                L"  |-VariableDeclaration <line: 1, col: 9> type=str name=param1 mutable=1\n"
-                L"  `-VariableDeclaration <line: 1, col: 27> type=typename name=param2 mutable=0\n"
+                L"  |-VariableDeclaration <line: 1, col: 9> type=str name=param1 mutable=true\n"
+                L"  `-VariableDeclaration <line: 1, col: 27> type=typename name=param2 mutable=false\n"
     );
 }
 
@@ -436,10 +436,10 @@ TEST_CASE("VariableDeclStatement", "[Parser]")
                 L"`-a_function: FunctionDeclaration <line: 1, col: 1>\n"
                 L" `-Body:\n"
                 L"  |-VariableDeclStatement <line: 4, col: 1>\n"
-                L"  ||-VariableDeclaration <line: 4, col: 1> type=int name=const_var mutable=0\n"
+                L"  ||-VariableDeclaration <line: 4, col: 1> type=int name=const_var mutable=false\n"
                 L"  |`-Literal <line: 4, col: 22> value=2\n"
                 L"  `-VariableDeclStatement <line: 5, col: 1>\n"
-                L"   |-VariableDeclaration <line: 5, col: 1> type=some_type name=mut_var mutable=1\n"
+                L"   |-VariableDeclaration <line: 5, col: 1> type=some_type name=mut_var mutable=true\n"
                 L"   `-Literal <line: 5, col: 22> value=3\n"
     );
 }
@@ -639,4 +639,51 @@ TEST_CASE("FunctionCall as an Instruction errors", "[Parser]")
         Token(RPAREN, {5, 15}),
     });
     checkParseError<SyntaxError>(tokens); // missing semicolon
+}
+
+TEST_CASE("ContinueStatement, BreakStatement, ReturnStatement", "[Parser]")
+{
+    std::vector tokens = wrapInFunction({
+        Token(KW_CONTINUE, {4, 1}),
+        Token(SEMICOLON, {4, 10}),
+        Token(KW_BREAK, {5, 1}),
+        Token(SEMICOLON, {5, 10}),
+        Token(KW_RETURN, {6, 1}),
+        Token(SEMICOLON, {6, 10}),
+        Token(KW_RETURN, {7, 1}),
+        Token(TRUE_LITERAL, {7, 10}),
+        Token(SEMICOLON, {7, 15}),
+    });
+    checkParsing(
+        tokens, L"Program containing:\n"
+                L"Functions:\n"
+                L"`-a_function: FunctionDeclaration <line: 1, col: 1>\n"
+                L" `-Body:\n"
+                L"  |-ContinueStatement <line: 4, col: 1>\n"
+                L"  |-BreakStatement <line: 5, col: 1>\n"
+                L"  |-ReturnStatement <line: 6, col: 1>\n"
+                L"  `-ReturnStatement <line: 7, col: 1>\n"
+                L"   `-Literal <line: 7, col: 10> value=true\n"
+    );
+}
+
+TEST_CASE("ContinueStatement, BreakStatement, ReturnStatement errors", "[Parser]")
+{
+    std::vector tokens = wrapInFunction({
+        Token(KW_CONTINUE, {4, 1}),
+    });
+    checkParseError<SyntaxError>(tokens); // missing semicolon after continue
+    tokens = wrapInFunction({
+        Token(KW_BREAK, {5, 1}),
+    });
+    checkParseError<SyntaxError>(tokens); // missing semicolon after break
+    tokens = wrapInFunction({
+        Token(KW_RETURN, {6, 1}),
+    });
+    checkParseError<SyntaxError>(tokens); // missing semicolon after return
+    tokens = wrapInFunction({
+        Token(KW_RETURN, {7, 1}),
+        Token(TRUE_LITERAL, {7, 10}),
+    });
+    checkParseError<SyntaxError>(tokens); // missing semicolon after return value
 }

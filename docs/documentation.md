@@ -685,7 +685,7 @@ VAR_DECL_BODY = IDENTIFIER
 INSTR_BLOCK =   '{', { INSTRUCTION } , '}' ;
 
 INSTRUCTION =   IDENTIFIER, DECL_OR_ASSIGN_OR_FUNCALL, ';'
-              | BUILTIN_DECL
+              | BUILTIN_TYPE, NO_TYPE_DECL
               | RETURN_STMT
               | 'continue', ';'
               | 'break', ';'
@@ -694,11 +694,13 @@ INSTRUCTION =   IDENTIFIER, DECL_OR_ASSIGN_OR_FUNCALL, ';'
               | DO_WHILE_STMT ;
 
 DECL_OR_ASSIGN_OR_FUNCALL =
-                VAR_DECL_BODY, '=', EXPRESSION
+                NO_TYPE_DECL
               | { '.', IDENTIFIER }, '=', EXPRESSION
               | '(', [ EXPRESSION, { ',', EXPRESSION } ] , ')' ;
 
-BUILTIN_DECL =  BUILTIN_TYPE, VAR_DECL_BODY, '=', EXPRESSION, ';' ;
+BUILTIN_DECL =  BUILTIN_TYPE, NO_TYPE_DECL, ';' ;
+
+NO_TYPE_DECL =  VAR_DECL_BODY, '=', EXPRESSION ;
 
 RETURN_STMT =   'return', [ EXPRESSION ] , ';' ;
 

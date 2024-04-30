@@ -317,9 +317,9 @@ TEST_CASE("FunctionDeclaration - parameter list and return type", "[Parser]")
         tokens, L"Program containing:\n"
                 L"Functions:\n"
                 L"`-a_function: FunctionDeclaration <line: 1, col: 1> returnType=type_name\n"
-                L" Parameters:\n"
-                L" |-VariableDeclaration <line: 1, col: 9> type=str name=param1 mutable=1\n"
-                L" `-VariableDeclaration <line: 1, col: 27> type=typename name=param2 mutable=0\n"
+                L" `-Parameters:\n"
+                L"  |-VariableDeclaration <line: 1, col: 9> type=str name=param1 mutable=1\n"
+                L"  `-VariableDeclaration <line: 1, col: 27> type=typename name=param2 mutable=0\n"
     );
 }
 
@@ -403,4 +403,40 @@ TEST_CASE("FunctionDeclaration parameters - errors", "[Parser]")
         Token(EOT, {3, 18}),
     };
     checkParseError<SyntaxError>(tokens); // trailing comma in parameter list
+}
+
+TEST_CASE("VariableDeclStatement", "[Parser]")
+{
+    std::array tokens = {
+        Token(KW_FUNC, {1, 1}),
+        Token(IDENTIFIER, {1, 3}, L"a_function"),
+        Token(LPAREN, {1, 6}),
+        Token(RPAREN, {2, 9}),
+        Token(LBRACE, {3, 12}),
+        Token(KW_INT, {4, 1}),
+        Token(IDENTIFIER, {4, 5}, L"const_var"),
+        Token(OP_ASSIGN, {4, 20}),
+        Token(INT_LITERAL, {4, 22}, 2),
+        Token(SEMICOLON, {4, 25}),
+        Token(IDENTIFIER, {5, 1}, L"some_type"),
+        Token(DOLLAR_SIGN, {5, 10}),
+        Token(IDENTIFIER, {5, 11}, L"mut_var"),
+        Token(OP_ASSIGN, {5, 20}),
+        Token(INT_LITERAL, {5, 22}, 3),
+        Token(SEMICOLON, {5, 23}),
+        Token(RBRACE, {6, 1}),
+        Token(EOT, {6, 2}),
+    };
+    checkParsing(
+        tokens, L"Program containing:\n"
+                L"Functions:\n"
+                L"`-a_function: FunctionDeclaration <line: 1, col: 1>\n"
+                L" `-Body:\n"
+                L"  |-VariableDeclStatement <line: 4, col: 1>\n"
+                L"  ||-VariableDeclaration <line: 4, col: 1> type=int name=const_var mutable=0\n"
+                L"  |`-Literal <line: 4, col: 22> value=2\n"
+                L"  `-VariableDeclStatement <line: 5, col: 1>\n"
+                L"   |-VariableDeclaration <line: 5, col: 1> type=some_type name=mut_var mutable=1\n"
+                L"   `-Literal <line: 5, col: 22> value=3\n"
+    );
 }

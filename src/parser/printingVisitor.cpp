@@ -2,7 +2,12 @@
 
 #include "documentTree.hpp"
 
-PrintingVisitor::PrintingVisitor(std::wostream &out): out(out), indent(0) {}
+PrintingVisitor::PrintingVisitor(std::wostream &out): out(out) {}
+
+void PrintingVisitor::popIndent()
+{
+    indent.erase(indent.size() - 1, 1);
+}
 
 void PrintingVisitor::visit(Literal &visited)
 {
@@ -14,33 +19,43 @@ void PrintingVisitor::visit(Literal &visited)
 void PrintingVisitor::visitUnaryOperation(std::wstring name, Position position, DocumentTreeNode &child)
 {
     out << name << L" " << position << L"\n";
-    indent += 1;
-    out << std::wstring(indent, L' ') << L"`-";
+    out << indent << L"`-";
+    indent += L" ";
     child.accept(*this);
-    indent -= 1;
+    popIndent();
 }
 
 void PrintingVisitor::visitBinaryOperation(std::wstring name, BinaryOperation &visited)
 {
     out << name << L" " << visited.getPosition() << L"\n";
     indent += 1;
-    out << std::wstring(indent, L' ') << L"|-";
+    out << indent << L"|-";
+    indent += L"|";
     visited.left->accept(*this);
-    out << std::wstring(indent, L' ') << L"`-";
+    popIndent();
+    out << indent << L"`-";
+    indent += L" ";
     visited.right->accept(*this);
-    indent -= 1;
+    popIndent();
 }
 
 void PrintingVisitor::visitInstructionBlock(std::vector<std::unique_ptr<Instruction>> &block)
 {
     for(auto &parameter: block)
     {
-        out << std::wstring(indent, L' ');
+        out << indent;
         if(&parameter != &block.back())
+        {
             out << L"|-";
+            indent += L"|";
+        }
         else
+        {
             out << L"`-";
+            indent += L" ";
+        }
         parameter->accept(*this);
+        popIndent();
     }
 }
 
@@ -48,12 +63,19 @@ void PrintingVisitor::visitFields(std::vector<Field> &fields)
 {
     for(auto &field: fields)
     {
-        out << std::wstring(indent, L' ');
+        out << indent;
         if(&field != &fields.back())
+        {
             out << L"|-";
+            indent += L"|";
+        }
         else
+        {
             out << L"`-";
+            indent += L" ";
+        }
         field.accept(*this);
+        popIndent();
     }
 }
 
@@ -180,26 +202,31 @@ void PrintingVisitor::visit(SubscriptExpression &visited)
 void PrintingVisitor::visit(DotExpression &visited)
 {
     out << L"DotExpression " << visited.getPosition() << L" field=" << visited.field << L"\n";
-    indent += 1;
-    out << std::wstring(indent, L' ') << L"`-";
+    out << indent << L"`-";
+    indent += L" ";
     visited.value->accept(*this);
-    indent -= 1;
+    popIndent();
 }
 
 void PrintingVisitor::visit(StructExpression &visited)
 {
     out << L"StructExpression " << visited.getPosition() << L"\n";
-    indent += 1;
     for(auto &parameter: visited.arguments)
     {
-        out << std::wstring(indent, L' ');
+        out << indent;
         if(&parameter != &visited.arguments.back())
+        {
             out << L"|-";
+            indent += L"|";
+        }
         else
+        {
             out << L"`-";
+            indent += L" ";
+        }
         parameter->accept(*this);
+        popIndent();
     }
-    indent -= 1;
 }
 
 void PrintingVisitor::visit(VariableDeclaration &visited)
@@ -211,48 +238,57 @@ void PrintingVisitor::visit(VariableDeclaration &visited)
 void PrintingVisitor::visit(VariableDeclStatement &visited)
 {
     out << L"VariableDeclStatement " << visited.getPosition() << L"\n";
-    indent += 1;
-    out << std::wstring(indent, L' ') << L"|-";
+    out << indent << L"|-";
+    indent += L"|";
     visited.declaration.accept(*this);
-    out << std::wstring(indent, L' ') << L"`-";
+    popIndent();
+    out << indent << L"`-";
+    indent += L" ";
     visited.value->accept(*this);
-    indent -= 1;
+    popIndent();
 }
 
 void PrintingVisitor::visit(Assignable &visited)
 {
     out << L"VariableDeclStatement " << visited.getPosition() << L" right=" << visited.right << L"\n";
-    indent += 1;
-    out << std::wstring(indent, L' ') << L"`-";
+    out << indent << L"`-";
+    indent += L" ";
     visited.left->accept(*this);
-    indent -= 1;
+    popIndent();
 }
 
 void PrintingVisitor::visit(AssignmentStatement &visited)
 {
     out << L"AssignmentStatement " << visited.getPosition() << L"\n";
-    indent += 1;
-    out << std::wstring(indent, L' ') << L"|-";
+    out << indent << L"|-";
+    indent += L"|";
     visited.left.accept(*this);
-    out << std::wstring(indent, L' ') << L"`-";
+    popIndent();
+    out << indent << L"`-";
+    indent += L" ";
     visited.right->accept(*this);
-    indent -= 1;
+    popIndent();
 }
 
 void PrintingVisitor::visit(FunctionCall &visited)
 {
     out << L"FunctionCall " << visited.getPosition() << L" functionName=" << visited.functionName << L"\n";
-    indent += 1;
     for(auto &parameter: visited.parameters)
     {
-        out << std::wstring(indent, L' ');
+        out << indent;
         if(&parameter != &visited.parameters.back())
+        {
             out << L"|-";
+            indent += L"|";
+        }
         else
+        {
             out << L"`-";
+            indent += L" ";
+        }
         parameter->accept(*this);
+        popIndent();
     }
-    indent -= 1;
 }
 
 void PrintingVisitor::visit(ReturnStatement &visited)
@@ -260,10 +296,10 @@ void PrintingVisitor::visit(ReturnStatement &visited)
     out << L"ReturnStatement " << visited.getPosition() << L"\n";
     if(visited.returnValue)
     {
-        indent += 1;
         out << L"`-";
+        indent += L" ";
         visited.returnValue->accept(*this);
-        indent -= 1;
+        popIndent();
     }
 }
 
@@ -279,44 +315,68 @@ void PrintingVisitor::visit(BreakStatement &visited)
 
 void PrintingVisitor::visit(IfStatement &visited)
 {
-    out << L"IfStatement " << visited.getPosition() << L"\n" << std::wstring(indent, L' ');
-    indent += 1;
+    out << L"IfStatement " << visited.getPosition() << L"\n" << indent;
     if(visited.body.size() > 0)
+    {
         out << L"|-";
+        indent += L"|";
+    }
     else
+    {
         out << L"`-";
+        indent += L" ";
+    }
     if(std::holds_alternative<VariableDeclStatement>(visited.condition))
         std::get<VariableDeclStatement>(visited.condition).accept(*this);
     else
         std::get<std::unique_ptr<Expression>>(visited.condition)->accept(*this);
+    popIndent();
+    out << indent << L"`-";
+    indent += L" ";
     visitInstructionBlock(visited.body);
-    indent -= 1;
+    popIndent();
 }
 
 void PrintingVisitor::visit(WhileStatement &visited)
 {
-    out << L"WhileStatement " << visited.getPosition() << L"\n" << std::wstring(indent, L' ');
-    indent += 1;
+    out << L"WhileStatement " << visited.getPosition() << L"\n" << indent;
     if(visited.body.size() > 0)
+    {
         out << L"|-";
+        indent += L"|";
+    }
     else
+    {
         out << L"`-";
+        indent += L" ";
+    }
     visited.condition->accept(*this);
+    popIndent();
+    out << indent << L"`-";
+    indent += L" ";
     visitInstructionBlock(visited.body);
-    indent -= 1;
+    popIndent();
 }
 
 void PrintingVisitor::visit(DoWhileStatement &visited)
 {
-    out << L"DoWhileStatement " << visited.getPosition() << L"\n" << std::wstring(indent, L' ');
-    indent += 1;
+    out << L"DoWhileStatement " << visited.getPosition() << L"\n" << indent;
     if(visited.body.size() > 0)
+    {
         out << L"|-";
+        indent += L"|";
+    }
     else
+    {
         out << L"`-";
+        indent += L" ";
+    }
     visited.condition->accept(*this);
+    popIndent();
+    out << indent << L"`-";
+    indent += L" ";
     visitInstructionBlock(visited.body);
-    indent -= 1;
+    popIndent();
 }
 
 void PrintingVisitor::visit(Field &visited)
@@ -327,17 +387,13 @@ void PrintingVisitor::visit(Field &visited)
 void PrintingVisitor::visit(StructDeclaration &visited)
 {
     out << L"StructDeclaration " << visited.getPosition() << L"\n";
-    indent += 1;
     visitFields(visited.fields);
-    indent -= 1;
 }
 
 void PrintingVisitor::visit(VariantDeclaration &visited)
 {
     out << L"VariantDeclaration " << visited.getPosition() << L"\n";
-    indent += 1;
     visitFields(visited.fields);
-    indent -= 1;
 }
 
 void PrintingVisitor::visit(FunctionDeclaration &visited)
@@ -346,26 +402,38 @@ void PrintingVisitor::visit(FunctionDeclaration &visited)
     if(visited.returnType.has_value())
         out << L" returnType=" << *visited.returnType;
     out << L"\n";
-    indent += 1;
     if(visited.parameters.size() > 0)
     {
-        out << std::wstring(indent, L' ') << L"Parameters:\n";
+        out << indent;
+        if(visited.body.size() > 0)
+        {
+            out << L"|-";
+            indent += L"|";
+        }
+        else
+        {
+            out << L"`-";
+            indent += L" ";
+        }
+        out << L"Parameters:\n";
         for(auto &parameter: visited.parameters)
         {
-            out << std::wstring(indent, L' ');
+            out << indent;
             if(&parameter != &visited.parameters.back())
                 out << L"|-";
             else
                 out << L"`-";
             parameter.accept(*this);
         }
+        popIndent();
     }
     if(visited.body.size() > 0)
     {
-        out << std::wstring(indent, L' ') << L"Body:\n";
+        out << indent << L"`-Body:\n";
+        indent += L" ";
         visitInstructionBlock(visited.body);
+        popIndent();
     }
-    indent -= 1;
 }
 
 void PrintingVisitor::visit(IncludeStatement &visited)
@@ -378,10 +446,10 @@ void PrintingVisitor::visit(Program &visited)
     out << L"Program containing:\n";
     if(visited.includes.size() > 0)
     {
-        out << std::wstring(indent, L' ') << L"Includes:\n";
+        out << indent << L"Includes:\n";
         for(auto &includeStatement: visited.includes)
         {
-            out << std::wstring(indent, L' ');
+            out << indent;
             if(&includeStatement != &visited.includes.back())
                 out << L"|-";
             else
@@ -391,44 +459,65 @@ void PrintingVisitor::visit(Program &visited)
     }
     if(visited.structs.size() > 0)
     {
-        out << std::wstring(indent, L' ') << L"Structs:\n";
+        out << indent << L"Structs:\n";
         for(auto it = visited.structs.begin(); it != visited.structs.end(); it++)
         {
-            out << std::wstring(indent, L' ');
+            out << indent;
             if(std::next(it) != visited.structs.end())
+            {
                 out << L"|-";
+                indent += L"|";
+            }
             else
+            {
                 out << L"`-";
+                indent += L" ";
+            }
             out << it->first << L": ";
             it->second.accept(*this);
+            popIndent();
         }
     }
     if(visited.variants.size() > 0)
     {
-        out << std::wstring(indent, L' ') << L"Variants:\n";
+        out << indent << L"Variants:\n";
         for(auto it = visited.variants.begin(); it != visited.variants.end(); it++)
         {
-            out << std::wstring(indent, L' ');
+            out << indent;
             if(std::next(it) != visited.variants.end())
+            {
                 out << L"|-";
+                indent += L"|";
+            }
             else
+            {
                 out << L"`-";
+                indent += L" ";
+            }
             out << it->first << L": ";
             it->second.accept(*this);
+            popIndent();
         }
     }
     if(visited.functions.size() > 0)
     {
-        out << std::wstring(indent, L' ') << L"Functions:\n";
+        out << indent << L"Functions:\n";
         for(auto it = visited.functions.begin(); it != visited.functions.end(); it++)
         {
-            out << std::wstring(indent, L' ');
+            out << indent;
             if(std::next(it) != visited.functions.end())
+            {
                 out << L"|-";
+                indent += L"|";
+            }
             else
+            {
                 out << L"`-";
+                indent += L" ";
+            }
             out << it->first.name << L": ";
             it->second.accept(*this);
+            popIndent();
         }
     }
 }

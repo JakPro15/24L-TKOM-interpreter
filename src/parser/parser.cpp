@@ -282,6 +282,11 @@ std::unique_ptr<Instruction> Parser::parseInstruction()
         checkAndAdvance(SEMICOLON);
         return std::make_unique<BreakStatement>(begin);
     }
+    std::unique_ptr<Instruction> instruction;
+    if((instruction = parseDeclOrAssignOrFunCall()))
+        return instruction;
+    if((instruction = parseBuiltinDeclStatement()))
+        return instruction;
     return std::unique_ptr<Instruction>(nullptr);
 }
 
@@ -304,7 +309,7 @@ std::unique_ptr<Instruction> Parser::parseDeclOrAssignOrFunCall()
     return instruction;
 }
 
-// IDENTIFIER, VAR_DECL_BODY, '=', EXPRESSION
+// IDENTIFIER, NO_TYPE_DECL
 std::unique_ptr<VariableDeclStatement> Parser::parseVariableDeclStatement(Token firstToken)
 {
     if(current.getType() != DOLLAR_SIGN && current.getType() != IDENTIFIER)
@@ -312,14 +317,37 @@ std::unique_ptr<VariableDeclStatement> Parser::parseVariableDeclStatement(Token 
 
     Position begin = firstToken.getPosition();
     std::wstring type = std::get<std::wstring>(firstToken.getValue());
+    auto [isMutable, name, value] = parseNoTypeDecl();
+
+    return std::make_unique<VariableDeclStatement>(
+        begin, VariableDeclaration(begin, type, name, isMutable), std::move(value)
+    );
+}
+
+// BUILTIN_DECL =  BUILTIN_TYPE, NO_TYPE_DECL, ';' ;
+std::unique_ptr<VariableDeclStatement> Parser::parseBuiltinDeclStatement()
+{
+    Position begin = current.getPosition();
+    std::optional<std::wstring> type;
+    if(!(type = parseBuiltinType()))
+        return std::unique_ptr<VariableDeclStatement>(nullptr);
+    auto [isMutable, name, value] = parseNoTypeDecl();
+    checkAndAdvance(SEMICOLON);
+
+    return std::make_unique<VariableDeclStatement>(
+        begin, VariableDeclaration(begin, *type, name, isMutable), std::move(value)
+    );
+}
+
+// NO_TYPE_DECL = VAR_DECL_BODY, '=', EXPRESSION ;
+std::tuple<bool, std::wstring, std::unique_ptr<Expression>> Parser::parseNoTypeDecl()
+{
     auto [isMutable, name] = parseVariableDeclarationBody();
     checkAndAdvance(OP_ASSIGN);
     std::unique_ptr<Expression> value;
     if(!(value = parseExpression()))
         throw SyntaxError(std::format(L"Expected expression, got {}", current), current.getPosition());
-    return std::make_unique<VariableDeclStatement>(
-        begin, VariableDeclaration(begin, type, name, isMutable), std::move(value)
-    );
+    return std::tuple{isMutable, name, std::move(value)};
 }
 
 // IDENTIFIER, { '.', IDENTIFIER }, '=', EXPRESSION
@@ -376,5 +404,33 @@ std::unique_ptr<FunctionCall> Parser::parseFunctionCall()
 
 std::unique_ptr<Expression> Parser::parseExpression()
 {
-    return parseFunctionCall();
+    return parseLiteral();
+}
+
+std::unique_ptr<Literal> Parser::parseLiteral()
+{
+    std::variant<std::wstring, int32_t, double, bool> value;
+    switch(current.getType())
+    {
+    case STR_LITERAL:
+        value = std::get<std::wstring>(current.getValue());
+        break;
+    case INT_LITERAL:
+        value = std::get<int32_t>(current.getValue());
+        break;
+    case FLOAT_LITERAL:
+        value = std::get<double>(current.getValue());
+        break;
+    case TRUE_LITERAL:
+        value = true;
+        break;
+    case FALSE_LITERAL:
+        value = false;
+        break;
+    default:
+        return std::unique_ptr<Literal>(nullptr);
+    }
+    Position begin = current.getPosition();
+    advance();
+    return std::make_unique<Literal>(begin, value);
 }

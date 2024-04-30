@@ -30,7 +30,6 @@ struct Expression: public virtual DocumentTreeNode
 struct Literal: public Expression
 {
     Literal(Position position, std::variant<std::wstring, int32_t, double, bool> value);
-
     std::variant<std::wstring, int32_t, double, bool> value;
     void accept(DocumentTreeVisitor &visitor) override;
 };

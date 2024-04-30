@@ -59,7 +59,9 @@ public:
     void visit(Program &visited) override;
 private:
     std::wostream &out;
-    int indent;
+    std::wstring indent;
+    void popIndent();
+
     void visitUnaryOperation(std::wstring name, Position position, DocumentTreeNode &child);
     void visitBinaryOperation(std::wstring name, BinaryOperation &visited);
     void visitInstructionBlock(std::vector<std::unique_ptr<Instruction>> &block);

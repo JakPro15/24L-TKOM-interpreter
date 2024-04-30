@@ -30,11 +30,16 @@ private:
     std::optional<IncludeStatement> parseIncludeStatement();
     std::optional<std::pair<std::wstring, StructDeclaration>> parseStructDeclaration();
     std::optional<std::pair<std::wstring, VariantDeclaration>> parseVariantDeclaration();
-    // std::optional<std::pair<FunctionIdentification, FunctionDeclaration>> parseFunctionDeclaration();
+    std::optional<std::pair<FunctionIdentification, FunctionDeclaration>> parseFunctionDeclaration();
     std::pair<std::wstring, std::vector<Field>> parseDeclarationBlock();
     std::optional<Field> parseField();
     std::optional<std::wstring> parseTypeIdentifier();
     std::optional<std::wstring> parseBuiltinType();
+    std::vector<VariableDeclaration> parseParameters();
+    std::optional<VariableDeclaration> parseVariableDeclaration();
+    std::vector<std::unique_ptr<Instruction>> parseInstructionBlock();
+    std::unique_ptr<Instruction> parseInstruction();
+    std::pair<bool, std::wstring> parseVariableDeclarationBody();
 };
 
 #endif

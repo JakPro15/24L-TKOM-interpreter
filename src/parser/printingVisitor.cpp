@@ -204,9 +204,16 @@ void PrintingVisitor::visit(StructExpression &visited)
 
 void PrintingVisitor::visit(VariableDeclaration &visited)
 {
-    out << L"VariableDeclaration " << visited.getPosition() << L" type=" << visited.type << L" name=" << visited.name
-        << L"\n";
+    out << L"Field " << visited.getPosition() << L" type=" << visited.type << L" name=" << visited.name << L" mutable="
+        << visited.isMutable << L"\n";
+}
+
+void PrintingVisitor::visit(VariableDeclStatement &visited)
+{
+    out << L"VariableDeclStatement " << visited.getPosition() << L"\n";
     indent += 1;
+    out << std::wstring(indent, L' ') << L"|-";
+    visited.declaration.accept(*this);
     out << std::wstring(indent, L' ') << L"`-";
     visited.value->accept(*this);
     indent -= 1;
@@ -214,7 +221,7 @@ void PrintingVisitor::visit(VariableDeclaration &visited)
 
 void PrintingVisitor::visit(Assignable &visited)
 {
-    out << L"VariableDeclaration " << visited.getPosition() << L" right=" << visited.right << L"\n";
+    out << L"VariableDeclStatement " << visited.getPosition() << L" right=" << visited.right << L"\n";
     indent += 1;
     out << std::wstring(indent, L' ') << L"`-";
     visited.left->accept(*this);
@@ -278,8 +285,8 @@ void PrintingVisitor::visit(IfStatement &visited)
         out << L"|-";
     else
         out << L"`-";
-    if(std::holds_alternative<VariableDeclaration>(visited.condition))
-        std::get<VariableDeclaration>(visited.condition).accept(*this);
+    if(std::holds_alternative<VariableDeclStatement>(visited.condition))
+        std::get<VariableDeclStatement>(visited.condition).accept(*this);
     else
         std::get<std::unique_ptr<Expression>>(visited.condition)->accept(*this);
     visitInstructionBlock(visited.body);
@@ -338,7 +345,15 @@ void PrintingVisitor::visit(FunctionDeclaration &visited)
     out << L"FunctionDeclaration " << visited.getPosition() << L" returnType=" << visited.returnType << L"\n";
     out << std::wstring(indent, L' ') << L"Parameters:\n";
     indent += 1;
-    visitFields(visited.parameters);
+    for(auto &parameter: visited.parameters)
+    {
+        out << std::wstring(indent, L' ');
+        if(&parameter != &visited.parameters.back())
+            out << L"|-";
+        else
+            out << L"`-";
+        parameter.accept(*this);
+    }
     out << std::wstring(indent - 1, L' ') << L"Body:\n";
     visitInstructionBlock(visited.body);
     indent -= 1;

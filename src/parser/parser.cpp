@@ -45,12 +45,12 @@ bool Parser::tryAddTopLevelStatement(Program &program)
         program.variants.insert(std::move(*variantBuilt));
         return true;
     }
-    // std::optional<std::pair<FunctionIdentification, FunctionDeclaration>> functionBuilt;
-    // if((functionBuilt = parseFunctionDeclaration()))
-    // {
-    //     program.functions.insert(std::move(*functionBuilt));
-    //     return true;
-    // }
+    std::optional<std::pair<FunctionIdentification, FunctionDeclaration>> functionBuilt;
+    if((functionBuilt = parseFunctionDeclaration()))
+    {
+        program.functions.insert(std::move(*functionBuilt));
+        return true;
+    }
     return false;
 }
 
@@ -150,6 +150,109 @@ std::optional<std::wstring> Parser::parseBuiltinType()
     std::wstring typeAsString = std::format(L"{}", current);
     advance();
     return typeAsString;
+}
+
+// FUNCTION_DECL = 'func', IDENTIFIER, '(', [ PARAMETERS ], ')', [ '->', TYPE_IDENT ] , INSTR_BLOCK ;
+std::optional<std::pair<FunctionIdentification, FunctionDeclaration>> Parser::parseFunctionDeclaration()
+{
+    if(current.getType() != KW_FUNC)
+        return std::nullopt;
+
+    std::wstring name = loadAndAdvance<std::wstring>(IDENTIFIER);
+    checkAndAdvance(LPAREN);
+    std::vector<VariableDeclaration> parameters = parseParameters();
+    checkAndAdvance(RPAREN);
+    std::optional<std::wstring> returnType;
+    if(current.getType() == ARROW)
+    {
+        advance();
+        if(!(returnType = parseTypeIdentifier()))
+            throw SyntaxError(
+                std::format(L"Expected type identifier, got {}", current.getType()), current.getPosition()
+            );
+    }
+}
+
+// PARAMETERS = VARIABLE_DECL, {',', VARIABLE_DECL};
+std::vector<VariableDeclaration> Parser::parseParameters()
+{
+    std::optional<VariableDeclaration> parameter;
+    if(!(parameter = parseVariableDeclaration()))
+        return {};
+    std::vector<VariableDeclaration> parameters{*parameter};
+    while(current.getType() == COMMA)
+    {
+        advance();
+        if(!(parameter = parseVariableDeclaration()))
+            throw SyntaxError(
+                std::format(L"Expected type identifier, got {}", current.getType()), current.getPosition()
+            );
+        parameters.push_back(*parameter);
+    }
+}
+
+// VARIABLE_DECL = TYPE_IDENT, VAR_DECL_BODY ;
+std::optional<VariableDeclaration> Parser::parseVariableDeclaration()
+{
+    Position begin = current.getPosition();
+    std::optional<std::wstring> type;
+    if(!(type = parseTypeIdentifier()))
+        return std::nullopt;
+
+    auto [isMutable, name] = parseVariableDeclarationBody();
+    return VariableDeclaration(begin, *type, name, isMutable);
+}
+
+// VAR_DECL_BODY = IDENTIFIER
+//               | '$', IDENTIFIER ;
+std::pair<bool, std::wstring> Parser::parseVariableDeclarationBody()
+{
+    bool isMutable = false;
+    if(current.getType() == DOLLAR_SIGN)
+    {
+        isMutable = true;
+        advance();
+    }
+    std::wstring name = loadAndAdvance<std::wstring>(IDENTIFIER);
+    return {isMutable, name};
+}
+
+// INSTR_BLOCK = '{', { INSTRUCTION } , '}' ;
+std::vector<std::unique_ptr<Instruction>> Parser::parseInstructionBlock()
+{
+    checkAndAdvance(LBRACE);
+    std::vector<std::unique_ptr<Instruction>> instructions;
+    std::unique_ptr<Instruction> instruction;
+    while((instruction = parseInstruction()))
+        instructions.push_back(instruction);
+    checkAndAdvance(RBRACE);
+    return instructions;
+}
+
+// INSTRUCTION =   IDENTIFIER, DECL_OR_ASSIGN_OR_FUNCALL, ';'
+//               | BUILTIN_DECL
+//               | RETURN_STMT
+//               | 'continue', ';'
+//               | 'break', ';'
+//               | IF_STMT
+//               | WHILE_STMT
+//               | DO_WHILE_STMT ;
+std::unique_ptr<Instruction> Parser::parseInstruction()
+{
+    Position begin = current.getPosition();
+    if(current.getType() == KW_CONTINUE)
+    {
+        advance();
+        checkAndAdvance(SEMICOLON);
+        return std::make_unique<ContinueStatement>(begin);
+    }
+    else if(current.getType() == KW_BREAK)
+    {
+        advance();
+        checkAndAdvance(SEMICOLON);
+        return std::make_unique<BreakStatement>(begin);
+    }
+    return std::unique_ptr<Instruction>(nullptr);
 }
 
 // PROGRAM = { TOP_STMT } ;

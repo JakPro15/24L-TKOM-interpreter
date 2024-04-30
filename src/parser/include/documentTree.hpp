@@ -207,10 +207,18 @@ struct Instruction: public DocumentTreeNode
     using DocumentTreeNode::DocumentTreeNode;
 };
 
-struct VariableDeclaration: public Instruction
+struct VariableDeclaration: public DocumentTreeNode
 {
-    VariableDeclaration(Position position, std::wstring type, std::wstring name, std::unique_ptr<Expression> value);
+    VariableDeclaration(Position position, std::wstring type, std::wstring name, bool isMutable);
     std::wstring type, name;
+    bool isMutable;
+    void accept(DocumentTreeVisitor &visitor) override;
+};
+
+struct VariableDeclStatement: public Instruction
+{
+    VariableDeclStatement(Position position, VariableDeclaration declaration, std::unique_ptr<Expression> value);
+    VariableDeclaration declaration;
     std::unique_ptr<Expression> value;
     void accept(DocumentTreeVisitor &visitor) override;
 };
@@ -260,11 +268,11 @@ struct BreakStatement: public Instruction
 
 struct IfStatement: public Instruction
 {
-    IfStatement(Position position, VariableDeclaration condition, std::vector<std::unique_ptr<Instruction>> body);
+    IfStatement(Position position, VariableDeclStatement condition, std::vector<std::unique_ptr<Instruction>> body);
     IfStatement(
         Position position, std::unique_ptr<Expression> condition, std::vector<std::unique_ptr<Instruction>> body
     );
-    std::variant<VariableDeclaration, std::unique_ptr<Expression>> condition;
+    std::variant<VariableDeclStatement, std::unique_ptr<Expression>> condition;
     std::vector<std::unique_ptr<Instruction>> body;
     void accept(DocumentTreeVisitor &visitor) override;
 };
@@ -304,7 +312,10 @@ struct std::hash<FunctionIdentification>
     {
         std::size_t value = std::hash<std::wstring>()(id.name);
         for(const std::wstring &type: id.parameterTypes)
+        {
+            value <<= 1;
             value ^= std::hash<std::wstring>()(type);
+        }
         return value;
     }
 };
@@ -333,11 +344,11 @@ struct VariantDeclaration: public DocumentTreeNode
 struct FunctionDeclaration: public DocumentTreeNode
 {
     FunctionDeclaration(
-        Position position, std::vector<Field> parameters, std::wstring returnType,
+        Position position, std::vector<VariableDeclaration> parameters, std::optional<std::wstring> returnType,
         std::vector<std::unique_ptr<Instruction>> body
     );
-    std::vector<Field> parameters;
-    std::wstring returnType;
+    std::vector<VariableDeclaration> parameters;
+    std::optional<std::wstring> returnType;
     std::vector<std::unique_ptr<Instruction>> body;
     void accept(DocumentTreeVisitor &visitor) override;
 };

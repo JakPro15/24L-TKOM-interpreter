@@ -32,9 +32,13 @@ StructExpression::StructExpression(Position position, std::vector<std::unique_pt
     Expression(position), arguments(std::move(arguments))
 {}
 
-VariableDeclaration::VariableDeclaration(
-    Position position, std::wstring type, std::wstring name, std::unique_ptr<Expression> value
-): Instruction(position), type(type), name(name), value(std::move(value))
+VariableDeclaration::VariableDeclaration(Position position, std::wstring type, std::wstring name, bool isMutable):
+    DocumentTreeNode(position), type(type), name(name), isMutable(isMutable)
+{}
+
+VariableDeclStatement::VariableDeclStatement(
+    Position position, VariableDeclaration declaration, std::unique_ptr<Expression> value
+): Instruction(position), declaration(declaration), value(std::move(value))
 {}
 
 Assignable::Assignable(Position position, std::unique_ptr<Assignable> left, std::wstring right):
@@ -55,7 +59,7 @@ ReturnStatement::ReturnStatement(Position position, std::unique_ptr<Expression> 
 {}
 
 IfStatement::IfStatement(
-    Position position, VariableDeclaration condition, std::vector<std::unique_ptr<Instruction>> body
+    Position position, VariableDeclStatement condition, std::vector<std::unique_ptr<Instruction>> body
 ): Instruction(position), condition(std::move(condition)), body(std::move(body))
 {}
 
@@ -91,7 +95,7 @@ VariantDeclaration::VariantDeclaration(Position position, std::vector<Field> fie
 {}
 
 FunctionDeclaration::FunctionDeclaration(
-    Position position, std::vector<Field> parameters, std::wstring returnType,
+    Position position, std::vector<VariableDeclaration> parameters, std::optional<std::wstring> returnType,
     std::vector<std::unique_ptr<Instruction>> body
 ): DocumentTreeNode(position), parameters(parameters), returnType(returnType), body(std::move(body))
 {}
@@ -136,6 +140,7 @@ DEFINE_ACCEPT(SubscriptExpression);
 DEFINE_ACCEPT(DotExpression);
 DEFINE_ACCEPT(StructExpression);
 DEFINE_ACCEPT(VariableDeclaration);
+DEFINE_ACCEPT(VariableDeclStatement);
 DEFINE_ACCEPT(Assignable);
 DEFINE_ACCEPT(AssignmentStatement);
 DEFINE_ACCEPT(FunctionCall);

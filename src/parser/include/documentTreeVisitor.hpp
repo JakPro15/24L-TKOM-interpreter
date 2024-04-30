@@ -29,6 +29,7 @@ struct SubscriptExpression;
 struct DotExpression;
 struct StructExpression;
 struct VariableDeclaration;
+struct VariableDeclStatement;
 struct Assignable;
 struct AssignmentStatement;
 struct FunctionCall;
@@ -78,6 +79,7 @@ public:
     virtual void visit(DotExpression &visited) = 0;
     virtual void visit(StructExpression &visited) = 0;
     virtual void visit(VariableDeclaration &visited) = 0;
+    virtual void visit(VariableDeclStatement &visited) = 0;
     virtual void visit(Assignable &visited) = 0;
     virtual void visit(AssignmentStatement &visited) = 0;
     virtual void visit(FunctionCall &visited) = 0;

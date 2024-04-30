@@ -353,7 +353,7 @@ std::tuple<bool, std::wstring, std::unique_ptr<Expression>> Parser::parseNoTypeD
 // IDENTIFIER, { '.', IDENTIFIER }, '=', EXPRESSION
 std::unique_ptr<AssignmentStatement> Parser::parseAssignmentStatement(Token firstToken)
 {
-    if(current.getType() != OP_DOT || current.getType() != OP_ASSIGN)
+    if(current.getType() != OP_DOT && current.getType() != OP_ASSIGN)
         return std::unique_ptr<AssignmentStatement>(nullptr);
 
     Position begin = firstToken.getPosition();
@@ -364,42 +364,39 @@ std::unique_ptr<AssignmentStatement> Parser::parseAssignmentStatement(Token firs
         std::wstring right = loadAndAdvance(IDENTIFIER);
         leftAssignable = Assignable(begin, std::make_unique<Assignable>(std::move(leftAssignable)), right);
     }
+    checkAndAdvance(OP_ASSIGN);
+
     std::unique_ptr<Expression> value;
     if(!(value = parseExpression()))
         throw SyntaxError(std::format(L"Expected expression, got {}", current), current.getPosition());
-    return std::make_unique<AssignmentStatement>(firstToken.getPosition(), std::move(leftAssignable), std::move(value));
+    return std::make_unique<AssignmentStatement>(begin, std::move(leftAssignable), std::move(value));
 }
 
 // IDENTIFIER, '(', [ EXPRESSION, { ',', EXPRESSION } ] , ')'
-std::unique_ptr<FunctionCall> Parser::parseFunctionCall(Token firstToken)
+std::unique_ptr<FunctionCall> Parser::parseFunctionCall(Token functionNameToken)
 {
-    Position begin = firstToken.getPosition();
-    std::wstring name = std::get<std::wstring>(firstToken.getValue());
-    checkAndAdvance(LPAREN);
+    if(current.getType() != LPAREN)
+        return std::unique_ptr<FunctionCall>(nullptr);
+    advance();
+
+    Position begin = functionNameToken.getPosition();
+    std::wstring name = std::get<std::wstring>(functionNameToken.getValue());
 
     std::vector<std::unique_ptr<Expression>> parameters;
     std::unique_ptr<Expression> parameterBuilt;
-    if(!(parameterBuilt = parseExpression()))
-        throw SyntaxError(std::format(L"Expected expression, got {}", current), current.getPosition());
-    parameters.push_back(std::move(parameterBuilt));
-    while(current.getType() == COMMA)
+    if((parameterBuilt = parseExpression()))
     {
-        advance();
-        if(!(parameterBuilt = parseExpression()))
-            throw SyntaxError(std::format(L"Expected expression, got {}", current), current.getPosition());
         parameters.push_back(std::move(parameterBuilt));
+        while(current.getType() == COMMA)
+        {
+            advance();
+            if(!(parameterBuilt = parseExpression()))
+                throw SyntaxError(std::format(L"Expected expression, got {}", current), current.getPosition());
+            parameters.push_back(std::move(parameterBuilt));
+        }
     }
     checkAndAdvance(RPAREN);
     return std::make_unique<FunctionCall>(begin, name, std::move(parameters));
-}
-
-std::unique_ptr<FunctionCall> Parser::parseFunctionCall()
-{
-    if(current.getType() != IDENTIFIER)
-        return std::unique_ptr<FunctionCall>(nullptr);
-    Token firstToken = current;
-    advance();
-    return parseFunctionCall(firstToken);
 }
 
 std::unique_ptr<Expression> Parser::parseExpression()

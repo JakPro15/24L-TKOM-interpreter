@@ -32,9 +32,25 @@ void checkParseError(TokenContainer tokens)
     REQUIRE_THROWS_AS(parser.parseProgram(), ErrorType);
 }
 
+std::vector<Token> wrapInFunction(std::vector<Token> tokens)
+{
+    std::vector wrapped = {
+        Token(KW_FUNC, {1, 1}),
+        Token(IDENTIFIER, {1, 3}, L"a_function"),
+        Token(LPAREN, {1, 6}),
+        Token(RPAREN, {2, 9}),
+        Token(LBRACE, {3, 12}),
+        // here will be the body of the function
+        Token(RBRACE, {6, 1}),
+        Token(EOT, {6, 2}),
+    };
+    wrapped.insert(wrapped.begin() + 5, tokens.begin(), tokens.end());
+    return wrapped;
+}
+
 TEST_CASE("empty Program", "[Parser]")
 {
-    std::array tokens = {
+    std::vector tokens = {
         Token(EOT, {1, 1}),
     };
     checkParsing(tokens, L"Program containing:\n");
@@ -73,7 +89,7 @@ TEST_CASE("IncludeStatement errors", "[Parser]")
 
 TEST_CASE("StructDeclaration", "[Parser]")
 {
-    std::array tokens = {
+    std::vector tokens = {
         Token(KW_STRUCT, {1, 1}),
         Token(IDENTIFIER, {1, 3}, L"a_structure"),
         Token(LBRACE, {1, 6}),
@@ -177,7 +193,7 @@ TEST_CASE("StructDeclaration errors", "[Parser]")
 
 TEST_CASE("VariantDeclaration", "[Parser]")
 {
-    std::array tokens = {
+    std::vector tokens = {
         Token(KW_VARIANT, {1, 1}),
         Token(IDENTIFIER, {1, 3}, L"a_variant"),
         Token(LBRACE, {1, 6}),
@@ -281,22 +297,16 @@ TEST_CASE("VariantDeclaration errors", "[Parser]")
 
 TEST_CASE("FunctionDeclaration - empty function", "[Parser]")
 {
-    std::array tokens = {
-        Token(KW_FUNC, {1, 1}), Token(IDENTIFIER, {1, 3}, L"a_function"),
-        Token(LPAREN, {1, 6}),  Token(RPAREN, {1, 9}),
-        Token(LBRACE, {1, 12}), Token(RBRACE, {1, 15}),
-        Token(EOT, {1, 18}),
-    };
     checkParsing(
-        tokens, L"Program containing:\n"
-                L"Functions:\n"
-                L"`-a_function: FunctionDeclaration <line: 1, col: 1>\n"
+        wrapInFunction({}), L"Program containing:\n"
+                            L"Functions:\n"
+                            L"`-a_function: FunctionDeclaration <line: 1, col: 1>\n"
     );
 }
 
 TEST_CASE("FunctionDeclaration - parameter list and return type", "[Parser]")
 {
-    std::array tokens = {
+    std::vector tokens = {
         Token(KW_FUNC, {1, 1}),
         Token(IDENTIFIER, {1, 3}, L"a_function"),
         Token(LPAREN, {1, 6}),
@@ -407,12 +417,7 @@ TEST_CASE("FunctionDeclaration parameters - errors", "[Parser]")
 
 TEST_CASE("VariableDeclStatement", "[Parser]")
 {
-    std::array tokens = {
-        Token(KW_FUNC, {1, 1}),
-        Token(IDENTIFIER, {1, 3}, L"a_function"),
-        Token(LPAREN, {1, 6}),
-        Token(RPAREN, {2, 9}),
-        Token(LBRACE, {3, 12}),
+    std::vector tokens = wrapInFunction({
         Token(KW_INT, {4, 1}),
         Token(IDENTIFIER, {4, 5}, L"const_var"),
         Token(OP_ASSIGN, {4, 20}),
@@ -424,9 +429,7 @@ TEST_CASE("VariableDeclStatement", "[Parser]")
         Token(OP_ASSIGN, {5, 20}),
         Token(INT_LITERAL, {5, 22}, 3),
         Token(SEMICOLON, {5, 23}),
-        Token(RBRACE, {6, 1}),
-        Token(EOT, {6, 2}),
-    };
+    });
     checkParsing(
         tokens, L"Program containing:\n"
                 L"Functions:\n"
@@ -439,4 +442,201 @@ TEST_CASE("VariableDeclStatement", "[Parser]")
                 L"   |-VariableDeclaration <line: 5, col: 1> type=some_type name=mut_var mutable=1\n"
                 L"   `-Literal <line: 5, col: 22> value=3\n"
     );
+}
+
+TEST_CASE("VariableDeclStatement errors", "[Parser]")
+{
+    std::vector tokens = wrapInFunction({
+        Token(KW_INT, {4, 1}),
+        Token(DOLLAR_SIGN, {4, 10}),
+        Token(OP_ASSIGN, {4, 20}),
+        Token(INT_LITERAL, {4, 22}, 2),
+        Token(SEMICOLON, {4, 25}),
+    });
+    checkParseError<SyntaxError>(tokens); // missing variable name - builtin type case
+    tokens = wrapInFunction({
+        Token(IDENTIFIER, {4, 1}, L"strct"),
+        Token(DOLLAR_SIGN, {4, 10}),
+        Token(OP_ASSIGN, {4, 20}),
+        Token(INT_LITERAL, {4, 22}, 2),
+        Token(SEMICOLON, {4, 25}),
+    });
+    checkParseError<SyntaxError>(tokens); // missing variable name - identifier type case
+    tokens = wrapInFunction({
+        Token(KW_INT, {4, 1}),
+        Token(IDENTIFIER, {4, 5}, L"const_var"),
+        Token(INT_LITERAL, {4, 22}, 2),
+        Token(SEMICOLON, {4, 25}),
+    });
+    checkParseError<SyntaxError>(tokens); // missing =
+    tokens = wrapInFunction({
+        Token(KW_INT, {4, 1}),
+        Token(IDENTIFIER, {4, 5}, L"const_var"),
+        Token(OP_ASSIGN, {4, 20}),
+        Token(SEMICOLON, {4, 25}),
+    });
+    checkParseError<SyntaxError>(tokens); // missing expression
+    tokens = wrapInFunction({
+        Token(KW_INT, {4, 1}),
+        Token(IDENTIFIER, {4, 5}, L"const_var"),
+        Token(OP_ASSIGN, {4, 20}),
+        Token(INT_LITERAL, {4, 22}, 2),
+    });
+    checkParseError<SyntaxError>(tokens); // missing semicolon
+}
+
+TEST_CASE("AssignmentStatement", "[Parser]")
+{
+    std::vector tokens = wrapInFunction({
+        Token(IDENTIFIER, {3, 5}, L"some_var"),
+        Token(OP_ASSIGN, {3, 12}),
+        Token(INT_LITERAL, {3, 14}, 2),
+        Token(SEMICOLON, {3, 15}),
+        Token(IDENTIFIER, {4, 1}, L"some_var"),
+        Token(OP_DOT, {4, 8}),
+        Token(IDENTIFIER, {4, 9}, L"some_var2"),
+        Token(OP_DOT, {4, 18}),
+        Token(IDENTIFIER, {4, 19}, L"some_var3"),
+        Token(OP_ASSIGN, {4, 29}),
+        Token(INT_LITERAL, {4, 31}, 3),
+        Token(SEMICOLON, {4, 32}),
+    });
+    checkParsing(
+        tokens, L"Program containing:\n"
+                L"Functions:\n"
+                L"`-a_function: FunctionDeclaration <line: 1, col: 1>\n"
+                L" `-Body:\n"
+                L"  |-AssignmentStatement <line: 3, col: 5>\n"
+                L"  ||-Assignable <line: 3, col: 5> right=some_var\n"
+                L"  |`-Literal <line: 3, col: 14> value=2\n"
+                L"  `-AssignmentStatement <line: 4, col: 1>\n"
+                L"   |-Assignable <line: 4, col: 1> right=some_var3\n"
+                L"   |`-Assignable <line: 4, col: 1> right=some_var2\n"
+                L"   | `-Assignable <line: 4, col: 1> right=some_var\n"
+                L"   `-Literal <line: 4, col: 31> value=3\n"
+    );
+}
+
+TEST_CASE("AssignmentStatement errors", "[Parser]")
+{
+    std::vector tokens = wrapInFunction({
+        Token(IDENTIFIER, {4, 1}, L"some_var"),
+        Token(INT_LITERAL, {4, 31}, 3),
+        Token(SEMICOLON, {4, 32}),
+    });
+    checkParseError<SyntaxError>(tokens); // missing =
+    tokens = wrapInFunction({
+        Token(IDENTIFIER, {4, 1}, L"some_var"),
+        Token(OP_DOT, {4, 8}),
+        Token(OP_ASSIGN, {4, 29}),
+        Token(INT_LITERAL, {4, 31}, 3),
+        Token(SEMICOLON, {4, 32}),
+    });
+    checkParseError<SyntaxError>(tokens); // missing identifier after dot
+    tokens = wrapInFunction({
+        Token(IDENTIFIER, {4, 1}, L"some_var"),
+        Token(OP_DOT, {4, 8}),
+        Token(IDENTIFIER, {4, 9}, L"some_var2"),
+        Token(INT_LITERAL, {4, 31}, 3),
+        Token(SEMICOLON, {4, 32}),
+    });
+    checkParseError<SyntaxError>(tokens); // missing =
+    tokens = wrapInFunction({
+        Token(IDENTIFIER, {4, 1}, L"some_var"),
+        Token(OP_ASSIGN, {4, 29}),
+        Token(SEMICOLON, {4, 32}),
+    });
+    checkParseError<SyntaxError>(tokens); // missing expression
+    tokens = wrapInFunction({
+        Token(IDENTIFIER, {3, 5}, L"some_var"),
+        Token(OP_ASSIGN, {3, 12}),
+        Token(INT_LITERAL, {3, 14}, 2),
+    });
+    checkParseError<SyntaxError>(tokens); // missing semicolon
+}
+
+TEST_CASE("FunctionCall as an Instruction", "[Parser]")
+{
+    std::vector tokens = wrapInFunction({
+        Token(IDENTIFIER, {3, 1}, L"f1"),
+        Token(LPAREN, {3, 3}),
+        Token(RPAREN, {3, 4}),
+        Token(SEMICOLON, {3, 5}),
+        Token(IDENTIFIER, {4, 1}, L"f2"),
+        Token(LPAREN, {4, 3}),
+        Token(STR_LITERAL, {4, 4}, L"1"),
+        Token(RPAREN, {4, 7}),
+        Token(SEMICOLON, {4, 8}),
+        Token(IDENTIFIER, {5, 1}, L"f3"),
+        Token(LPAREN, {5, 3}),
+        Token(INT_LITERAL, {5, 4}, 1),
+        Token(COMMA, {5, 5}),
+        Token(STR_LITERAL, {5, 7}, L"2"),
+        Token(COMMA, {5, 10}),
+        Token(FLOAT_LITERAL, {5, 12}, 1.2),
+        Token(RPAREN, {5, 15}),
+        Token(SEMICOLON, {5, 16}),
+    });
+    checkParsing(
+        tokens, L"Program containing:\n"
+                L"Functions:\n"
+                L"`-a_function: FunctionDeclaration <line: 1, col: 1>\n"
+                L" `-Body:\n"
+                L"  |-FunctionCall <line: 3, col: 1> functionName=f1\n"
+                L"  |-FunctionCall <line: 4, col: 1> functionName=f2\n"
+                L"  |`-Literal <line: 4, col: 4> value=\"1\"\n"
+                L"  `-FunctionCall <line: 5, col: 1> functionName=f3\n"
+                L"   |-Literal <line: 5, col: 4> value=1\n"
+                L"   |-Literal <line: 5, col: 7> value=\"2\"\n"
+                L"   `-Literal <line: 5, col: 12> value=1.2\n"
+    );
+}
+
+TEST_CASE("FunctionCall as an Instruction errors", "[Parser]")
+{
+    std::vector tokens = wrapInFunction({
+        Token(IDENTIFIER, {5, 1}, L"f3"),
+        Token(INT_LITERAL, {5, 4}, 1),
+        Token(COMMA, {5, 5}),
+        Token(STR_LITERAL, {5, 7}, L"2"),
+        Token(RPAREN, {5, 15}),
+        Token(SEMICOLON, {5, 16}),
+    });
+    checkParseError<SyntaxError>(tokens); // missing left parenthesis
+    tokens = wrapInFunction({
+        Token(IDENTIFIER, {5, 1}, L"f3"),
+        Token(LPAREN, {5, 3}),
+        Token(COMMA, {5, 5}),
+        Token(STR_LITERAL, {5, 7}, L"2"),
+        Token(RPAREN, {5, 15}),
+        Token(SEMICOLON, {5, 16}),
+    });
+    checkParseError<SyntaxError>(tokens); // missing first parameter (parameter list begins with comma)
+    tokens = wrapInFunction({
+        Token(IDENTIFIER, {5, 1}, L"f3"),
+        Token(LPAREN, {5, 3}),
+        Token(INT_LITERAL, {5, 4}, 1),
+        Token(COMMA, {5, 5}),
+        Token(RPAREN, {5, 15}),
+        Token(SEMICOLON, {5, 16}),
+    });
+    checkParseError<SyntaxError>(tokens); // missing last parameter (parameter list ends with comma)
+    tokens = wrapInFunction({
+        Token(IDENTIFIER, {5, 1}, L"f3"),
+        Token(LPAREN, {5, 3}),
+        Token(INT_LITERAL, {5, 4}, 1),
+        Token(COMMA, {5, 5}),
+        Token(STR_LITERAL, {5, 7}, L"2"),
+        Token(SEMICOLON, {5, 16}),
+    });
+    checkParseError<SyntaxError>(tokens); // missing right parenthesis
+    tokens = wrapInFunction({
+        Token(IDENTIFIER, {5, 1}, L"f3"),
+        Token(LPAREN, {5, 3}),
+        Token(INT_LITERAL, {5, 4}, 1),
+        Token(COMMA, {5, 5}),
+        Token(STR_LITERAL, {5, 7}, L"2"),
+        Token(RPAREN, {5, 15}),
+    });
+    checkParseError<SyntaxError>(tokens); // missing semicolon
 }

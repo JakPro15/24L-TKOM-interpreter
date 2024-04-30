@@ -12,7 +12,10 @@ void PrintingVisitor::popIndent()
 void PrintingVisitor::visit(Literal &visited)
 {
     out << L"Literal " << visited.getPosition() << L" value=";
-    std::visit([&](auto &value) { out << value; }, visited.value);
+    if(std::holds_alternative<std::wstring>(visited.value))
+        out << L"\"" << std::get<std::wstring>(visited.value) << L"\"";
+    else
+        std::visit([&](auto &value) { out << value; }, visited.value);
     out << L"\n";
 }
 
@@ -250,11 +253,14 @@ void PrintingVisitor::visit(VariableDeclStatement &visited)
 
 void PrintingVisitor::visit(Assignable &visited)
 {
-    out << L"VariableDeclStatement " << visited.getPosition() << L" right=" << visited.right << L"\n";
-    out << indent << L"`-";
-    indent += L" ";
-    visited.left->accept(*this);
-    popIndent();
+    out << L"Assignable " << visited.getPosition() << L" right=" << visited.right << L"\n";
+    if(visited.left)
+    {
+        out << indent << L"`-";
+        indent += L" ";
+        visited.left->accept(*this);
+        popIndent();
+    }
 }
 
 void PrintingVisitor::visit(AssignmentStatement &visited)

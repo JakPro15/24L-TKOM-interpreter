@@ -142,9 +142,9 @@ Operatory `==`, `===`, `!=` i `!==` dla struktur wymagają tego samego typu dla 
 
 Operatory przyjmujące typy `int` lub `float` zwracają typ `int` tylko, jeżeli oba ich argumenty są typu `int`; w przeciwnym razie zwracany jest typ `float`. Wyjątkiem są operatory `/` i `**`, które zawsze zwracają typ `float`.
 ```
-bool a = 2 + 2.3 is float; # a === true
-bool b = 2.3 - 2 is float; # b === true
-bool c = 2 * 3 is int;     # c === true
+bool a = (2 + 2.3) is float; # a === true
+bool b = (2.3 - 2) is float; # b === true
+bool c = (2 * 3) is int;     # c === true
 ```
 
 Priorytety (w kolejności od najwyższego) i łączności operatorów:
@@ -153,6 +153,7 @@ Priorytety (w kolejności od najwyższego) i łączności operatorów:
 | `(` `)` | lewy-do-prawej |
 | `.` | lewy-do-prawej |
 | `[` `]` | lewy-do-prawej |
+| `is` | nie dotyczy |
 | unarne `-`, `not` | prawy-do-lewej |
 | `**` | lewy-do-prawej |
 | `*`, `/`, `//`, `%` | lewy-do-prawej |
@@ -164,7 +165,6 @@ Priorytety (w kolejności od najwyższego) i łączności operatorów:
 | `and` | lewy-do-prawej |
 | `xor` | lewy-do-prawej |
 | `or` | lewy-do-prawej |
-| `is` | nie dotyczy |
 | `=` | nie dotyczy |
 
 Operatory oznaczone w powyższej tabeli jako "nie dotyczy" nie dopuszczają użycia 2 lub więcej z nich jednego za drugim.
@@ -715,9 +715,7 @@ WHILE_STMT =    'while', '(', EXPRESSION, ')', INSTR_BLOCK ;
 
 DO_WHILE_STMT = 'do', INSTR_BLOCK, 'while', '(', EXPRESSION, ')' ;
 
-EXPRESSION =    OR_EXPR, [ 'is', TYPE_IDENT ] ;
-
-OR_EXPR =       XOR_EXPR, { 'or', XOR_EXPR } ;
+EXPRESSION =    XOR_EXPR, { 'or', XOR_EXPR } ;
 
 XOR_EXPR =      AND_EXPR, { 'xor', AND_EXPR } ;
 
@@ -755,10 +753,12 @@ MULTIPL_OP =    '*',
 
 FACTOR =        UNARY_EXPR, { '**', UNARY_EXPR } ;
 
-UNARY_EXPR =    { UNARY_OP } , SUBSCRPT_EXPR ;
+UNARY_EXPR =    { UNARY_OP } , IS_EXPR ;
 
 UNARY_OP =      '-'
               | 'not' ;
+
+IS_EXPR    =    SUBSCRPT_EXPR, [ 'is', TYPE_IDENT ] ;
 
 SUBSCRPT_EXPR = DOT_EXPR, { '[', EXPRESSION, ']' } ;
 

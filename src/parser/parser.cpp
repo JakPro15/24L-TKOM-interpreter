@@ -533,9 +533,14 @@ std::unique_ptr<Expression> Parser::parseExpression()
 {
     Position begin = current.getPosition();
     std::unique_ptr<Expression> left = parseXorExpression();
+    if(!left)
+        return nullptr;
     while(current.getType() == KW_OR)
     {
-        std::unique_ptr<Expression> right = parseXorExpression();
+        advance();
+        std::unique_ptr<Expression> right;
+        if(!(right = parseXorExpression()))
+            throw SyntaxError(std::format(L"Expected expression after or, got {}", current), current.getPosition());
         left = std::make_unique<OrExpression>(begin, std::move(left), std::move(right));
     }
     return left;
@@ -546,9 +551,14 @@ std::unique_ptr<Expression> Parser::parseXorExpression()
 {
     Position begin = current.getPosition();
     std::unique_ptr<Expression> left = parseAndExpression();
+    if(!left)
+        return nullptr;
     while(current.getType() == KW_XOR)
     {
-        std::unique_ptr<Expression> right = parseAndExpression();
+        advance();
+        std::unique_ptr<Expression> right;
+        if(!(right = parseAndExpression()))
+            throw SyntaxError(std::format(L"Expected expression after xor, got {}", current), current.getPosition());
         left = std::make_unique<XorExpression>(begin, std::move(left), std::move(right));
     }
     return left;
@@ -559,9 +569,14 @@ std::unique_ptr<Expression> Parser::parseAndExpression()
 {
     Position begin = current.getPosition();
     std::unique_ptr<Expression> left = parseEqualityExpression();
+    if(!left)
+        return nullptr;
     while(current.getType() == KW_AND)
     {
-        std::unique_ptr<Expression> right = parseEqualityExpression();
+        advance();
+        std::unique_ptr<Expression> right;
+        if(!(right = parseEqualityExpression()))
+            throw SyntaxError(std::format(L"Expected expression after and, got {}", current), current.getPosition());
         left = std::make_unique<AndExpression>(begin, std::move(left), std::move(right));
     }
     return left;
@@ -576,12 +591,18 @@ std::unique_ptr<Expression> Parser::parseEqualityExpression()
 {
     Position begin = current.getPosition();
     std::unique_ptr<Expression> left = parseConcatExpression();
+    if(!left)
+        return nullptr;
     if(current.getType() == OP_EQUAL || current.getType() == OP_NOT_EQUAL || current.getType() == OP_IDENTICAL ||
        current.getType() == OP_NOT_IDENTICAL)
     {
         TokenType operation = current.getType();
         advance();
-        std::unique_ptr<Expression> right = parseConcatExpression();
+        std::unique_ptr<Expression> right;
+        if(!(right = parseConcatExpression()))
+            throw SyntaxError(
+                std::format(L"Expected expression after equality operator, got {}", current), current.getPosition()
+            );
         if(operation == OP_EQUAL)
             left = std::make_unique<EqualExpression>(begin, std::move(left), std::move(right));
         else if(operation == OP_NOT_EQUAL)
@@ -599,9 +620,14 @@ std::unique_ptr<Expression> Parser::parseConcatExpression()
 {
     Position begin = current.getPosition();
     std::unique_ptr<Expression> left = parseStringMultiplyExpression();
+    if(!left)
+        return nullptr;
     while(current.getType() == OP_CONCAT)
     {
-        std::unique_ptr<Expression> right = parseStringMultiplyExpression();
+        advance();
+        std::unique_ptr<Expression> right;
+        if(!(right = parseStringMultiplyExpression()))
+            throw SyntaxError(std::format(L"Expected expression after !, got {}", current), current.getPosition());
         left = std::make_unique<ConcatExpression>(begin, std::move(left), std::move(right));
     }
     return left;
@@ -612,9 +638,14 @@ std::unique_ptr<Expression> Parser::parseStringMultiplyExpression()
 {
     Position begin = current.getPosition();
     std::unique_ptr<Expression> left = parseCompareExpression();
+    if(!left)
+        return nullptr;
     while(current.getType() == OP_STR_MULTIPLY)
     {
-        std::unique_ptr<Expression> right = parseCompareExpression();
+        advance();
+        std::unique_ptr<Expression> right;
+        if(!(right = parseCompareExpression()))
+            throw SyntaxError(std::format(L"Expected expression after @, got {}", current), current.getPosition());
         left = std::make_unique<StringMultiplyExpression>(begin, std::move(left), std::move(right));
     }
     return left;
@@ -629,12 +660,18 @@ std::unique_ptr<Expression> Parser::parseCompareExpression()
 {
     Position begin = current.getPosition();
     std::unique_ptr<Expression> left = parseAdditiveExpression();
+    if(!left)
+        return nullptr;
     if(current.getType() == OP_GREATER || current.getType() == OP_LESSER || current.getType() == OP_GREATER_EQUAL ||
        current.getType() == OP_LESSER_EQUAL)
     {
         TokenType operation = current.getType();
         advance();
-        std::unique_ptr<Expression> right = parseAdditiveExpression();
+        std::unique_ptr<Expression> right;
+        if(!(right = parseAdditiveExpression()))
+            throw SyntaxError(
+                std::format(L"Expected expression after comparison operator, got {}", current), current.getPosition()
+            );
         if(operation == OP_GREATER)
             left = std::make_unique<GreaterExpression>(begin, std::move(left), std::move(right));
         else if(operation == OP_LESSER)
@@ -654,11 +691,17 @@ std::unique_ptr<Expression> Parser::parseAdditiveExpression()
 {
     Position begin = current.getPosition();
     std::unique_ptr<Expression> left = parseMultiplicativeExpression();
+    if(!left)
+        return nullptr;
     while(current.getType() == OP_PLUS || current.getType() == OP_MINUS)
     {
         TokenType operation = current.getType();
         advance();
-        std::unique_ptr<Expression> right = parseMultiplicativeExpression();
+        std::unique_ptr<Expression> right;
+        if(!(right = parseMultiplicativeExpression()))
+            throw SyntaxError(
+                std::format(L"Expected expression after additive operator, got {}", current), current.getPosition()
+            );
         if(operation == OP_PLUS)
             left = std::make_unique<PlusExpression>(begin, std::move(left), std::move(right));
         else if(operation == OP_MINUS)
@@ -676,12 +719,19 @@ std::unique_ptr<Expression> Parser::parseMultiplicativeExpression()
 {
     Position begin = current.getPosition();
     std::unique_ptr<Expression> left = parseExponentExpression();
+    if(!left)
+        return nullptr;
     while(current.getType() == OP_MULTIPLY || current.getType() == OP_DIVIDE || current.getType() == OP_FLOOR_DIVIDE ||
           current.getType() == OP_MODULO)
     {
         TokenType operation = current.getType();
         advance();
-        std::unique_ptr<Expression> right = parseExponentExpression();
+        std::unique_ptr<Expression> right;
+        if(!(right = parseExponentExpression()))
+            throw SyntaxError(
+                std::format(L"Expected expression after multiplicative operator, got {}", current),
+                current.getPosition()
+            );
         if(operation == OP_MULTIPLY)
             left = std::make_unique<MultiplyExpression>(begin, std::move(left), std::move(right));
         else if(operation == OP_DIVIDE)
@@ -699,9 +749,14 @@ std::unique_ptr<Expression> Parser::parseExponentExpression()
 {
     Position begin = current.getPosition();
     std::unique_ptr<Expression> left = parseUnaryExpression();
+    if(!left)
+        return nullptr;
     while(current.getType() == OP_EXPONENT)
     {
-        std::unique_ptr<Expression> right = parseUnaryExpression();
+        advance();
+        std::unique_ptr<Expression> right;
+        if(!(right = parseUnaryExpression()))
+            throw SyntaxError(std::format(L"Expected expression after **, got {}", current), current.getPosition());
         left = std::make_unique<ExponentExpression>(begin, std::move(left), std::move(right));
     }
     return left;
@@ -717,7 +772,11 @@ std::unique_ptr<Expression> Parser::parseUnaryExpression()
     {
         TokenType operation = current.getType();
         advance();
-        std::unique_ptr<Expression> right = parseUnaryExpression();
+        std::unique_ptr<Expression> right;
+        if(!(right = parseUnaryExpression()))
+            throw SyntaxError(
+                std::format(L"Expected expression after unary expression, got {}", current), current.getPosition()
+            );
         if(operation == OP_MINUS)
             return std::make_unique<UnaryMinusExpression>(begin, std::move(right));
         if(operation == KW_NOT)
@@ -731,6 +790,8 @@ std::unique_ptr<Expression> Parser::parseIsExpression()
 {
     Position begin = current.getPosition();
     std::unique_ptr<Expression> left = parseSubscriptExpression();
+    if(!left)
+        return nullptr;
     if(current.getType() == KW_IS)
     {
         advance();
@@ -747,10 +808,16 @@ std::unique_ptr<Expression> Parser::parseSubscriptExpression()
 {
     Position begin = current.getPosition();
     std::unique_ptr<Expression> left = parseDotExpression();
+    if(!left)
+        return nullptr;
     while(current.getType() == LSQUAREBRACE)
     {
         advance();
-        std::unique_ptr<Expression> right = parseExpression();
+        std::unique_ptr<Expression> right;
+        if(!(right = parseExpression()))
+            throw SyntaxError(
+                std::format(L"Expected expression as subscript index, got {}", current), current.getPosition()
+            );
         checkAndAdvance(RSQUAREBRACE);
         left = std::make_unique<SubscriptExpression>(begin, std::move(left), std::move(right));
     }
@@ -762,6 +829,8 @@ std::unique_ptr<Expression> Parser::parseDotExpression()
 {
     Position begin = current.getPosition();
     std::unique_ptr<Expression> left = parseStructExpression();
+    if(!left)
+        return nullptr;
     while(current.getType() == OP_DOT)
     {
         advance();

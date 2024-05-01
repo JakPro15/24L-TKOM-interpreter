@@ -48,6 +48,19 @@ std::vector<Token> wrapInFunction(std::vector<Token> tokens)
     return wrapped;
 }
 
+std::vector<Token> wrapExpression(std::vector<Token> tokens)
+{
+    std::vector wrapped = {
+        Token(IDENTIFIER, {3, 15}, L"print"),
+        Token(LPAREN, {3, 25}),
+        // here will be the expression
+        Token(RPAREN, {20, 1}),
+        Token(SEMICOLON, {20, 1}),
+    };
+    wrapped.insert(wrapped.begin() + 2, tokens.begin(), tokens.end());
+    return wrapInFunction(wrapped);
+}
+
 TEST_CASE("empty Program", "[Parser]")
 {
     std::vector tokens = {
@@ -437,10 +450,10 @@ TEST_CASE("VariableDeclStatement", "[Parser]")
                 L" `-Body:\n"
                 L"  |-VariableDeclStatement <line: 4, col: 1>\n"
                 L"  ||-VariableDeclaration <line: 4, col: 1> type=int name=const_var mutable=false\n"
-                L"  |`-Literal <line: 4, col: 22> value=2\n"
+                L"  |`-Literal <line: 4, col: 22> type=int value=2\n"
                 L"  `-VariableDeclStatement <line: 5, col: 1>\n"
                 L"   |-VariableDeclaration <line: 5, col: 1> type=some_type name=mut_var mutable=true\n"
-                L"   `-Literal <line: 5, col: 22> value=3\n"
+                L"   `-Literal <line: 5, col: 22> type=int value=3\n"
     );
 }
 
@@ -508,12 +521,12 @@ TEST_CASE("AssignmentStatement", "[Parser]")
                 L" `-Body:\n"
                 L"  |-AssignmentStatement <line: 3, col: 5>\n"
                 L"  ||-Assignable <line: 3, col: 5> right=some_var\n"
-                L"  |`-Literal <line: 3, col: 14> value=2\n"
+                L"  |`-Literal <line: 3, col: 14> type=int value=2\n"
                 L"  `-AssignmentStatement <line: 4, col: 1>\n"
                 L"   |-Assignable <line: 4, col: 1> right=some_var3\n"
                 L"   |`-Assignable <line: 4, col: 1> right=some_var2\n"
                 L"   | `-Assignable <line: 4, col: 1> right=some_var\n"
-                L"   `-Literal <line: 4, col: 31> value=3\n"
+                L"   `-Literal <line: 4, col: 31> type=int value=3\n"
     );
 }
 
@@ -584,15 +597,15 @@ TEST_CASE("FunctionCall as an Instruction", "[Parser]")
                 L" `-Body:\n"
                 L"  |-FunctionCall <line: 3, col: 1> functionName=f1\n"
                 L"  |-FunctionCall <line: 4, col: 1> functionName=f2\n"
-                L"  |`-Literal <line: 4, col: 4> value=\"1\"\n"
+                L"  |`-Literal <line: 4, col: 4> type=string value=1\n"
                 L"  `-FunctionCall <line: 5, col: 1> functionName=f3\n"
-                L"   |-Literal <line: 5, col: 4> value=1\n"
-                L"   |-Literal <line: 5, col: 7> value=\"2\"\n"
-                L"   `-Literal <line: 5, col: 12> value=1.2\n"
+                L"   |-Literal <line: 5, col: 4> type=int value=1\n"
+                L"   |-Literal <line: 5, col: 7> type=string value=2\n"
+                L"   `-Literal <line: 5, col: 12> type=float value=1.2\n"
     );
 }
 
-TEST_CASE("FunctionCall as an Instruction errors", "[Parser]")
+TEST_CASE("FunctionCall errors", "[Parser]")
 {
     std::vector tokens = wrapInFunction({
         Token(IDENTIFIER, {5, 1}, L"f3"),
@@ -602,7 +615,15 @@ TEST_CASE("FunctionCall as an Instruction errors", "[Parser]")
         Token(RPAREN, {5, 15}),
         Token(SEMICOLON, {5, 16}),
     });
-    checkParseError<SyntaxError>(tokens); // missing left parenthesis
+    checkParseError<SyntaxError>(tokens); // missing left parenthesis - instruction case
+    tokens = wrapExpression({
+        Token(IDENTIFIER, {5, 1}, L"f3"),
+        Token(INT_LITERAL, {5, 4}, 1),
+        Token(COMMA, {5, 5}),
+        Token(STR_LITERAL, {5, 7}, L"2"),
+        Token(RPAREN, {5, 15}),
+    });
+    checkParseError<SyntaxError>(tokens); // missing left parenthesis - expression case
     tokens = wrapInFunction({
         Token(IDENTIFIER, {5, 1}, L"f3"),
         Token(LPAREN, {5, 3}),
@@ -663,7 +684,7 @@ TEST_CASE("ContinueStatement, BreakStatement, ReturnStatement", "[Parser]")
                 L"  |-BreakStatement <line: 5, col: 1>\n"
                 L"  |-ReturnStatement <line: 6, col: 1>\n"
                 L"  `-ReturnStatement <line: 7, col: 1>\n"
-                L"   `-Literal <line: 7, col: 10> value=true\n"
+                L"   `-Literal <line: 7, col: 10> type=bool value=true\n"
     );
 }
 
@@ -709,7 +730,7 @@ TEST_CASE("IfStatement - basic", "[Parser]")
                 L" `-Body:\n"
                 L"  `-IfStatement <line: 4, col: 1>\n"
                 L"   `-SingleIfCase <line: 4, col: 1>\n"
-                L"    |-Literal <line: 4, col: 10> value=1\n"
+                L"    |-Literal <line: 4, col: 10> type=int value=1\n"
                 L"    `-FunctionCall <line: 6, col: 5> functionName=called\n"
     );
 }
@@ -769,22 +790,22 @@ TEST_CASE("IfStatement - many cases", "[Parser]")
                 L" `-Body:\n"
                 L"  `-IfStatement <line: 4, col: 1>\n"
                 L"   |-SingleIfCase <line: 4, col: 1>\n"
-                L"   |`-Literal <line: 4, col: 10> value=1\n"
+                L"   |`-Literal <line: 4, col: 10> type=int value=1\n"
                 L"   |-SingleIfCase <line: 7, col: 3>\n"
                 L"   ||-VariableDeclStatement <line: 7, col: 14>\n"
                 L"   |||-VariableDeclaration <line: 7, col: 14> type=type name=name mutable=false\n"
                 L"   ||`-Variable <line: 7, col: 30> name=variantVar\n"
                 L"   |`-ReturnStatement <line: 7, col: 44>\n"
-                L"   | `-Literal <line: 7, col: 52> value=0\n"
+                L"   | `-Literal <line: 7, col: 52> type=int value=0\n"
                 L"   |-SingleIfCase <line: 8, col: 1>\n"
                 L"   ||-VariableDeclStatement <line: 8, col: 6>\n"
                 L"   |||-VariableDeclaration <line: 8, col: 6> type=type2 name=name2 mutable=true\n"
-                L"   ||`-Literal <line: 8, col: 22> value=\"\"\n"
+                L"   ||`-Literal <line: 8, col: 22> type=string value=\n"
                 L"   ||-FunctionCall <line: 9, col: 5> functionName=called1\n"
                 L"   |`-FunctionCall <line: 10, col: 5> functionName=called2\n"
                 L"   `-ElseCase:\n"
                 L"    `-FunctionCall <line: 14, col: 5> functionName=print\n"
-                L"     `-Literal <line: 14, col: 16> value=\"else case\"\n"
+                L"     `-Literal <line: 14, col: 16> type=string value=else case\n"
     );
 }
 
@@ -876,7 +897,7 @@ TEST_CASE("WhileStatement", "[Parser]")
                 L"`-a_function: FunctionDeclaration <line: 1, col: 1>\n"
                 L" `-Body:\n"
                 L"  `-WhileStatement <line: 4, col: 1>\n"
-                L"   |-Literal <line: 4, col: 10> value=1\n"
+                L"   |-Literal <line: 4, col: 10> type=int value=1\n"
                 L"   `-FunctionCall <line: 6, col: 5> functionName=called\n"
     );
 }
@@ -934,7 +955,7 @@ TEST_CASE("DoWhileStatement", "[Parser]")
                 L"`-a_function: FunctionDeclaration <line: 1, col: 1>\n"
                 L" `-Body:\n"
                 L"  `-DoWhileStatement <line: 4, col: 1>\n"
-                L"   |-Literal <line: 8, col: 10> value=1\n"
+                L"   |-Literal <line: 8, col: 10> type=int value=1\n"
                 L"   `-FunctionCall <line: 6, col: 5> functionName=called\n"
     );
 }
@@ -983,4 +1004,478 @@ TEST_CASE("DoWhileStatement errors", "[Parser]")
         Token(INT_LITERAL, {8, 10}, 1),
     });
     checkParseError<SyntaxError>(tokens); // missing condition right parenthesis
+}
+
+void checkBinaryOperator(TokenType operatorType, std::wstring expressionName)
+{
+    std::vector tokens = wrapExpression({
+        Token(IDENTIFIER, {4, 1}, L"a"),
+        Token(operatorType, {4, 3}),
+        Token(IDENTIFIER, {4, 6}, L"b"),
+    });
+    checkParsing(
+        tokens, std::format(
+                    L"Program containing:\n"
+                    L"Functions:\n"
+                    L"`-a_function: FunctionDeclaration <line: 1, col: 1>\n"
+                    L" `-Body:\n"
+                    L"  `-FunctionCall <line: 3, col: 15> functionName=print\n"
+                    L"   `-{} <line: 4, col: 1>\n"
+                    L"    |-Variable <line: 4, col: 1> name=a\n"
+                    L"    `-Variable <line: 4, col: 6> name=b\n",
+                    expressionName
+                )
+    );
+}
+
+void checkBinaryOpAssociativity(TokenType operatorType, std::wstring expressionName)
+{
+    std::vector tokens = wrapExpression({
+        Token(IDENTIFIER, {4, 1}, L"a"),
+        Token(operatorType, {4, 3}),
+        Token(IDENTIFIER, {4, 6}, L"b"),
+        Token(operatorType, {4, 8}),
+        Token(IDENTIFIER, {4, 11}, L"c"),
+        Token(operatorType, {4, 13}),
+        Token(IDENTIFIER, {4, 16}, L"d"),
+    });
+    checkParsing(
+        tokens, std::format(
+                    L"Program containing:\n"
+                    L"Functions:\n"
+                    L"`-a_function: FunctionDeclaration <line: 1, col: 1>\n"
+                    L" `-Body:\n"
+                    L"  `-FunctionCall <line: 3, col: 15> functionName=print\n"
+                    L"   `-{} <line: 4, col: 1>\n"
+                    L"    |-{} <line: 4, col: 1>\n"
+                    L"    ||-{} <line: 4, col: 1>\n"
+                    L"    |||-Variable <line: 4, col: 1> name=a\n"
+                    L"    ||`-Variable <line: 4, col: 6> name=b\n"
+                    L"    |`-Variable <line: 4, col: 11> name=c\n"
+                    L"    `-Variable <line: 4, col: 16> name=d\n",
+                    expressionName, expressionName, expressionName
+                )
+    );
+}
+
+TEST_CASE("binary operators with associativity", "[Parser]")
+{
+    for(auto [operatorType, expressionName]: std::vector{
+            std::pair{KW_OR, L"OrExpression"},
+            {KW_AND, L"AndExpression"},
+            {OP_CONCAT, L"ConcatExpression"},
+            {OP_STR_MULTIPLY, L"StringMultiplyExpression"},
+            {OP_PLUS, L"PlusExpression"},
+            {OP_MINUS, L"MinusExpression"},
+            {OP_MULTIPLY, L"MultiplyExpression"},
+            {OP_DIVIDE, L"DivideExpression"},
+            {OP_FLOOR_DIVIDE, L"FloorDivideExpression"},
+            {OP_MODULO, L"ModuloExpression"},
+            {OP_EXPONENT, L"ExponentExpression"}
+        })
+    {
+        checkBinaryOperator(operatorType, expressionName);
+        checkBinaryOpAssociativity(operatorType, expressionName);
+    }
+}
+
+void checkBinaryOpErrors(TokenType operatorType)
+{
+    std::vector tokens = wrapExpression({
+        Token(operatorType, {4, 3}),
+        Token(IDENTIFIER, {4, 6}, L"b"),
+    });
+    checkParseError<SyntaxError>(tokens); // first expression missing
+    tokens = wrapExpression({
+        Token(IDENTIFIER, {4, 1}, L"a"),
+        Token(operatorType, {4, 3}),
+    });
+    checkParseError<SyntaxError>(tokens); // second expression missing
+}
+
+void checkBinaryOpNonAssociativity(TokenType operatorType)
+{
+    std::vector tokens = wrapExpression({
+        Token(IDENTIFIER, {4, 1}, L"a"),
+        Token(operatorType, {4, 3}),
+        Token(IDENTIFIER, {4, 6}, L"b"),
+        Token(operatorType, {4, 8}),
+        Token(IDENTIFIER, {4, 6}, L"b"),
+    });
+    checkParseError<SyntaxError>(tokens); // multiple operators in a row invalid
+}
+
+TEST_CASE("binary operators with associativity errors", "[Parser]")
+{
+    for(TokenType operatorType:
+        {KW_OR, KW_AND, OP_CONCAT, OP_STR_MULTIPLY, OP_PLUS, OP_MULTIPLY, OP_DIVIDE, OP_FLOOR_DIVIDE, OP_MODULO,
+         OP_EXPONENT})
+    {
+        checkBinaryOpErrors(operatorType);
+    }
+}
+
+TEST_CASE("non-associative binary operators", "[Parser]")
+{
+    for(auto [operatorType, expressionName]: std::vector{
+            std::pair{OP_EQUAL, L"EqualExpression"},
+            {OP_NOT_EQUAL, L"NotEqualExpression"},
+            {OP_IDENTICAL, L"IdenticalExpression"},
+            {OP_NOT_IDENTICAL, L"NotIdenticalExpression"},
+            {OP_GREATER, L"GreaterExpression"},
+            {OP_LESSER, L"LesserExpression"},
+            {OP_GREATER_EQUAL, L"GreaterEqualExpression"},
+            {OP_LESSER_EQUAL, L"LesserEqualExpression"}
+        })
+    {
+        checkBinaryOperator(operatorType, expressionName);
+    }
+}
+
+TEST_CASE("non-associative binary operators errors", "[Parser]")
+{
+    for(TokenType operatorType:
+        {OP_EQUAL, OP_NOT_EQUAL, OP_IDENTICAL, OP_NOT_IDENTICAL, OP_GREATER, OP_LESSER, OP_GREATER_EQUAL,
+         OP_LESSER_EQUAL})
+    {
+        checkBinaryOpErrors(operatorType);
+        checkBinaryOpNonAssociativity(operatorType);
+    }
+}
+
+TEST_CASE("MinusExpression and UnaryMinusExpression", "[Parser]")
+{
+    std::vector tokens = wrapExpression({
+        Token(OP_MINUS, {4, 1}),
+        Token(IDENTIFIER, {4, 2}, L"a"),
+        Token(OP_MINUS, {4, 3}),
+        Token(OP_MINUS, {4, 4}),
+        Token(IDENTIFIER, {4, 5}, L"b"),
+        Token(OP_MINUS, {4, 6}),
+        Token(OP_MINUS, {4, 7}),
+        Token(IDENTIFIER, {4, 8}, L"c"),
+    });
+    checkParsing(
+        tokens, L"Program containing:\n"
+                L"Functions:\n"
+                L"`-a_function: FunctionDeclaration <line: 1, col: 1>\n"
+                L" `-Body:\n"
+                L"  `-FunctionCall <line: 3, col: 15> functionName=print\n"
+                L"   `-MinusExpression <line: 4, col: 1>\n"
+                L"    |-MinusExpression <line: 4, col: 1>\n"
+                L"    ||-UnaryMinusExpression <line: 4, col: 1>\n"
+                L"    ||`-Variable <line: 4, col: 2> name=a\n"
+                L"    |`-UnaryMinusExpression <line: 4, col: 4>\n"
+                L"    | `-Variable <line: 4, col: 5> name=b\n"
+                L"    `-UnaryMinusExpression <line: 4, col: 7>\n"
+                L"     `-Variable <line: 4, col: 8> name=c\n"
+
+    );
+}
+
+TEST_CASE("NotExpression", "[Parser]")
+{
+    std::vector tokens = wrapExpression({
+        Token(KW_NOT, {4, 1}),
+        Token(IDENTIFIER, {4, 2}, L"a"),
+    });
+    checkParsing(
+        tokens, L"Program containing:\n"
+                L"Functions:\n"
+                L"`-a_function: FunctionDeclaration <line: 1, col: 1>\n"
+                L" `-Body:\n"
+                L"  `-FunctionCall <line: 3, col: 15> functionName=print\n"
+                L"   `-NotExpression <line: 4, col: 1>\n"
+                L"    `-Variable <line: 4, col: 2> name=a\n"
+    );
+}
+
+TEST_CASE("unary operators errors", "[Parser]")
+{
+    for(TokenType operatorType: {OP_MINUS, KW_NOT})
+    {
+        std::vector tokens = wrapExpression({
+            Token(operatorType, {4, 1}),
+        });
+        checkParseError<SyntaxError>(tokens); // expression after unary operator missing
+    }
+}
+
+TEST_CASE("IsExpression", "[Parser]")
+{
+    std::vector tokens = wrapExpression({
+        Token(IDENTIFIER, {4, 1}, L"a"),
+        Token(KW_IS, {4, 3}),
+        Token(KW_INT, {4, 6}),
+        Token(COMMA, {4, 9}),
+        Token(IDENTIFIER, {4, 10}, L"a"),
+        Token(KW_IS, {4, 12}),
+        Token(IDENTIFIER, {4, 15}, L"type"),
+    });
+    checkParsing(
+        tokens, L"Program containing:\n"
+                L"Functions:\n"
+                L"`-a_function: FunctionDeclaration <line: 1, col: 1>\n"
+                L" `-Body:\n"
+                L"  `-FunctionCall <line: 3, col: 15> functionName=print\n"
+                L"   |-IsExpression <line: 4, col: 1> right=int\n"
+                L"   |`-Variable <line: 4, col: 1> name=a\n"
+                L"   `-IsExpression <line: 4, col: 10> right=type\n"
+                L"    `-Variable <line: 4, col: 10> name=a\n"
+    );
+}
+
+TEST_CASE("IsExpression errors", "[Parser]")
+{
+    checkBinaryOpErrors(KW_IS);
+    checkBinaryOpNonAssociativity(KW_IS);
+
+    std::vector tokens = wrapExpression({
+        Token(IDENTIFIER, {4, 1}, L"a"),
+        Token(KW_IS, {4, 3}),
+        Token(INT_LITERAL, {4, 10}, 2),
+    });
+    checkParseError<SyntaxError>(tokens);
+}
+
+TEST_CASE("SubscriptExpression", "[Parser]")
+{
+    std::vector tokens = wrapExpression({
+        Token(IDENTIFIER, {4, 1}, L"a"),
+        Token(LSQUAREBRACE, {4, 3}),
+        Token(IDENTIFIER, {4, 6}, L"b"),
+        Token(RSQUAREBRACE, {4, 9}),
+        Token(LSQUAREBRACE, {4, 12}),
+        Token(INT_LITERAL, {4, 15}, 2),
+        Token(RSQUAREBRACE, {4, 18}),
+    });
+    checkParsing(
+        tokens, L"Program containing:\n"
+                L"Functions:\n"
+                L"`-a_function: FunctionDeclaration <line: 1, col: 1>\n"
+                L" `-Body:\n"
+                L"  `-FunctionCall <line: 3, col: 15> functionName=print\n"
+                L"   `-SubscriptExpression <line: 4, col: 1>\n"
+                L"    |-SubscriptExpression <line: 4, col: 1>\n"
+                L"    ||-Variable <line: 4, col: 1> name=a\n"
+                L"    |`-Variable <line: 4, col: 6> name=b\n"
+                L"    `-Literal <line: 4, col: 15> type=int value=2\n"
+    );
+}
+
+TEST_CASE("SubscriptExpression errors", "[Parser]")
+{
+    std::vector tokens = wrapExpression({
+        Token(LSQUAREBRACE, {4, 3}),
+        Token(IDENTIFIER, {4, 6}, L"b"),
+        Token(RSQUAREBRACE, {4, 12}),
+    });
+    checkParseError<SyntaxError>(tokens); // first expression missing
+    tokens = wrapExpression({
+        Token(IDENTIFIER, {4, 1}, L"a"),
+        Token(LSQUAREBRACE, {4, 3}),
+        Token(RSQUAREBRACE, {4, 12}),
+    });
+    checkParseError<SyntaxError>(tokens); // second expression missing
+    tokens = wrapExpression({
+        Token(IDENTIFIER, {4, 1}, L"a"),
+        Token(IDENTIFIER, {4, 6}, L"b"),
+        Token(RSQUAREBRACE, {4, 12}),
+    });
+    checkParseError<SyntaxError>(tokens); // left bracket missing
+    tokens = wrapExpression({
+        Token(IDENTIFIER, {4, 1}, L"a"),
+        Token(LSQUAREBRACE, {4, 3}),
+        Token(IDENTIFIER, {4, 6}, L"b"),
+    });
+    checkParseError<SyntaxError>(tokens); // right bracket missing
+}
+
+TEST_CASE("DotExpression", "[Parser]")
+{
+    std::vector tokens = wrapExpression({
+        Token(IDENTIFIER, {4, 1}, L"a"),
+        Token(OP_DOT, {4, 3}),
+        Token(IDENTIFIER, {4, 6}, L"b"),
+        Token(OP_DOT, {4, 3}),
+        Token(IDENTIFIER, {4, 6}, L"c"),
+    });
+    checkParsing(
+        tokens, L"Program containing:\n"
+                L"Functions:\n"
+                L"`-a_function: FunctionDeclaration <line: 1, col: 1>\n"
+                L" `-Body:\n"
+                L"  `-FunctionCall <line: 3, col: 15> functionName=print\n"
+                L"   `-DotExpression <line: 4, col: 1> field=c\n"
+                L"    `-DotExpression <line: 4, col: 1> field=b\n"
+                L"     `-Variable <line: 4, col: 1> name=a\n"
+    );
+}
+
+TEST_CASE("DotExpression errors", "[Parser]")
+{
+    std::vector tokens = wrapExpression({
+        Token(OP_DOT, {4, 3}),
+        Token(IDENTIFIER, {4, 6}, L"b"),
+    });
+    checkParseError<SyntaxError>(tokens); // first expression missing
+    tokens = wrapExpression({
+        Token(IDENTIFIER, {4, 1}, L"a"),
+        Token(OP_DOT, {4, 3}),
+        Token(STR_LITERAL, {4, 6}, L"b"),
+    });
+    checkParseError<SyntaxError>(tokens); // non-identifier after .
+}
+
+TEST_CASE("StructExpression", "[Parser]")
+{
+    std::vector tokens = wrapExpression({
+        Token(LBRACE, {4, 1}),
+        Token(IDENTIFIER, {4, 2}, L"a"),
+        Token(RBRACE, {4, 3}),
+        Token(COMMA, {4, 4}),
+        Token(LBRACE, {5, 1}),
+        Token(IDENTIFIER, {5, 2}, L"a"),
+        Token(COMMA, {5, 3}),
+        Token(IDENTIFIER, {5, 4}, L"b"),
+        Token(COMMA, {5, 5}),
+        Token(IDENTIFIER, {5, 6}, L"c"),
+        Token(RBRACE, {5, 7}),
+    });
+    checkParsing(
+        tokens, L"Program containing:\n"
+                L"Functions:\n"
+                L"`-a_function: FunctionDeclaration <line: 1, col: 1>\n"
+                L" `-Body:\n"
+                L"  `-FunctionCall <line: 3, col: 15> functionName=print\n"
+                L"   |-StructExpression <line: 4, col: 1>\n"
+                L"   |`-Variable <line: 4, col: 2> name=a\n"
+                L"   `-StructExpression <line: 5, col: 1>\n"
+                L"    |-Variable <line: 5, col: 2> name=a\n"
+                L"    |-Variable <line: 5, col: 4> name=b\n"
+                L"    `-Variable <line: 5, col: 6> name=c\n"
+    );
+}
+
+TEST_CASE("StructExpression errors", "[Parser]")
+{
+    std::vector tokens = wrapExpression({
+        Token(LBRACE, {4, 1}),
+        Token(RBRACE, {4, 3}),
+    });
+    checkParseError<SyntaxError>(tokens); // there needs to be at least 1 parameter
+    tokens = wrapExpression({
+        Token(LBRACE, {5, 1}),
+        Token(IDENTIFIER, {5, 2}, L"a"),
+        Token(IDENTIFIER, {5, 4}, L"b"),
+        Token(RBRACE, {5, 7}),
+    });
+    checkParseError<SyntaxError>(tokens); // comma missing
+    tokens = wrapExpression({
+        Token(LBRACE, {4, 1}),
+        Token(IDENTIFIER, {4, 2}, L"a"),
+        Token(COMMA, {4, 4}),
+        Token(RBRACE, {4, 3}),
+    });
+    checkParseError<SyntaxError>(tokens); // trailing comma
+    tokens = wrapExpression({
+        Token(LBRACE, {4, 1}),
+        Token(IDENTIFIER, {4, 2}, L"a"),
+    });
+    checkParseError<SyntaxError>(tokens); // closing brace missing
+}
+
+TEST_CASE("FunctionCall as an expression", "[Parser]")
+{
+    std::vector tokens = wrapExpression({
+        Token(IDENTIFIER, {4, 1}, L"f1"),
+        Token(LPAREN, {4, 3}),
+        Token(RPAREN, {4, 4}),
+        Token(COMMA, {4, 5}),
+        Token(IDENTIFIER, {5, 1}, L"f2"),
+        Token(LPAREN, {5, 3}),
+        Token(STR_LITERAL, {5, 4}, L"1"),
+        Token(RPAREN, {5, 7}),
+        Token(COMMA, {5, 8}),
+        Token(IDENTIFIER, {6, 1}, L"f3"),
+        Token(LPAREN, {6, 3}),
+        Token(INT_LITERAL, {6, 4}, 1),
+        Token(COMMA, {6, 5}),
+        Token(STR_LITERAL, {6, 7}, L"2"),
+        Token(COMMA, {6, 10}),
+        Token(FLOAT_LITERAL, {6, 12}, 1.2),
+        Token(RPAREN, {6, 15}),
+    });
+    checkParsing(
+        tokens, L"Program containing:\n"
+                L"Functions:\n"
+                L"`-a_function: FunctionDeclaration <line: 1, col: 1>\n"
+                L" `-Body:\n"
+                L"  `-FunctionCall <line: 3, col: 15> functionName=print\n"
+                L"   |-FunctionCall <line: 4, col: 1> functionName=f1\n"
+                L"   |-FunctionCall <line: 5, col: 1> functionName=f2\n"
+                L"   |`-Literal <line: 5, col: 4> type=string value=1\n"
+                L"   `-FunctionCall <line: 6, col: 1> functionName=f3\n"
+                L"    |-Literal <line: 6, col: 4> type=int value=1\n"
+                L"    |-Literal <line: 6, col: 7> type=string value=2\n"
+                L"    `-Literal <line: 6, col: 12> type=float value=1.2\n"
+    );
+}
+
+TEST_CASE("Expression in parentheses", "[Parser]")
+{
+    std::vector tokens = wrapExpression({
+        Token(LPAREN, {4, 1}),
+        Token(IDENTIFIER, {4, 2}, L"a"),
+        Token(RPAREN, {4, 3}),
+    });
+    checkParsing(
+        tokens, L"Program containing:\n"
+                L"Functions:\n"
+                L"`-a_function: FunctionDeclaration <line: 1, col: 1>\n"
+                L" `-Body:\n"
+                L"  `-FunctionCall <line: 3, col: 15> functionName=print\n"
+                L"   `-Variable <line: 4, col: 2> name=a\n"
+    );
+}
+
+TEST_CASE("Expression in parentheses errors", "[Parser]")
+{
+    std::vector tokens = wrapExpression({
+        Token(LPAREN, {4, 1}),
+        Token(RPAREN, {4, 3}),
+    });
+    checkParseError<SyntaxError>(tokens); // missing expression
+    tokens = wrapExpression({
+        Token(LPAREN, {4, 1}),
+        Token(IDENTIFIER, {4, 2}, L"a"),
+    });
+    checkParseError<SyntaxError>(tokens); // missing closing parenthesis
+}
+
+TEST_CASE("Literal", "[Parser]")
+{
+    std::vector tokens = wrapExpression({
+        Token(INT_LITERAL, {4, 1}, 2),
+        Token(COMMA, {4, 2}),
+        Token(STR_LITERAL, {4, 3}, L"2"),
+        Token(COMMA, {4, 6}),
+        Token(FLOAT_LITERAL, {4, 7}, 2.0),
+        Token(COMMA, {4, 10}),
+        Token(TRUE_LITERAL, {4, 11}),
+        Token(COMMA, {4, 16}),
+        Token(FALSE_LITERAL, {4, 17}),
+    });
+    checkParsing(
+        tokens, L"Program containing:\n"
+                L"Functions:\n"
+                L"`-a_function: FunctionDeclaration <line: 1, col: 1>\n"
+                L" `-Body:\n"
+                L"  `-FunctionCall <line: 3, col: 15> functionName=print\n"
+                L"   |-Literal <line: 4, col: 1> type=int value=2\n"
+                L"   |-Literal <line: 4, col: 3> type=string value=2\n"
+                L"   |-Literal <line: 4, col: 7> type=float value=2\n"
+                L"   |-Literal <line: 4, col: 11> type=bool value=true\n"
+                L"   `-Literal <line: 4, col: 17> type=bool value=false\n"
+    );
 }

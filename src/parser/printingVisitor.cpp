@@ -2,6 +2,7 @@
 
 #include "documentTree.hpp"
 
+#include <format>
 #include <iomanip>
 
 PrintingVisitor::PrintingVisitor(std::wostream &out): out(out) {}
@@ -11,14 +12,24 @@ void PrintingVisitor::popIndent()
     indent.erase(indent.size() - 1, 1);
 }
 
+namespace {
+#define DECLARE_LITERAL_TYPE(type, string)       \
+    std::wstring literalTypeToString(type value) \
+    {                                            \
+        (void) value;                            \
+        return string;                           \
+    }
+DECLARE_LITERAL_TYPE(std::wstring, L"string")
+DECLARE_LITERAL_TYPE(double, L"float")
+DECLARE_LITERAL_TYPE(int32_t, L"int")
+DECLARE_LITERAL_TYPE(bool, L"bool")
+}
+
 void PrintingVisitor::visit(Literal &visited)
 {
     auto outFlags = out.flags();
-    out << L"Literal " << visited.getPosition() << L" value=" << std::boolalpha;
-    if(std::holds_alternative<std::wstring>(visited.value))
-        out << L"\"" << std::get<std::wstring>(visited.value) << L"\"";
-    else
-        std::visit([&](auto &value) { out << value; }, visited.value);
+    out << L"Literal " << visited.getPosition() << L" type=" << std::boolalpha;
+    std::visit([&](auto &value) { out << literalTypeToString(value) << L" value=" << value; }, visited.value);
     out << L"\n";
     out.flags(outFlags);
 }

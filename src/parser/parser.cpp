@@ -423,6 +423,98 @@ std::unique_ptr<ReturnStatement> Parser::parseReturnStatement()
     return std::make_unique<ReturnStatement>(begin, std::move(returnValue));
 }
 
+// IF_STMT = 'if', '(', IF_CONDITION, ')', INSTR_BLOCK,
+//           { 'elif', '(', IF_CONDITION, ')', INSTR_BLOCK } ,
+//           [ 'else', INSTR_BLOCK ] ;
+std::unique_ptr<IfStatement> Parser::parseIfStatement()
+{
+    if(current.getType() != KW_IF)
+        return std::unique_ptr<IfStatement>(nullptr);
+    Position begin = current.getPosition();
+
+    std::vector<SingleIfCase> cases;
+    do
+    {
+        Position caseBegin = current.getPosition();
+        advance();
+        checkAndAdvance(LPAREN);
+        std::variant<VariableDeclStatement, std::unique_ptr<Expression>> condition = parseIfCondition();
+        checkAndAdvance(RPAREN);
+        std::vector<std::unique_ptr<Instruction>> body = parseInstructionBlock();
+        cases.emplace_back(caseBegin, std::move(condition), std::move(body));
+    }
+    while(current.getType() == KW_ELIF);
+
+    std::vector<std::unique_ptr<Instruction>> elseCaseBody;
+    if(current.getType() == KW_ELSE)
+    {
+        advance();
+        elseCaseBody = parseInstructionBlock();
+    }
+    return std::make_unique<IfStatement>(begin, std::move(cases), std::move(elseCaseBody));
+}
+
+// IF_CONDITION = EXPRESSION
+//              | VARIABLE_DECL, '=', EXPRESSION ;
+std::variant<VariableDeclStatement, std::unique_ptr<Expression>> Parser::parseIfCondition()
+{
+    if(current.getType() == IDENTIFIER && next.getType() == IDENTIFIER)
+    { // special case of looking at next token for disambiguation,
+      // as both EXPRESSION and VARIABLE_DECL may begin with IDENTIFIER
+        return parseIfConditionDeclaration();
+    }
+    std::unique_ptr<Expression> condition;
+    if((condition = parseExpression()))
+        return condition;
+    return parseIfConditionDeclaration();
+}
+
+// VARIABLE_DECL, '=', EXPRESSION
+VariableDeclStatement Parser::parseIfConditionDeclaration()
+{
+    Position begin = current.getPosition();
+    std::optional<std::wstring> type;
+    if(!(type = parseTypeIdentifier()))
+        throw SyntaxError(
+            std::format(L"Expected a variable declaration or expression, got {}", current), current.getPosition()
+        );
+    auto [isMutable, name, value] = parseNoTypeDecl();
+    return VariableDeclStatement(begin, VariableDeclaration(begin, *type, name, isMutable), std::move(value));
+}
+
+// WHILE_STMT = 'while', '(', EXPRESSION, ')', INSTR_BLOCK ;
+std::unique_ptr<WhileStatement> Parser::parseWhileStatement()
+{
+    if(current.getType() != KW_WHILE)
+        return std::unique_ptr<WhileStatement>(nullptr);
+    Position begin = current.getPosition();
+    advance();
+    checkAndAdvance(LPAREN);
+    std::unique_ptr<Expression> condition;
+    if(!(condition = parseExpression()))
+        throw SyntaxError(std::format(L"Expected expression, got {}", current), current.getPosition());
+    checkAndAdvance(RPAREN);
+    std::vector<std::unique_ptr<Instruction>> body = parseInstructionBlock();
+    return std::make_unique<WhileStatement>(begin, std::move(condition), std::move(body));
+}
+
+// DO_WHILE_STMT = 'do', INSTR_BLOCK, 'while', '(', EXPRESSION, ')' ;
+std::unique_ptr<DoWhileStatement> Parser::parseDoWhileStatement()
+{
+    if(current.getType() != KW_DO)
+        return std::unique_ptr<DoWhileStatement>(nullptr);
+    Position begin = current.getPosition();
+    advance();
+    std::vector<std::unique_ptr<Instruction>> body = parseInstructionBlock();
+    checkAndAdvance(KW_WHILE);
+    checkAndAdvance(LPAREN);
+    std::unique_ptr<Expression> condition;
+    if(!(condition = parseExpression()))
+        throw SyntaxError(std::format(L"Expected expression, got {}", current), current.getPosition());
+    checkAndAdvance(RPAREN);
+    return std::make_unique<DoWhileStatement>(begin, std::move(condition), std::move(body));
+}
+
 std::unique_ptr<Expression> Parser::parseExpression()
 {
     return parseLiteral();

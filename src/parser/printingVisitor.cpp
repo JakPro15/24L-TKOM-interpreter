@@ -48,10 +48,10 @@ void PrintingVisitor::visitBinaryOperation(std::wstring name, BinaryOperation &v
 
 void PrintingVisitor::visitInstructionBlock(std::vector<std::unique_ptr<Instruction>> &block)
 {
-    for(auto &parameter: block)
+    for(auto &instruction: block)
     {
         out << indent;
-        if(&parameter != &block.back())
+        if(&instruction != &block.back())
         {
             out << L"|-";
             indent += L"|";
@@ -61,7 +61,7 @@ void PrintingVisitor::visitInstructionBlock(std::vector<std::unique_ptr<Instruct
             out << L"`-";
             indent += L" ";
         }
-        parameter->accept(*this);
+        instruction->accept(*this);
         popIndent();
     }
 }
@@ -325,9 +325,9 @@ void PrintingVisitor::visit(BreakStatement &visited)
     out << L"BreakStatement " << visited.getPosition() << L"\n";
 }
 
-void PrintingVisitor::visit(IfStatement &visited)
+void PrintingVisitor::visit(SingleIfCase &visited)
 {
-    out << L"IfStatement " << visited.getPosition() << L"\n" << indent;
+    out << L"SingleIfCase " << visited.getPosition() << L"\n" << indent;
     if(visited.body.size() > 0)
     {
         out << L"|-";
@@ -347,6 +347,45 @@ void PrintingVisitor::visit(IfStatement &visited)
     indent += L" ";
     visitInstructionBlock(visited.body);
     popIndent();
+}
+
+void PrintingVisitor::visit(IfStatement &visited)
+{
+    out << L"IfStatement " << visited.getPosition() << L"\n" << indent;
+    if(visited.cases.size() > 0)
+    {
+        out << L"|-";
+        indent += L"|";
+    }
+    else
+    {
+        out << L"`-";
+        indent += L" ";
+    }
+
+    for(auto &ifCase: visited.cases)
+    {
+        out << indent;
+        if(&ifCase != &visited.cases.back() || visited.elseCaseBody.size() > 0)
+        {
+            out << L"|-";
+            indent += L"|";
+        }
+        else
+        {
+            out << L"`-";
+            indent += L" ";
+        }
+        ifCase.accept(*this);
+        popIndent();
+    }
+    if(visited.elseCaseBody.size() > 0)
+    {
+        out << indent << L"`-ElseCase:\n";
+        indent += L" ";
+        visitInstructionBlock(visited.elseCaseBody);
+        popIndent();
+    }
 }
 
 void PrintingVisitor::visit(WhileStatement &visited)

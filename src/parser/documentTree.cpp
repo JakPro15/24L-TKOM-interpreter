@@ -69,14 +69,15 @@ ReturnStatement::ReturnStatement(Position position, std::unique_ptr<Expression> 
     DocumentTreeNode(position), returnValue(std::move(returnValue))
 {}
 
-IfStatement::IfStatement(
-    Position position, VariableDeclStatement condition, std::vector<std::unique_ptr<Instruction>> body
+SingleIfCase::SingleIfCase(
+    Position position, std::variant<VariableDeclStatement, std::unique_ptr<Expression>> condition,
+    std::vector<std::unique_ptr<Instruction>> body
 ): DocumentTreeNode(position), condition(std::move(condition)), body(std::move(body))
 {}
 
 IfStatement::IfStatement(
-    Position position, std::unique_ptr<Expression> condition, std::vector<std::unique_ptr<Instruction>> body
-): DocumentTreeNode(position), condition(std::move(condition)), body(std::move(body))
+    Position position, std::vector<SingleIfCase> cases, std::vector<std::unique_ptr<Instruction>> elseCaseBody
+): DocumentTreeNode(position), cases(std::move(cases)), elseCaseBody(std::move(elseCaseBody))
 {}
 
 WhileStatement::WhileStatement(
@@ -158,6 +159,7 @@ DEFINE_ACCEPT(FunctionCall);
 DEFINE_ACCEPT(ReturnStatement);
 DEFINE_ACCEPT(ContinueStatement);
 DEFINE_ACCEPT(BreakStatement);
+DEFINE_ACCEPT(SingleIfCase);
 DEFINE_ACCEPT(IfStatement);
 DEFINE_ACCEPT(WhileStatement);
 DEFINE_ACCEPT(DoWhileStatement);

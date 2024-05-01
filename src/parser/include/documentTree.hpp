@@ -267,14 +267,24 @@ struct BreakStatement: public Instruction
     void accept(DocumentTreeVisitor &visitor) override;
 };
 
-struct IfStatement: public Instruction
+struct SingleIfCase: public DocumentTreeNode
 {
-    IfStatement(Position position, VariableDeclStatement condition, std::vector<std::unique_ptr<Instruction>> body);
-    IfStatement(
-        Position position, std::unique_ptr<Expression> condition, std::vector<std::unique_ptr<Instruction>> body
+    SingleIfCase(
+        Position position, std::variant<VariableDeclStatement, std::unique_ptr<Expression>> condition,
+        std::vector<std::unique_ptr<Instruction>> body
     );
     std::variant<VariableDeclStatement, std::unique_ptr<Expression>> condition;
     std::vector<std::unique_ptr<Instruction>> body;
+    void accept(DocumentTreeVisitor &visitor) override;
+};
+
+struct IfStatement: public Instruction
+{
+    IfStatement(
+        Position position, std::vector<SingleIfCase> cases, std::vector<std::unique_ptr<Instruction>> elseCaseBody
+    );
+    std::vector<SingleIfCase> cases;
+    std::vector<std::unique_ptr<Instruction>> elseCaseBody;
     void accept(DocumentTreeVisitor &visitor) override;
 };
 

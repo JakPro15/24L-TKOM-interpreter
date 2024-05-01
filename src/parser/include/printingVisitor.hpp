@@ -48,6 +48,7 @@ public:
     void visit(ReturnStatement &visited) override;
     void visit(ContinueStatement &visited) override;
     void visit(BreakStatement &visited) override;
+    void visit(SingleIfCase &visited) override;
     void visit(IfStatement &visited) override;
     void visit(WhileStatement &visited) override;
     void visit(DoWhileStatement &visited) override;

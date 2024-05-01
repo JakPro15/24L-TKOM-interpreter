@@ -36,6 +36,7 @@ struct FunctionCall;
 struct ReturnStatement;
 struct ContinueStatement;
 struct BreakStatement;
+struct SingleIfCase;
 struct IfStatement;
 struct WhileStatement;
 struct DoWhileStatement;
@@ -86,6 +87,7 @@ public:
     virtual void visit(ReturnStatement &visited) = 0;
     virtual void visit(ContinueStatement &visited) = 0;
     virtual void visit(BreakStatement &visited) = 0;
+    virtual void visit(SingleIfCase &visited) = 0;
     virtual void visit(IfStatement &visited) = 0;
     virtual void visit(WhileStatement &visited) = 0;
     virtual void visit(DoWhileStatement &visited) = 0;

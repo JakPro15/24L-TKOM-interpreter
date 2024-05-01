@@ -339,7 +339,7 @@ TEST_CASE("FunctionDeclaration - parameter list and return type", "[Parser]")
     checkParsing(
         tokens, L"Program containing:\n"
                 L"Functions:\n"
-                L"`-a_function: FunctionDeclaration <line: 1, col: 1> returnType=type_name\n"
+                L"`-a_function(str, typename): FunctionDeclaration <line: 1, col: 1> returnType=type_name\n"
                 L" `-Parameters:\n"
                 L"  |-VariableDeclaration <line: 1, col: 9> type=str name=param1 mutable=true\n"
                 L"  `-VariableDeclaration <line: 1, col: 27> type=typename name=param2 mutable=false\n"

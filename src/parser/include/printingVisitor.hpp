@@ -66,8 +66,16 @@ private:
 
     void visitUnaryOperation(std::wstring name, Position position, DocumentTreeNode &child);
     void visitBinaryOperation(std::wstring name, BinaryOperation &visited);
-    void visitInstructionBlock(std::vector<std::unique_ptr<Instruction>> &block);
-    void visitFields(std::vector<Field> &fields);
+    template <typename NodeContainer>
+    void visitContainer(NodeContainer &visited);
+    template <typename ConditionalStatement>
+    void visitCondition(ConditionalStatement &visited);
+    void visit(DocumentTreeNode &visited);
+    void visit(std::pair<const FunctionIdentification, FunctionDeclaration> &visited);
+    template <typename Node>
+    void visit(std::pair<const std::wstring, Node> &visited);
+    template <typename Node>
+    void visit(std::unique_ptr<Node> &visited);
 };
 
 #endif

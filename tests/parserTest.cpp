@@ -333,16 +333,22 @@ TEST_CASE("FunctionDeclaration - parameter list and return type", "[Parser]")
         Token(ARROW, {2, 13}),
         Token(IDENTIFIER, {2, 15}, L"type_name"),
         Token(LBRACE, {3, 12}),
-        Token(RBRACE, {3, 15}),
-        Token(EOT, {3, 18}),
+        Token(IDENTIFIER, {4, 1}, L"f"),
+        Token(LPAREN, {4, 3}),
+        Token(RPAREN, {4, 4}),
+        Token(SEMICOLON, {4, 5}),
+        Token(RBRACE, {5, 1}),
+        Token(EOT, {5, 2}),
     };
     checkParsing(
         tokens, L"Program containing:\n"
                 L"Functions:\n"
                 L"`-a_function(str, typename): FunctionDeclaration <line: 1, col: 1> returnType=type_name\n"
-                L" `-Parameters:\n"
-                L"  |-VariableDeclaration <line: 1, col: 9> type=str name=param1 mutable=true\n"
-                L"  `-VariableDeclaration <line: 1, col: 27> type=typename name=param2 mutable=false\n"
+                L" |-Parameters:\n"
+                L" ||-VariableDeclaration <line: 1, col: 9> type=str name=param1 mutable=true\n"
+                L" |`-VariableDeclaration <line: 1, col: 27> type=typename name=param2 mutable=false\n"
+                L" `-Body:\n"
+                L"  `-FunctionCall <line: 4, col: 1> functionName=f\n"
     );
 }
 
@@ -1062,6 +1068,7 @@ TEST_CASE("binary operators with associativity", "[Parser]")
 {
     for(auto [operatorType, expressionName]: std::vector{
             std::pair{KW_OR, L"OrExpression"},
+            {KW_XOR, L"XorExpression"},
             {KW_AND, L"AndExpression"},
             {OP_CONCAT, L"ConcatExpression"},
             {OP_STR_MULTIPLY, L"StringMultiplyExpression"},
@@ -1108,7 +1115,7 @@ void checkBinaryOpNonAssociativity(TokenType operatorType)
 TEST_CASE("binary operators with associativity errors", "[Parser]")
 {
     for(TokenType operatorType:
-        {KW_OR, KW_AND, OP_CONCAT, OP_STR_MULTIPLY, OP_PLUS, OP_MULTIPLY, OP_DIVIDE, OP_FLOOR_DIVIDE, OP_MODULO,
+        {KW_OR, KW_XOR, KW_AND, OP_CONCAT, OP_STR_MULTIPLY, OP_PLUS, OP_MULTIPLY, OP_DIVIDE, OP_FLOOR_DIVIDE, OP_MODULO,
          OP_EXPONENT})
     {
         checkBinaryOpErrors(operatorType);

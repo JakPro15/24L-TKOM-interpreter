@@ -124,15 +124,16 @@ void PrintingVisitor::visitCondition(ConditionalStatement &visited)
     popIndent();
 }
 
-void PrintingVisitor::visit(DocumentTreeNode &visited)
-{
-    visited.accept(*this);
-}
-
 template <typename Node>
 void PrintingVisitor::visit(std::unique_ptr<Node> &visited)
 {
     visited->accept(*this);
+}
+
+template <typename... Types>
+void PrintingVisitor::visit(std::variant<Types...> &visited)
+{
+    std::visit([&](auto &value) { visit(value); }, visited);
 }
 
 #define BINARY_OP_VISIT(type)                     \
@@ -175,8 +176,7 @@ void PrintingVisitor::visit(NotExpression &visited)
 
 void PrintingVisitor::visit(IsExpression &visited)
 {
-    out << L"IsExpression " << visited.getPosition() << L" right=" << visited.right << L"\n";
-    out << indent << L"`-";
+    out << L"IsExpression " << visited.getPosition() << L" right=" << visited.right << L"\n" << indent << L"`-";
     indent += L" ";
     visited.left->accept(*this);
     popIndent();
@@ -184,8 +184,7 @@ void PrintingVisitor::visit(IsExpression &visited)
 
 void PrintingVisitor::visit(DotExpression &visited)
 {
-    out << L"DotExpression " << visited.getPosition() << L" field=" << visited.field << L"\n";
-    out << indent << L"`-";
+    out << L"DotExpression " << visited.getPosition() << L" field=" << visited.field << L"\n" << indent << L"`-";
     indent += L" ";
     visited.value->accept(*this);
     popIndent();
@@ -207,8 +206,7 @@ void PrintingVisitor::visit(VariableDeclaration &visited)
 
 void PrintingVisitor::visit(VariableDeclStatement &visited)
 {
-    out << L"VariableDeclStatement " << visited.getPosition() << L"\n";
-    out << indent << L"|-";
+    out << L"VariableDeclStatement " << visited.getPosition() << L"\n" << indent << L"|-";
     indent += L"|";
     visited.declaration.accept(*this);
     popIndent();
@@ -232,8 +230,7 @@ void PrintingVisitor::visit(Assignable &visited)
 
 void PrintingVisitor::visit(AssignmentStatement &visited)
 {
-    out << L"AssignmentStatement " << visited.getPosition() << L"\n";
-    out << indent << L"|-";
+    out << L"AssignmentStatement " << visited.getPosition() << L"\n" << indent << L"|-";
     indent += L"|";
     visited.left.accept(*this);
     popIndent();
@@ -274,21 +271,7 @@ void PrintingVisitor::visit(BreakStatement &visited)
 void PrintingVisitor::visit(SingleIfCase &visited)
 {
     out << L"SingleIfCase " << visited.getPosition() << L"\n" << indent;
-    if(visited.body.size() > 0)
-    {
-        out << L"|-";
-        indent += L"|";
-    }
-    else
-    {
-        out << L"`-";
-        indent += L" ";
-    }
-    if(std::holds_alternative<VariableDeclStatement>(visited.condition))
-        std::get<VariableDeclStatement>(visited.condition).accept(*this);
-    else
-        std::get<std::unique_ptr<Expression>>(visited.condition)->accept(*this);
-    popIndent();
+    visitCondition(visited);
     visitContainer(visited.body);
 }
 
@@ -359,7 +342,7 @@ void PrintingVisitor::visit(FunctionDeclaration &visited)
     out << L"\n";
     if(visited.parameters.size() > 0)
     {
-        out << indent << L"Parameters:\n";
+        out << indent;
         if(visited.body.size() > 0)
         {
             out << L"|-";
@@ -370,15 +353,8 @@ void PrintingVisitor::visit(FunctionDeclaration &visited)
             out << L"`-";
             indent += L" ";
         }
-        for(auto &parameter: visited.parameters)
-        {
-            out << indent;
-            if(&parameter != &visited.parameters.back())
-                out << L"|-";
-            else
-                out << L"`-";
-            parameter.accept(*this);
-        }
+        out << L"Parameters:\n";
+        visitContainer(visited.parameters);
         popIndent();
     }
     if(visited.body.size() > 0)

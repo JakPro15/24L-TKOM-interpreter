@@ -471,7 +471,7 @@ std::unique_ptr<IfStatement> Parser::parseIfStatement()
 //              | VARIABLE_DECL, '=', EXPRESSION ;
 std::variant<VariableDeclStatement, std::unique_ptr<Expression>> Parser::parseIfCondition()
 {
-    if(current.getType() == IDENTIFIER && next.getType() == IDENTIFIER)
+    if(current.getType() == IDENTIFIER && (next.getType() == IDENTIFIER || next.getType() == DOLLAR_SIGN))
     { // special case of looking at next token for disambiguation,
       // as both EXPRESSION and VARIABLE_DECL may begin with IDENTIFIER
         return parseIfConditionDeclaration();

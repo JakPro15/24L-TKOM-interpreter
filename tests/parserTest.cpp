@@ -737,9 +737,13 @@ TEST_CASE("IfStatement - many cases", "[Parser]")
         Token(RBRACE, {7, 54}),
         Token(KW_ELIF, {8, 1}),
         Token(LPAREN, {8, 5}),
-        Token(STR_LITERAL, {8, 6}, L""),
-        Token(RPAREN, {8, 8}),
-        Token(LBRACE, {8, 10}),
+        Token(IDENTIFIER, {8, 6}, L"type2"),
+        Token(DOLLAR_SIGN, {8, 12}),
+        Token(IDENTIFIER, {8, 14}, L"name2"),
+        Token(OP_ASSIGN, {8, 20}),
+        Token(STR_LITERAL, {8, 22}, L""),
+        Token(RPAREN, {8, 26}),
+        Token(LBRACE, {8, 27}),
         Token(IDENTIFIER, {9, 5}, L"called1"),
         Token(LPAREN, {9, 15}),
         Token(RPAREN, {9, 16}),
@@ -773,7 +777,9 @@ TEST_CASE("IfStatement - many cases", "[Parser]")
                 L"   |`-ReturnStatement <line: 7, col: 44>\n"
                 L"   | `-Literal <line: 7, col: 52> value=0\n"
                 L"   |-SingleIfCase <line: 8, col: 1>\n"
-                L"   ||-Literal <line: 8, col: 6> value=\"\"\n"
+                L"   ||-VariableDeclStatement <line: 8, col: 6>\n"
+                L"   |||-VariableDeclaration <line: 8, col: 6> type=type2 name=name2 mutable=true\n"
+                L"   ||`-Literal <line: 8, col: 22> value=\"\"\n"
                 L"   ||-FunctionCall <line: 9, col: 5> functionName=called1\n"
                 L"   |`-FunctionCall <line: 10, col: 5> functionName=called2\n"
                 L"   `-ElseCase:\n"

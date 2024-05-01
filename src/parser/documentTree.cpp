@@ -13,6 +13,8 @@ Literal::Literal(Position position, std::variant<std::wstring, int32_t, double, 
     DocumentTreeNode(position), value(value)
 {}
 
+Variable::Variable(Position position, std::wstring name): DocumentTreeNode(position), name(name) {}
+
 BinaryOperation::BinaryOperation(
     Position position, std::unique_ptr<Expression> left, std::unique_ptr<Expression> right
 ): DocumentTreeNode(position), left(std::move(left)), right(std::move(right))
@@ -125,6 +127,7 @@ Program::Program(Position position): DocumentTreeNode(position) {}
     }
 
 DEFINE_ACCEPT(Literal);
+DEFINE_ACCEPT(Variable);
 DEFINE_ACCEPT(IsExpression);
 DEFINE_ACCEPT(OrExpression);
 DEFINE_ACCEPT(XorExpression);

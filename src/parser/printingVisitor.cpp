@@ -23,6 +23,11 @@ void PrintingVisitor::visit(Literal &visited)
     out.flags(outFlags);
 }
 
+void PrintingVisitor::visit(Variable &visited)
+{
+    out << L"Variable " << visited.getPosition() << L" name=" << visited.name << L"\n";
+}
+
 void PrintingVisitor::visitUnaryOperation(std::wstring name, Position position, DocumentTreeNode &child)
 {
     out << name << L" " << position << L"\n";
@@ -343,26 +348,12 @@ void PrintingVisitor::visit(SingleIfCase &visited)
     else
         std::get<std::unique_ptr<Expression>>(visited.condition)->accept(*this);
     popIndent();
-    out << indent << L"`-";
-    indent += L" ";
     visitInstructionBlock(visited.body);
-    popIndent();
 }
 
 void PrintingVisitor::visit(IfStatement &visited)
 {
-    out << L"IfStatement " << visited.getPosition() << L"\n" << indent;
-    if(visited.cases.size() > 0)
-    {
-        out << L"|-";
-        indent += L"|";
-    }
-    else
-    {
-        out << L"`-";
-        indent += L" ";
-    }
-
+    out << L"IfStatement " << visited.getPosition() << L"\n";
     for(auto &ifCase: visited.cases)
     {
         out << indent;
@@ -403,10 +394,7 @@ void PrintingVisitor::visit(WhileStatement &visited)
     }
     visited.condition->accept(*this);
     popIndent();
-    out << indent << L"`-";
-    indent += L" ";
     visitInstructionBlock(visited.body);
-    popIndent();
 }
 
 void PrintingVisitor::visit(DoWhileStatement &visited)
@@ -424,10 +412,7 @@ void PrintingVisitor::visit(DoWhileStatement &visited)
     }
     visited.condition->accept(*this);
     popIndent();
-    out << indent << L"`-";
-    indent += L" ";
     visitInstructionBlock(visited.body);
-    popIndent();
 }
 
 void PrintingVisitor::visit(Field &visited)

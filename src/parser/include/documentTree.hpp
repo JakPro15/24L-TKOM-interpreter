@@ -34,6 +34,13 @@ struct Literal: public Expression
     void accept(DocumentTreeVisitor &visitor) override;
 };
 
+struct Variable: public Expression
+{
+    Variable(Position position, std::wstring name);
+    std::wstring name;
+    void accept(DocumentTreeVisitor &visitor) override;
+};
+
 struct BinaryOperation: public Expression
 {
     BinaryOperation(Position position, std::unique_ptr<Expression> left, std::unique_ptr<Expression> right);

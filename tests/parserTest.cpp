@@ -41,8 +41,8 @@ std::vector<Token> wrapInFunction(std::vector<Token> tokens)
         Token(RPAREN, {2, 9}),
         Token(LBRACE, {3, 12}),
         // here will be the body of the function
-        Token(RBRACE, {12, 1}),
-        Token(EOT, {12, 2}),
+        Token(RBRACE, {20, 1}),
+        Token(EOT, {20, 2}),
     };
     wrapped.insert(wrapped.begin() + 5, tokens.begin(), tokens.end());
     return wrapped;
@@ -686,4 +686,295 @@ TEST_CASE("ContinueStatement, BreakStatement, ReturnStatement errors", "[Parser]
         Token(TRUE_LITERAL, {7, 10}),
     });
     checkParseError<SyntaxError>(tokens); // missing semicolon after return value
+}
+
+TEST_CASE("IfStatement - basic", "[Parser]")
+{
+    std::vector tokens = wrapInFunction({
+        Token(KW_IF, {4, 1}),
+        Token(LPAREN, {4, 5}),
+        Token(INT_LITERAL, {4, 10}, 1),
+        Token(RPAREN, {4, 15}),
+        Token(LBRACE, {5, 1}),
+        Token(IDENTIFIER, {6, 5}, L"called"),
+        Token(LPAREN, {6, 15}),
+        Token(RPAREN, {6, 16}),
+        Token(SEMICOLON, {6, 17}),
+        Token(RBRACE, {7, 1}),
+    });
+    checkParsing(
+        tokens, L"Program containing:\n"
+                L"Functions:\n"
+                L"`-a_function: FunctionDeclaration <line: 1, col: 1>\n"
+                L" `-Body:\n"
+                L"  `-IfStatement <line: 4, col: 1>\n"
+                L"   `-SingleIfCase <line: 4, col: 1>\n"
+                L"    |-Literal <line: 4, col: 10> value=1\n"
+                L"    `-FunctionCall <line: 6, col: 5> functionName=called\n"
+    );
+}
+
+TEST_CASE("IfStatement - many cases", "[Parser]")
+{
+    std::vector tokens = wrapInFunction({
+        Token(KW_IF, {4, 1}),
+        Token(LPAREN, {4, 5}),
+        Token(INT_LITERAL, {4, 10}, 1),
+        Token(RPAREN, {4, 15}),
+        Token(LBRACE, {5, 1}),
+        Token(RBRACE, {7, 1}),
+        Token(KW_ELIF, {7, 3}),
+        Token(LPAREN, {7, 8}),
+        Token(IDENTIFIER, {7, 14}, L"type"),
+        Token(IDENTIFIER, {7, 20}, L"name"),
+        Token(OP_ASSIGN, {7, 26}),
+        Token(IDENTIFIER, {7, 30}, L"variantVar"),
+        Token(RPAREN, {7, 42}),
+        Token(LBRACE, {7, 43}),
+        Token(KW_RETURN, {7, 44}),
+        Token(INT_LITERAL, {7, 52}, 0),
+        Token(SEMICOLON, {7, 53}),
+        Token(RBRACE, {7, 54}),
+        Token(KW_ELIF, {8, 1}),
+        Token(LPAREN, {8, 5}),
+        Token(STR_LITERAL, {8, 6}, L""),
+        Token(RPAREN, {8, 8}),
+        Token(LBRACE, {8, 10}),
+        Token(IDENTIFIER, {9, 5}, L"called1"),
+        Token(LPAREN, {9, 15}),
+        Token(RPAREN, {9, 16}),
+        Token(SEMICOLON, {9, 17}),
+        Token(IDENTIFIER, {10, 5}, L"called2"),
+        Token(LPAREN, {10, 15}),
+        Token(RPAREN, {10, 16}),
+        Token(SEMICOLON, {10, 17}),
+        Token(RBRACE, {11, 1}),
+        Token(KW_ELSE, {12, 1}),
+        Token(LBRACE, {13, 1}),
+        Token(IDENTIFIER, {14, 5}, L"print"),
+        Token(LPAREN, {14, 15}),
+        Token(STR_LITERAL, {14, 16}, L"else case"),
+        Token(RPAREN, {14, 30}),
+        Token(SEMICOLON, {14, 31}),
+        Token(RBRACE, {15, 1}),
+    });
+    checkParsing(
+        tokens, L"Program containing:\n"
+                L"Functions:\n"
+                L"`-a_function: FunctionDeclaration <line: 1, col: 1>\n"
+                L" `-Body:\n"
+                L"  `-IfStatement <line: 4, col: 1>\n"
+                L"   |-SingleIfCase <line: 4, col: 1>\n"
+                L"   |`-Literal <line: 4, col: 10> value=1\n"
+                L"   |-SingleIfCase <line: 7, col: 3>\n"
+                L"   ||-VariableDeclStatement <line: 7, col: 14>\n"
+                L"   |||-VariableDeclaration <line: 7, col: 14> type=type name=name mutable=false\n"
+                L"   ||`-Variable <line: 7, col: 30> name=variantVar\n"
+                L"   |`-ReturnStatement <line: 7, col: 44>\n"
+                L"   | `-Literal <line: 7, col: 52> value=0\n"
+                L"   |-SingleIfCase <line: 8, col: 1>\n"
+                L"   ||-Literal <line: 8, col: 6> value=\"\"\n"
+                L"   ||-FunctionCall <line: 9, col: 5> functionName=called1\n"
+                L"   |`-FunctionCall <line: 10, col: 5> functionName=called2\n"
+                L"   `-ElseCase:\n"
+                L"    `-FunctionCall <line: 14, col: 5> functionName=print\n"
+                L"     `-Literal <line: 14, col: 16> value=\"else case\"\n"
+    );
+}
+
+TEST_CASE("IfStatement errors", "[Parser]")
+{
+    std::vector tokens = wrapInFunction({
+        Token(KW_IF, {4, 1}),
+        Token(LBRACE, {5, 1}),
+        Token(RBRACE, {7, 1}),
+    });
+    checkParseError<SyntaxError>(tokens); // missing condition parentheses
+    tokens = wrapInFunction({
+        Token(KW_IF, {4, 1}),
+        Token(LPAREN, {4, 5}),
+        Token(RPAREN, {4, 15}),
+        Token(LBRACE, {5, 1}),
+        Token(RBRACE, {7, 1}),
+    });
+    checkParseError<SyntaxError>(tokens); // missing condition
+    tokens = wrapInFunction({
+        Token(KW_IF, {4, 1}),
+        Token(LPAREN, {4, 5}),
+        Token(INT_LITERAL, {4, 10}, 1),
+        Token(LBRACE, {5, 1}),
+        Token(RBRACE, {7, 1}),
+    });
+    checkParseError<SyntaxError>(tokens); // missing condition right parenthesis
+    tokens = wrapInFunction({
+        Token(KW_IF, {4, 1}),
+        Token(LPAREN, {4, 5}),
+        Token(INT_LITERAL, {4, 10}, 1),
+        Token(RPAREN, {4, 15}),
+    });
+    checkParseError<SyntaxError>(tokens); // missing body
+    tokens = wrapInFunction({
+        Token(KW_IF, {4, 1}),
+        Token(LPAREN, {4, 5}),
+        Token(INT_LITERAL, {4, 10}, 1),
+        Token(RPAREN, {4, 15}),
+        Token(LBRACE, {5, 1}),
+        Token(RBRACE, {7, 1}),
+        Token(KW_ELIF, {7, 3}),
+        Token(LBRACE, {7, 43}),
+        Token(RBRACE, {7, 54}),
+    });
+    checkParseError<SyntaxError>(tokens); // missing elif condition
+    tokens = wrapInFunction({
+        Token(KW_IF, {4, 1}),
+        Token(LPAREN, {4, 5}),
+        Token(INT_LITERAL, {4, 10}, 1),
+        Token(RPAREN, {4, 15}),
+        Token(LBRACE, {5, 1}),
+        Token(RBRACE, {7, 1}),
+        Token(KW_ELIF, {7, 3}),
+        Token(LPAREN, {7, 8}),
+        Token(IDENTIFIER, {7, 30}, L"variantVar"),
+        Token(RPAREN, {7, 42}),
+    });
+    checkParseError<SyntaxError>(tokens); // missing elif body
+    tokens = wrapInFunction({
+        Token(KW_IF, {4, 1}),
+        Token(LPAREN, {4, 5}),
+        Token(INT_LITERAL, {4, 10}, 1),
+        Token(RPAREN, {4, 15}),
+        Token(LBRACE, {5, 1}),
+        Token(RBRACE, {7, 1}),
+        Token(KW_ELSE, {12, 1}),
+    });
+    checkParseError<SyntaxError>(tokens); // missing else body
+}
+
+TEST_CASE("WhileStatement", "[Parser]")
+{
+    std::vector tokens = wrapInFunction({
+        Token(KW_WHILE, {4, 1}),
+        Token(LPAREN, {4, 5}),
+        Token(INT_LITERAL, {4, 10}, 1),
+        Token(RPAREN, {4, 15}),
+        Token(LBRACE, {5, 1}),
+        Token(IDENTIFIER, {6, 5}, L"called"),
+        Token(LPAREN, {6, 15}),
+        Token(RPAREN, {6, 16}),
+        Token(SEMICOLON, {6, 17}),
+        Token(RBRACE, {7, 1}),
+    });
+    checkParsing(
+        tokens, L"Program containing:\n"
+                L"Functions:\n"
+                L"`-a_function: FunctionDeclaration <line: 1, col: 1>\n"
+                L" `-Body:\n"
+                L"  `-WhileStatement <line: 4, col: 1>\n"
+                L"   |-Literal <line: 4, col: 10> value=1\n"
+                L"   `-FunctionCall <line: 6, col: 5> functionName=called\n"
+    );
+}
+
+TEST_CASE("WhileStatement errors", "[Parser]")
+{
+    std::vector tokens = wrapInFunction({
+        Token(KW_WHILE, {4, 1}),
+        Token(LBRACE, {5, 1}),
+        Token(RBRACE, {7, 1}),
+    });
+    checkParseError<SyntaxError>(tokens); // missing condition parentheses
+    tokens = wrapInFunction({
+        Token(KW_WHILE, {4, 1}),
+        Token(LPAREN, {4, 5}),
+        Token(RPAREN, {4, 15}),
+        Token(RBRACE, {7, 1}),
+    });
+    checkParseError<SyntaxError>(tokens); // missing condition
+    tokens = wrapInFunction({
+        Token(KW_WHILE, {4, 1}),
+        Token(LPAREN, {4, 5}),
+        Token(INT_LITERAL, {4, 10}, 1),
+        Token(LBRACE, {5, 1}),
+        Token(RBRACE, {7, 1}),
+    });
+    checkParseError<SyntaxError>(tokens); // missing condition right parenthesis
+    tokens = wrapInFunction({
+        Token(KW_WHILE, {4, 1}),
+        Token(LPAREN, {4, 5}),
+        Token(INT_LITERAL, {4, 10}, 1),
+        Token(RPAREN, {4, 15}),
+    });
+    checkParseError<SyntaxError>(tokens); // missing body
+}
+
+TEST_CASE("DoWhileStatement", "[Parser]")
+{
+    std::vector tokens = wrapInFunction({
+        Token(KW_DO, {4, 1}),
+        Token(LBRACE, {5, 1}),
+        Token(IDENTIFIER, {6, 5}, L"called"),
+        Token(LPAREN, {6, 15}),
+        Token(RPAREN, {6, 16}),
+        Token(SEMICOLON, {6, 17}),
+        Token(RBRACE, {7, 1}),
+        Token(KW_WHILE, {8, 1}),
+        Token(LPAREN, {8, 5}),
+        Token(INT_LITERAL, {8, 10}, 1),
+        Token(RPAREN, {8, 15}),
+    });
+    checkParsing(
+        tokens, L"Program containing:\n"
+                L"Functions:\n"
+                L"`-a_function: FunctionDeclaration <line: 1, col: 1>\n"
+                L" `-Body:\n"
+                L"  `-DoWhileStatement <line: 4, col: 1>\n"
+                L"   |-Literal <line: 8, col: 10> value=1\n"
+                L"   `-FunctionCall <line: 6, col: 5> functionName=called\n"
+    );
+}
+
+TEST_CASE("DoWhileStatement errors", "[Parser]")
+{
+    std::vector tokens = wrapInFunction({
+        Token(KW_DO, {4, 1}),
+        Token(KW_WHILE, {8, 1}),
+        Token(LPAREN, {8, 5}),
+        Token(INT_LITERAL, {8, 10}, 1),
+        Token(RPAREN, {8, 15}),
+    });
+    checkParseError<SyntaxError>(tokens); // missing body
+    tokens = wrapInFunction({
+        Token(KW_DO, {4, 1}),
+        Token(LBRACE, {5, 1}),
+        Token(RBRACE, {7, 1}),
+        Token(LPAREN, {8, 5}),
+        Token(INT_LITERAL, {8, 10}, 1),
+        Token(RPAREN, {8, 15}),
+    });
+    checkParseError<SyntaxError>(tokens); // missing while
+    tokens = wrapInFunction({
+        Token(KW_DO, {4, 1}),
+        Token(LBRACE, {5, 1}),
+        Token(RBRACE, {7, 1}),
+        Token(KW_WHILE, {8, 1}),
+    });
+    checkParseError<SyntaxError>(tokens); // missing condition parentheses
+    tokens = wrapInFunction({
+        Token(KW_DO, {4, 1}),
+        Token(LBRACE, {5, 1}),
+        Token(RBRACE, {7, 1}),
+        Token(KW_WHILE, {8, 1}),
+        Token(LPAREN, {8, 5}),
+        Token(RPAREN, {8, 15}),
+    });
+    checkParseError<SyntaxError>(tokens); // missing condition
+    tokens = wrapInFunction({
+        Token(KW_DO, {4, 1}),
+        Token(LBRACE, {5, 1}),
+        Token(RBRACE, {7, 1}),
+        Token(KW_WHILE, {8, 1}),
+        Token(LPAREN, {8, 5}),
+        Token(INT_LITERAL, {8, 10}, 1),
+    });
+    checkParseError<SyntaxError>(tokens); // missing condition right parenthesis
 }

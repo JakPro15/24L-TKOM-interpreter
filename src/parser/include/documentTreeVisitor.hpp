@@ -2,6 +2,7 @@
 #define DOCUMENTTREEVISITOR_HPP
 
 struct Literal;
+struct Variable;
 struct IsExpression;
 struct OrExpression;
 struct XorExpression;
@@ -53,6 +54,7 @@ class DocumentTreeVisitor
 public:
     virtual ~DocumentTreeVisitor() = default;
     virtual void visit(Literal &visited) = 0;
+    virtual void visit(Variable &visited) = 0;
     virtual void visit(IsExpression &visited) = 0;
     virtual void visit(OrExpression &visited) = 0;
     virtual void visit(XorExpression &visited) = 0;

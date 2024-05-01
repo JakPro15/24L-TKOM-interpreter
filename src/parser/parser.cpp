@@ -16,8 +16,13 @@ void Parser::advance()
 
 void Parser::checkAndAdvance(TokenType type)
 {
+    checkAndAdvance(type, std::format(L"Expected {}, got {}", type, current));
+}
+
+void Parser::checkAndAdvance(TokenType type, std::wstring errorMessage)
+{
     if(current.getType() != type)
-        throw SyntaxError(std::format(L"Expected {}, got {}", type, current), current.getPosition());
+        throw SyntaxError(errorMessage, current.getPosition());
     advance();
 }
 
@@ -255,7 +260,7 @@ std::vector<std::unique_ptr<Instruction>> Parser::parseInstructionBlock()
     std::unique_ptr<Instruction> instruction;
     while((instruction = parseInstruction()))
         instructions.push_back(std::move(instruction));
-    checkAndAdvance(RBRACE);
+    checkAndAdvance(RBRACE, std::format(L"Expected instruction or }}, got {}", current));
     return instructions;
 }
 
@@ -272,7 +277,8 @@ std::unique_ptr<Instruction> Parser::parseInstruction()
     std::unique_ptr<Instruction> instruction;
     if((instruction = parseContinueStatement()) || (instruction = parseBreakStatement()) ||
        (instruction = parseReturnStatement()) || (instruction = parseDeclOrAssignOrFunCall()) ||
-       (instruction = parseBuiltinDeclStatement()))
+       (instruction = parseBuiltinDeclStatement()) || (instruction = parseIfStatement()) ||
+       (instruction = parseWhileStatement()) || (instruction = parseDoWhileStatement()))
         return instruction;
     return std::unique_ptr<Instruction>(nullptr);
 }
@@ -517,6 +523,12 @@ std::unique_ptr<DoWhileStatement> Parser::parseDoWhileStatement()
 
 std::unique_ptr<Expression> Parser::parseExpression()
 {
+    if(current.getType() == IDENTIFIER)
+    {
+        auto ret = std::make_unique<Variable>(current.getPosition(), std::get<std::wstring>(current.getValue()));
+        advance();
+        return ret;
+    }
     return parseLiteral();
 }
 

@@ -15,6 +15,7 @@ private:
     Token current, next;
     void advance();
     void checkAndAdvance(TokenType type);
+    void checkAndAdvance(TokenType type, std::wstring errorMessage);
     std::wstring loadAndAdvance(TokenType type);
 
     bool tryAddTopLevelStatement(Program &program);

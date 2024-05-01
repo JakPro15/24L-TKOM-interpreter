@@ -43,133 +43,127 @@ struct Variable: public Expression
 
 struct BinaryOperation: public Expression
 {
-    BinaryOperation(Position position, std::unique_ptr<Expression> left, std::unique_ptr<Expression> right);
+    BinaryOperation(std::unique_ptr<Expression> left, std::unique_ptr<Expression> right);
     std::unique_ptr<Expression> left, right;
-};
-
-struct IsExpression: public BinaryOperation
-{
-    using BinaryOperation::BinaryOperation;
-    void accept(DocumentTreeVisitor &visitor) override;
 };
 
 struct OrExpression: public BinaryOperation
 {
-    using BinaryOperation::BinaryOperation;
+    OrExpression(Position begin, std::unique_ptr<Expression> left, std::unique_ptr<Expression> right);
     void accept(DocumentTreeVisitor &visitor) override;
 };
 
 struct XorExpression: public BinaryOperation
 {
-    using BinaryOperation::BinaryOperation;
+    XorExpression(Position begin, std::unique_ptr<Expression> left, std::unique_ptr<Expression> right);
     void accept(DocumentTreeVisitor &visitor) override;
 };
 
 struct AndExpression: public BinaryOperation
 {
-    using BinaryOperation::BinaryOperation;
+    AndExpression(Position begin, std::unique_ptr<Expression> left, std::unique_ptr<Expression> right);
     void accept(DocumentTreeVisitor &visitor) override;
 };
 
 struct EqualExpression: public BinaryOperation
 {
-    using BinaryOperation::BinaryOperation;
+    EqualExpression(Position begin, std::unique_ptr<Expression> left, std::unique_ptr<Expression> right);
     void accept(DocumentTreeVisitor &visitor) override;
 };
 
 struct NotEqualExpression: public BinaryOperation
 {
-    using BinaryOperation::BinaryOperation;
+    NotEqualExpression(Position begin, std::unique_ptr<Expression> left, std::unique_ptr<Expression> right);
     void accept(DocumentTreeVisitor &visitor) override;
 };
 
 struct IdenticalExpression: public BinaryOperation
 {
-    using BinaryOperation::BinaryOperation;
+    IdenticalExpression(Position begin, std::unique_ptr<Expression> left, std::unique_ptr<Expression> right);
     void accept(DocumentTreeVisitor &visitor) override;
 };
 
 struct NotIdenticalExpression: public BinaryOperation
 {
-    using BinaryOperation::BinaryOperation;
+    NotIdenticalExpression(Position begin, std::unique_ptr<Expression> left, std::unique_ptr<Expression> right);
     void accept(DocumentTreeVisitor &visitor) override;
 };
 
 struct ConcatExpression: public BinaryOperation
 {
-    using BinaryOperation::BinaryOperation;
+    ConcatExpression(Position begin, std::unique_ptr<Expression> left, std::unique_ptr<Expression> right);
     void accept(DocumentTreeVisitor &visitor) override;
 };
 
 struct StringMultiplyExpression: public BinaryOperation
 {
-    using BinaryOperation::BinaryOperation;
+    StringMultiplyExpression(Position begin, std::unique_ptr<Expression> left, std::unique_ptr<Expression> right);
     void accept(DocumentTreeVisitor &visitor) override;
 };
 
 struct GreaterExpression: public BinaryOperation
 {
-    using BinaryOperation::BinaryOperation;
+    GreaterExpression(Position begin, std::unique_ptr<Expression> left, std::unique_ptr<Expression> right);
     void accept(DocumentTreeVisitor &visitor) override;
 };
 
 struct LesserExpression: public BinaryOperation
 {
-    using BinaryOperation::BinaryOperation;
+    LesserExpression(Position begin, std::unique_ptr<Expression> left, std::unique_ptr<Expression> right);
     void accept(DocumentTreeVisitor &visitor) override;
 };
 
 struct GreaterEqualExpression: public BinaryOperation
 {
-    using BinaryOperation::BinaryOperation;
+    GreaterEqualExpression(Position begin, std::unique_ptr<Expression> left, std::unique_ptr<Expression> right);
     void accept(DocumentTreeVisitor &visitor) override;
 };
 
 struct LesserEqualExpression: public BinaryOperation
 {
-    using BinaryOperation::BinaryOperation;
+    LesserEqualExpression(Position begin, std::unique_ptr<Expression> left, std::unique_ptr<Expression> right);
     void accept(DocumentTreeVisitor &visitor) override;
 };
 
 struct PlusExpression: public BinaryOperation
 {
-    using BinaryOperation::BinaryOperation;
+    PlusExpression(Position begin, std::unique_ptr<Expression> left, std::unique_ptr<Expression> right);
     void accept(DocumentTreeVisitor &visitor) override;
 };
 
 struct MinusExpression: public BinaryOperation
 {
-    using BinaryOperation::BinaryOperation;
+    MinusExpression(Position begin, std::unique_ptr<Expression> left, std::unique_ptr<Expression> right);
     void accept(DocumentTreeVisitor &visitor) override;
 };
 
 struct MultiplyExpression: public BinaryOperation
 {
-    using BinaryOperation::BinaryOperation;
+    MultiplyExpression(Position begin, std::unique_ptr<Expression> left, std::unique_ptr<Expression> right);
     void accept(DocumentTreeVisitor &visitor) override;
 };
 
 struct DivideExpression: public BinaryOperation
 {
-    using BinaryOperation::BinaryOperation;
+    DivideExpression(Position begin, std::unique_ptr<Expression> left, std::unique_ptr<Expression> right);
     void accept(DocumentTreeVisitor &visitor) override;
 };
 
 struct FloorDivideExpression: public BinaryOperation
 {
-    using BinaryOperation::BinaryOperation;
+    FloorDivideExpression(Position begin, std::unique_ptr<Expression> left, std::unique_ptr<Expression> right);
     void accept(DocumentTreeVisitor &visitor) override;
 };
 
 struct ModuloExpression: public BinaryOperation
 {
-    using BinaryOperation::BinaryOperation;
+    ModuloExpression(Position begin, std::unique_ptr<Expression> left, std::unique_ptr<Expression> right);
     void accept(DocumentTreeVisitor &visitor) override;
 };
 
 struct ExponentExpression: public BinaryOperation
 {
-    using BinaryOperation::BinaryOperation;
+    ExponentExpression(Position begin, std::unique_ptr<Expression> left, std::unique_ptr<Expression> right);
     void accept(DocumentTreeVisitor &visitor) override;
 };
 
@@ -187,9 +181,17 @@ struct NotExpression: public Expression
     void accept(DocumentTreeVisitor &visitor) override;
 };
 
+struct IsExpression: public Expression
+{
+    IsExpression(Position begin, std::unique_ptr<Expression> left, std::wstring right);
+    std::unique_ptr<Expression> left;
+    std::wstring right;
+    void accept(DocumentTreeVisitor &visitor) override;
+};
+
 struct SubscriptExpression: public BinaryOperation
 {
-    using BinaryOperation::BinaryOperation;
+    SubscriptExpression(Position begin, std::unique_ptr<Expression> left, std::unique_ptr<Expression> right);
     void accept(DocumentTreeVisitor &visitor) override;
 };
 

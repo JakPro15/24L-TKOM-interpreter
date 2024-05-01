@@ -15,10 +15,36 @@ Literal::Literal(Position position, std::variant<std::wstring, int32_t, double, 
 
 Variable::Variable(Position position, std::wstring name): DocumentTreeNode(position), name(name) {}
 
-BinaryOperation::BinaryOperation(
-    Position position, std::unique_ptr<Expression> left, std::unique_ptr<Expression> right
-): DocumentTreeNode(position), left(std::move(left)), right(std::move(right))
+BinaryOperation::BinaryOperation(std::unique_ptr<Expression> left, std::unique_ptr<Expression> right):
+    left(std::move(left)), right(std::move(right))
 {}
+
+#define BINARY_OP_CONSTRUCTOR(type)                                                                  \
+    type::type(Position begin, std::unique_ptr<Expression> left, std::unique_ptr<Expression> right): \
+        DocumentTreeNode(begin), BinaryOperation(std::move(left), std::move(right))                  \
+    {}
+
+BINARY_OP_CONSTRUCTOR(OrExpression)
+BINARY_OP_CONSTRUCTOR(XorExpression)
+BINARY_OP_CONSTRUCTOR(AndExpression)
+BINARY_OP_CONSTRUCTOR(EqualExpression)
+BINARY_OP_CONSTRUCTOR(NotEqualExpression)
+BINARY_OP_CONSTRUCTOR(IdenticalExpression)
+BINARY_OP_CONSTRUCTOR(NotIdenticalExpression)
+BINARY_OP_CONSTRUCTOR(ConcatExpression)
+BINARY_OP_CONSTRUCTOR(StringMultiplyExpression)
+BINARY_OP_CONSTRUCTOR(GreaterExpression)
+BINARY_OP_CONSTRUCTOR(LesserExpression)
+BINARY_OP_CONSTRUCTOR(GreaterEqualExpression)
+BINARY_OP_CONSTRUCTOR(LesserEqualExpression)
+BINARY_OP_CONSTRUCTOR(PlusExpression)
+BINARY_OP_CONSTRUCTOR(MinusExpression)
+BINARY_OP_CONSTRUCTOR(MultiplyExpression)
+BINARY_OP_CONSTRUCTOR(DivideExpression)
+BINARY_OP_CONSTRUCTOR(FloorDivideExpression)
+BINARY_OP_CONSTRUCTOR(ModuloExpression)
+BINARY_OP_CONSTRUCTOR(ExponentExpression)
+BINARY_OP_CONSTRUCTOR(SubscriptExpression)
 
 UnaryMinusExpression::UnaryMinusExpression(Position position, std::unique_ptr<Expression> value):
     DocumentTreeNode(position), value(std::move(value))
@@ -26,6 +52,10 @@ UnaryMinusExpression::UnaryMinusExpression(Position position, std::unique_ptr<Ex
 
 NotExpression::NotExpression(Position position, std::unique_ptr<Expression> value):
     DocumentTreeNode(position), value(std::move(value))
+{}
+
+IsExpression::IsExpression(Position begin, std::unique_ptr<Expression> left, std::wstring right):
+    DocumentTreeNode(begin), left(std::move(left)), right(right)
 {}
 
 DotExpression::DotExpression(Position position, std::unique_ptr<Expression> value, std::wstring field):

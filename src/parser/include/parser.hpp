@@ -27,7 +27,7 @@ private:
     std::optional<Field> parseField();
     std::optional<std::wstring> parseTypeIdentifier();
     std::optional<std::wstring> parseBuiltinType();
-    std::vector<VariableDeclaration> parseParameters();
+    std::vector<VariableDeclaration> parseParametersDeclaration();
     std::optional<VariableDeclaration> parseVariableDeclaration();
     std::vector<std::unique_ptr<Instruction>> parseInstructionBlock();
     std::unique_ptr<Instruction> parseInstruction();
@@ -38,6 +38,7 @@ private:
     std::tuple<bool, std::wstring, std::unique_ptr<Expression>> parseNoTypeDecl();
     std::unique_ptr<AssignmentStatement> parseAssignmentStatement(Token firstToken);
     std::unique_ptr<FunctionCall> parseFunctionCall(Token firstToken);
+    std::vector<std::unique_ptr<Expression>> parseParameters();
     std::unique_ptr<ContinueStatement> parseContinueStatement();
     std::unique_ptr<BreakStatement> parseBreakStatement();
     std::unique_ptr<ReturnStatement> parseReturnStatement();
@@ -47,6 +48,23 @@ private:
     std::unique_ptr<WhileStatement> parseWhileStatement();
     std::unique_ptr<DoWhileStatement> parseDoWhileStatement();
     std::unique_ptr<Expression> parseExpression();
+    std::unique_ptr<Expression> parseXorExpression();
+    std::unique_ptr<Expression> parseAndExpression();
+    std::unique_ptr<Expression> parseEqualityExpression();
+    std::unique_ptr<Expression> parseConcatExpression();
+    std::unique_ptr<Expression> parseStringMultiplyExpression();
+    std::unique_ptr<Expression> parseCompareExpression();
+    std::unique_ptr<Expression> parseAdditiveExpression();
+    std::unique_ptr<Expression> parseMultiplicativeExpression();
+    std::unique_ptr<Expression> parseExponentExpression();
+    std::unique_ptr<Expression> parseUnaryExpression();
+    std::unique_ptr<Expression> parseIsExpression();
+    std::unique_ptr<Expression> parseSubscriptExpression();
+    std::unique_ptr<Expression> parseDotExpression();
+    std::unique_ptr<Expression> parseStructExpression();
+    std::unique_ptr<Expression> parseParenthExpression();
+    std::unique_ptr<Expression> parseVariableOrFunCall();
+    std::unique_ptr<Expression> parseExpressionInParentheses();
     std::unique_ptr<Literal> parseLiteral();
 };
 

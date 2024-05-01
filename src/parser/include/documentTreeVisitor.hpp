@@ -3,7 +3,6 @@
 
 struct Literal;
 struct Variable;
-struct IsExpression;
 struct OrExpression;
 struct XorExpression;
 struct AndExpression;
@@ -26,6 +25,7 @@ struct ModuloExpression;
 struct ExponentExpression;
 struct UnaryMinusExpression;
 struct NotExpression;
+struct IsExpression;
 struct SubscriptExpression;
 struct DotExpression;
 struct StructExpression;

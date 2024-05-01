@@ -185,7 +185,7 @@ std::optional<std::pair<FunctionIdentification, FunctionDeclaration>> Parser::pa
 
     std::wstring name = loadAndAdvance(IDENTIFIER);
     checkAndAdvance(LPAREN);
-    std::vector<VariableDeclaration> parameters = parseParameters();
+    std::vector<VariableDeclaration> parameters = parseParametersDeclaration();
     checkAndAdvance(RPAREN);
     std::optional<std::wstring> returnType;
     if(current.getType() == ARROW)
@@ -208,7 +208,7 @@ std::optional<std::pair<FunctionIdentification, FunctionDeclaration>> Parser::pa
 }
 
 // PARAMETERS = VARIABLE_DECL, {',', VARIABLE_DECL};
-std::vector<VariableDeclaration> Parser::parseParameters()
+std::vector<VariableDeclaration> Parser::parseParametersDeclaration()
 {
     std::optional<VariableDeclaration> parameter;
     if(!(parameter = parseVariableDeclaration()))
@@ -375,6 +375,14 @@ std::unique_ptr<FunctionCall> Parser::parseFunctionCall(Token functionNameToken)
     Position begin = functionNameToken.getPosition();
     std::wstring name = std::get<std::wstring>(functionNameToken.getValue());
 
+    std::vector<std::unique_ptr<Expression>> parameters = parseParameters();
+    checkAndAdvance(RPAREN);
+    return std::make_unique<FunctionCall>(begin, name, std::move(parameters));
+}
+
+// [ EXPRESSION, { ',', EXPRESSION } ]
+std::vector<std::unique_ptr<Expression>> Parser::parseParameters()
+{
     std::vector<std::unique_ptr<Expression>> parameters;
     std::unique_ptr<Expression> parameterBuilt;
     if((parameterBuilt = parseExpression()))
@@ -388,8 +396,7 @@ std::unique_ptr<FunctionCall> Parser::parseFunctionCall(Token functionNameToken)
             parameters.push_back(std::move(parameterBuilt));
         }
     }
-    checkAndAdvance(RPAREN);
-    return std::make_unique<FunctionCall>(begin, name, std::move(parameters));
+    return parameters;
 }
 
 // 'continue', ';'
@@ -521,17 +528,313 @@ std::unique_ptr<DoWhileStatement> Parser::parseDoWhileStatement()
     return std::make_unique<DoWhileStatement>(begin, std::move(condition), std::move(body));
 }
 
+// EXPRESSION = XOR_EXPR, { 'or', XOR_EXPR } ;
 std::unique_ptr<Expression> Parser::parseExpression()
 {
-    if(current.getType() == IDENTIFIER)
+    Position begin = current.getPosition();
+    std::unique_ptr<Expression> left = parseXorExpression();
+    while(current.getType() == KW_OR)
     {
-        auto ret = std::make_unique<Variable>(current.getPosition(), std::get<std::wstring>(current.getValue()));
-        advance();
-        return ret;
+        std::unique_ptr<Expression> right = parseXorExpression();
+        left = std::make_unique<OrExpression>(begin, std::move(left), std::move(right));
     }
+    return left;
+}
+
+// XOR_EXPR = AND_EXPR, { 'xor', AND_EXPR } ;
+std::unique_ptr<Expression> Parser::parseXorExpression()
+{
+    Position begin = current.getPosition();
+    std::unique_ptr<Expression> left = parseAndExpression();
+    while(current.getType() == KW_XOR)
+    {
+        std::unique_ptr<Expression> right = parseAndExpression();
+        left = std::make_unique<XorExpression>(begin, std::move(left), std::move(right));
+    }
+    return left;
+}
+
+// AND_EXPR = EQUALITY_EXPR, { 'and', EQUALITY_EXPR } ;
+std::unique_ptr<Expression> Parser::parseAndExpression()
+{
+    Position begin = current.getPosition();
+    std::unique_ptr<Expression> left = parseEqualityExpression();
+    while(current.getType() == KW_AND)
+    {
+        std::unique_ptr<Expression> right = parseEqualityExpression();
+        left = std::make_unique<AndExpression>(begin, std::move(left), std::move(right));
+    }
+    return left;
+}
+
+// EQUALITY_EXPR = CONCAT_EXPR, [ EQUALITY_OP, CONCAT_EXPR ] ;
+// EQUALITY_OP = '=='
+//             | '!='
+//             | '==='
+//             | '!==' ;
+std::unique_ptr<Expression> Parser::parseEqualityExpression()
+{
+    Position begin = current.getPosition();
+    std::unique_ptr<Expression> left = parseConcatExpression();
+    if(current.getType() == OP_EQUAL || current.getType() == OP_NOT_EQUAL || current.getType() == OP_IDENTICAL ||
+       current.getType() == OP_NOT_IDENTICAL)
+    {
+        TokenType operation = current.getType();
+        advance();
+        std::unique_ptr<Expression> right = parseConcatExpression();
+        if(operation == OP_EQUAL)
+            left = std::make_unique<EqualExpression>(begin, std::move(left), std::move(right));
+        else if(operation == OP_NOT_EQUAL)
+            left = std::make_unique<NotEqualExpression>(begin, std::move(left), std::move(right));
+        else if(operation == OP_IDENTICAL)
+            left = std::make_unique<IdenticalExpression>(begin, std::move(left), std::move(right));
+        else if(operation == OP_NOT_IDENTICAL)
+            left = std::make_unique<NotIdenticalExpression>(begin, std::move(left), std::move(right));
+    }
+    return left;
+}
+
+// CONCAT_EXPR = STR_MUL_EXPR, { '!', STR_MUL_EXPR } ;
+std::unique_ptr<Expression> Parser::parseConcatExpression()
+{
+    Position begin = current.getPosition();
+    std::unique_ptr<Expression> left = parseStringMultiplyExpression();
+    while(current.getType() == OP_CONCAT)
+    {
+        std::unique_ptr<Expression> right = parseStringMultiplyExpression();
+        left = std::make_unique<ConcatExpression>(begin, std::move(left), std::move(right));
+    }
+    return left;
+}
+
+// STR_MUL_EXPR = COMPARE_EXPR, { '@', COMPARE_EXPR } ;
+std::unique_ptr<Expression> Parser::parseStringMultiplyExpression()
+{
+    Position begin = current.getPosition();
+    std::unique_ptr<Expression> left = parseCompareExpression();
+    while(current.getType() == OP_STR_MULTIPLY)
+    {
+        std::unique_ptr<Expression> right = parseCompareExpression();
+        left = std::make_unique<StringMultiplyExpression>(begin, std::move(left), std::move(right));
+    }
+    return left;
+}
+
+// COMPARE_EXPR = ADDITIVE_EXPR, [ COMPARISON_OP, ADDITIVE_EXPR ] ;
+// COMPARISON_OP = '>'
+//               | '<'
+//               | '>='
+//               | '<=' ;
+std::unique_ptr<Expression> Parser::parseCompareExpression()
+{
+    Position begin = current.getPosition();
+    std::unique_ptr<Expression> left = parseAdditiveExpression();
+    if(current.getType() == OP_GREATER || current.getType() == OP_LESSER || current.getType() == OP_GREATER_EQUAL ||
+       current.getType() == OP_LESSER_EQUAL)
+    {
+        TokenType operation = current.getType();
+        advance();
+        std::unique_ptr<Expression> right = parseAdditiveExpression();
+        if(operation == OP_GREATER)
+            left = std::make_unique<GreaterExpression>(begin, std::move(left), std::move(right));
+        else if(operation == OP_LESSER)
+            left = std::make_unique<LesserExpression>(begin, std::move(left), std::move(right));
+        else if(operation == OP_GREATER_EQUAL)
+            left = std::make_unique<GreaterEqualExpression>(begin, std::move(left), std::move(right));
+        else if(operation == OP_LESSER_EQUAL)
+            left = std::make_unique<LesserEqualExpression>(begin, std::move(left), std::move(right));
+    }
+    return left;
+}
+
+// ADDITIVE_EXPR = TERM, { ADDITIVE_OP, TERM } ;
+// ADDITIVE_OP = '+'
+//             | '-' ;
+std::unique_ptr<Expression> Parser::parseAdditiveExpression()
+{
+    Position begin = current.getPosition();
+    std::unique_ptr<Expression> left = parseMultiplicativeExpression();
+    while(current.getType() == OP_PLUS || current.getType() == OP_MINUS)
+    {
+        TokenType operation = current.getType();
+        advance();
+        std::unique_ptr<Expression> right = parseMultiplicativeExpression();
+        if(operation == OP_PLUS)
+            left = std::make_unique<PlusExpression>(begin, std::move(left), std::move(right));
+        else if(operation == OP_MINUS)
+            left = std::make_unique<MinusExpression>(begin, std::move(left), std::move(right));
+    }
+    return left;
+}
+
+// TERM = FACTOR, { MULTIPL_OP, FACTOR } ;
+// MULTIPL_OP =    '*'
+//               | '/'
+//               | '//'
+//               | '%' ;
+std::unique_ptr<Expression> Parser::parseMultiplicativeExpression()
+{
+    Position begin = current.getPosition();
+    std::unique_ptr<Expression> left = parseExponentExpression();
+    while(current.getType() == OP_MULTIPLY || current.getType() == OP_DIVIDE || current.getType() == OP_FLOOR_DIVIDE ||
+          current.getType() == OP_MODULO)
+    {
+        TokenType operation = current.getType();
+        advance();
+        std::unique_ptr<Expression> right = parseExponentExpression();
+        if(operation == OP_MULTIPLY)
+            left = std::make_unique<MultiplyExpression>(begin, std::move(left), std::move(right));
+        else if(operation == OP_DIVIDE)
+            left = std::make_unique<DivideExpression>(begin, std::move(left), std::move(right));
+        else if(operation == OP_FLOOR_DIVIDE)
+            left = std::make_unique<FloorDivideExpression>(begin, std::move(left), std::move(right));
+        else if(operation == OP_MODULO)
+            left = std::make_unique<ModuloExpression>(begin, std::move(left), std::move(right));
+    }
+    return left;
+}
+
+// FACTOR = UNARY_EXPR, { '**', UNARY_EXPR } ;
+std::unique_ptr<Expression> Parser::parseExponentExpression()
+{
+    Position begin = current.getPosition();
+    std::unique_ptr<Expression> left = parseUnaryExpression();
+    while(current.getType() == OP_EXPONENT)
+    {
+        std::unique_ptr<Expression> right = parseUnaryExpression();
+        left = std::make_unique<ExponentExpression>(begin, std::move(left), std::move(right));
+    }
+    return left;
+}
+
+// UNARY_EXPR = { UNARY_OP } , IS_EXPR ;
+// UNARY_OP = '-'
+//          | 'not' ;
+std::unique_ptr<Expression> Parser::parseUnaryExpression()
+{
+    Position begin = current.getPosition();
+    if(current.getType() == OP_MINUS || current.getType() == KW_NOT)
+    {
+        TokenType operation = current.getType();
+        advance();
+        std::unique_ptr<Expression> right = parseUnaryExpression();
+        if(operation == OP_MINUS)
+            return std::make_unique<UnaryMinusExpression>(begin, std::move(right));
+        if(operation == KW_NOT)
+            return std::make_unique<NotExpression>(begin, std::move(right));
+    }
+    return parseIsExpression();
+}
+
+// IS_EXPR = SUBSCRPT_EXPR, [ 'is', TYPE_IDENT ] ;
+std::unique_ptr<Expression> Parser::parseIsExpression()
+{
+    Position begin = current.getPosition();
+    std::unique_ptr<Expression> left = parseSubscriptExpression();
+    if(current.getType() == KW_IS)
+    {
+        advance();
+        std::optional<std::wstring> right;
+        if(!(right = parseTypeIdentifier()))
+            throw SyntaxError(std::format(L"Expected type identifier, got {}", current), current.getPosition());
+        return std::make_unique<IsExpression>(begin, std::move(left), *right);
+    }
+    return left;
+}
+
+// SUBSCRPT_EXPR = DOT_EXPR, { '[', EXPRESSION, ']' } ;
+std::unique_ptr<Expression> Parser::parseSubscriptExpression()
+{
+    Position begin = current.getPosition();
+    std::unique_ptr<Expression> left = parseDotExpression();
+    while(current.getType() == LSQUAREBRACE)
+    {
+        advance();
+        std::unique_ptr<Expression> right = parseExpression();
+        checkAndAdvance(RSQUAREBRACE);
+        left = std::make_unique<SubscriptExpression>(begin, std::move(left), std::move(right));
+    }
+    return left;
+}
+
+// DOT_EXPR = STRUCT_EXPR, { '.', IDENTIFIER } ;
+std::unique_ptr<Expression> Parser::parseDotExpression()
+{
+    Position begin = current.getPosition();
+    std::unique_ptr<Expression> left = parseStructExpression();
+    while(current.getType() == OP_DOT)
+    {
+        advance();
+        std::wstring right = loadAndAdvance(IDENTIFIER);
+        left = std::make_unique<DotExpression>(begin, std::move(left), right);
+    }
+    return left;
+}
+
+// STRUCT_EXPR = '{', EXPRESSION, { ',', EXPRESSION } , '}'
+//             | PARENTH_EXPR ;
+std::unique_ptr<Expression> Parser::parseStructExpression()
+{
+    if(current.getType() == LBRACE)
+    {
+        Position begin = current.getPosition();
+        advance();
+        std::vector<std::unique_ptr<Expression>> parameters = parseParameters();
+        if(parameters.size() < 1)
+            throw SyntaxError(L"Expected at least 1 parameter in StructExpression", begin);
+        checkAndAdvance(RBRACE);
+        return std::make_unique<StructExpression>(begin, std::move(parameters));
+    }
+    return parseParenthExpression();
+}
+
+// PARENTH_EXPR =  IDENTIFIER, [ '(', [ EXPRESSION, { ',', EXPRESSION } ] , ')' ]
+//               | '(', EXPRESSION, ')'
+//               | LITERAL ;
+std::unique_ptr<Expression> Parser::parseParenthExpression()
+{
+    std::unique_ptr<Expression> built;
+    if((built = parseVariableOrFunCall()))
+        return built;
+    if((built = parseExpressionInParentheses()))
+        return built;
     return parseLiteral();
 }
 
+// IDENTIFIER, [ '(', [ EXPRESSION, { ',', EXPRESSION } ] , ')' ]
+std::unique_ptr<Expression> Parser::parseVariableOrFunCall()
+{
+    if(current.getType() != IDENTIFIER)
+        return nullptr;
+    Token firstIdentifier = current;
+    advance();
+    std::unique_ptr<FunctionCall> call;
+    if((call = parseFunctionCall(firstIdentifier)))
+        return call;
+    return std::make_unique<Variable>(
+        firstIdentifier.getPosition(), std::get<std::wstring>(firstIdentifier.getValue())
+    );
+}
+
+// '(', EXPRESSION, ')'
+std::unique_ptr<Expression> Parser::parseExpressionInParentheses()
+{
+    if(current.getType() != LPAREN)
+        return nullptr;
+    advance();
+    std::unique_ptr<Expression> expression = parseExpression();
+    if(!expression)
+        throw SyntaxError(std::format(L"Expected expression, got {}", current), current.getPosition());
+    checkAndAdvance(RPAREN);
+    return expression;
+}
+
+// LITERAL = STRING_LITERAL
+//         | INT_LITERAL
+//         | FLOAT_LITERAL
+//         | BOOL_LITERAL ;
+// BOOL_LITERAL = 'true'
+//              | 'false' ;
 std::unique_ptr<Literal> Parser::parseLiteral()
 {
     std::variant<std::wstring, int32_t, double, bool> value;
@@ -553,7 +856,7 @@ std::unique_ptr<Literal> Parser::parseLiteral()
         value = false;
         break;
     default:
-        return std::unique_ptr<Literal>(nullptr);
+        return nullptr;
     }
     Position begin = current.getPosition();
     advance();

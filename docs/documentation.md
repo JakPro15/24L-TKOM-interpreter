@@ -746,9 +746,9 @@ ADDITIVE_OP =   '+'
 
 TERM =          FACTOR, { MULTIPL_OP, FACTOR } ;
 
-MULTIPL_OP =    '*',
-              | '/',
-              | '//',
+MULTIPL_OP =    '*'
+              | '/'
+              | '//'
               | '%' ;
 
 FACTOR =        UNARY_EXPR, { '**', UNARY_EXPR } ;
@@ -758,7 +758,7 @@ UNARY_EXPR =    { UNARY_OP } , IS_EXPR ;
 UNARY_OP =      '-'
               | 'not' ;
 
-IS_EXPR    =    SUBSCRPT_EXPR, [ 'is', TYPE_IDENT ] ;
+IS_EXPR =       SUBSCRPT_EXPR, [ 'is', TYPE_IDENT ] ;
 
 SUBSCRPT_EXPR = DOT_EXPR, { '[', EXPRESSION, ']' } ;
 

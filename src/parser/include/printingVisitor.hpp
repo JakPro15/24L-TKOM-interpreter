@@ -15,7 +15,6 @@ public:
     PrintingVisitor(std::wostream &out);
     void visit(Literal &visited) override;
     void visit(Variable &visited) override;
-    void visit(IsExpression &visited) override;
     void visit(OrExpression &visited) override;
     void visit(XorExpression &visited) override;
     void visit(AndExpression &visited) override;
@@ -38,6 +37,7 @@ public:
     void visit(ExponentExpression &visited) override;
     void visit(UnaryMinusExpression &visited) override;
     void visit(NotExpression &visited) override;
+    void visit(IsExpression &visited) override;
     void visit(SubscriptExpression &visited) override;
     void visit(DotExpression &visited) override;
     void visit(StructExpression &visited) override;

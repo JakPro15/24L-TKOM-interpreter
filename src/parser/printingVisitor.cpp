@@ -40,7 +40,6 @@ void PrintingVisitor::visitUnaryOperation(std::wstring name, Position position, 
 void PrintingVisitor::visitBinaryOperation(std::wstring name, BinaryOperation &visited)
 {
     out << name << L" " << visited.getPosition() << L"\n";
-    indent += 1;
     out << indent << L"|-";
     indent += L"|";
     visited.left->accept(*this);
@@ -89,11 +88,6 @@ void PrintingVisitor::visitFields(std::vector<Field> &fields)
         field.accept(*this);
         popIndent();
     }
-}
-
-void PrintingVisitor::visit(IsExpression &visited)
-{
-    visitBinaryOperation(L"IsExpression", visited);
 }
 
 void PrintingVisitor::visit(OrExpression &visited)
@@ -204,6 +198,15 @@ void PrintingVisitor::visit(UnaryMinusExpression &visited)
 void PrintingVisitor::visit(NotExpression &visited)
 {
     visitUnaryOperation(L"NotExpression", visited.getPosition(), *visited.value);
+}
+
+void PrintingVisitor::visit(IsExpression &visited)
+{
+    out << L"IsExpression " << visited.getPosition() << L" right=" << visited.right << L"\n";
+    out << indent << L"`-";
+    indent += L" ";
+    visited.left->accept(*this);
+    popIndent();
 }
 
 void PrintingVisitor::visit(SubscriptExpression &visited)

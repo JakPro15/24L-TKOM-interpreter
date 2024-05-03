@@ -15,20 +15,21 @@ if(NOT catch2_POPULATED)
 endif()
 
 add_executable(
-    UnitTests
+    Tests
     include/fakeLexer.hpp
     readerTest.cpp
     lexerTest.cpp
     commentDiscarderTest.cpp
     parserTest.cpp
+    lexerAndParserTest.cpp
 )
-target_compile_options(UnitTests PUBLIC -fprofile-arcs -ftest-coverage)
-target_include_directories(UnitTests PUBLIC include)
-target_link_options(UnitTests PUBLIC -lgcov --coverage)
+target_compile_options(Tests PUBLIC -fprofile-arcs -ftest-coverage)
+target_include_directories(Tests PUBLIC include)
+target_link_options(Tests PUBLIC -lgcov --coverage)
 
-target_link_libraries(UnitTests Reader)
-target_link_libraries(UnitTests Lexer)
-target_link_libraries(UnitTests Parser)
-target_link_libraries(UnitTests Catch2::Catch2WithMain)
+target_link_libraries(Tests Reader)
+target_link_libraries(Tests Lexer)
+target_link_libraries(Tests Parser)
+target_link_libraries(Tests Catch2::Catch2WithMain)
 
-add_test(NAME UnitTests COMMAND UnitTests)
+add_test(NAME Tests COMMAND Tests)

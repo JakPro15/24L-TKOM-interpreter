@@ -61,13 +61,6 @@ void PrintingVisitor::visitBinaryOperation(std::wstring name, BinaryOperation &v
     popIndent();
 }
 
-template <typename Node>
-void PrintingVisitor::visit(std::pair<const std::wstring, Node> &visited)
-{
-    out << visited.first << L": ";
-    visited.second.accept(*this);
-}
-
 void PrintingVisitor::visit(std::pair<const FunctionIdentification, FunctionDeclaration> &visited)
 {
     out << visited.first.name;
@@ -84,56 +77,6 @@ void PrintingVisitor::visit(std::pair<const FunctionIdentification, FunctionDecl
     }
     out << L": ";
     visited.second.accept(*this);
-}
-
-template <typename NodeContainer>
-void PrintingVisitor::visitContainer(NodeContainer &visited)
-{
-    for(auto it = visited.begin(); it != visited.end(); it++)
-    {
-        out << indent;
-        if(std::next(it) != visited.end())
-        {
-            out << L"|-";
-            indent += L"|";
-        }
-        else
-        {
-            out << L"`-";
-            indent += L" ";
-        }
-        visit(*it);
-        popIndent();
-    }
-}
-
-template <typename ConditionalStatement>
-void PrintingVisitor::visitCondition(ConditionalStatement &visited)
-{
-    if(visited.body.size() > 0)
-    {
-        out << L"|-";
-        indent += L"|";
-    }
-    else
-    {
-        out << L"`-";
-        indent += L" ";
-    }
-    visit(visited.condition);
-    popIndent();
-}
-
-template <typename Node>
-void PrintingVisitor::visit(std::unique_ptr<Node> &visited)
-{
-    visited->accept(*this);
-}
-
-template <typename... Types>
-void PrintingVisitor::visit(std::variant<Types...> &visited)
-{
-    std::visit([&](auto &value) { visit(value); }, visited);
 }
 
 #define BINARY_OP_VISIT(type)                     \

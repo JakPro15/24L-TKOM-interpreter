@@ -1251,10 +1251,13 @@ TEST_CASE("SubscriptExpression", "[Parser]")
         Token(IDENTIFIER, {4, 1}, L"a"),
         Token(LSQUAREBRACE, {4, 3}),
         Token(IDENTIFIER, {4, 6}, L"b"),
-        Token(RSQUAREBRACE, {4, 9}),
-        Token(LSQUAREBRACE, {4, 12}),
-        Token(INT_LITERAL, {4, 15}, 2),
+        Token(LSQUAREBRACE, {4, 9}),
+        Token(IDENTIFIER, {4, 12}, L"c"),
+        Token(RSQUAREBRACE, {4, 15}),
         Token(RSQUAREBRACE, {4, 18}),
+        Token(LSQUAREBRACE, {4, 21}),
+        Token(INT_LITERAL, {4, 24}, 2),
+        Token(RSQUAREBRACE, {4, 27}),
     });
     checkParsing(
         tokens, L"Program containing:\n"
@@ -1265,8 +1268,10 @@ TEST_CASE("SubscriptExpression", "[Parser]")
                 L"   `-SubscriptExpression <line: 4, col: 1>\n"
                 L"    |-SubscriptExpression <line: 4, col: 1>\n"
                 L"    ||-Variable <line: 4, col: 1> name=a\n"
-                L"    |`-Variable <line: 4, col: 6> name=b\n"
-                L"    `-Literal <line: 4, col: 15> type=int value=2\n"
+                L"    |`-SubscriptExpression <line: 4, col: 6>\n"
+                L"    | |-Variable <line: 4, col: 6> name=b\n"
+                L"    | `-Variable <line: 4, col: 12> name=c\n"
+                L"    `-Literal <line: 4, col: 24> type=int value=2\n"
     );
 }
 

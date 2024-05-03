@@ -59,6 +59,64 @@ public:
     void visit(FunctionDeclaration &visited) override;
     void visit(IncludeStatement &visited) override;
     void visit(Program &visited) override;
+    void visit(std::pair<const FunctionIdentification, FunctionDeclaration> &visited);
+
+    template <typename NodeContainer>
+    void visitContainer(NodeContainer &visited)
+    {
+        for(auto it = visited.begin(); it != visited.end(); it++)
+        {
+            out << indent;
+            if(std::next(it) != visited.end())
+            {
+                out << L"|-";
+                indent += L"|";
+            }
+            else
+            {
+                out << L"`-";
+                indent += L" ";
+            }
+            visit(*it);
+            popIndent();
+        }
+    }
+
+    template <typename ConditionalStatement>
+    void visitCondition(ConditionalStatement &visited)
+    {
+        if(visited.body.size() > 0)
+        {
+            out << L"|-";
+            indent += L"|";
+        }
+        else
+        {
+            out << L"`-";
+            indent += L" ";
+        }
+        visit(visited.condition);
+        popIndent();
+    }
+
+    template <typename Node>
+    void visit(std::pair<const std::wstring, Node> &visited)
+    {
+        out << visited.first << L": ";
+        visited.second.accept(*this);
+    }
+
+    template <typename Node>
+    void visit(std::unique_ptr<Node> &visited)
+    {
+        visited->accept(*this);
+    }
+
+    template <typename... Types>
+    void visit(std::variant<Types...> &visited)
+    {
+        std::visit([&](auto &value) { visit(value); }, visited);
+    }
 private:
     std::wostream &out;
     std::wstring indent;
@@ -66,17 +124,6 @@ private:
 
     void visitUnaryOperation(std::wstring name, Position position, DocumentTreeNode &child);
     void visitBinaryOperation(std::wstring name, BinaryOperation &visited);
-    template <typename NodeContainer>
-    void visitContainer(NodeContainer &visited);
-    template <typename ConditionalStatement>
-    void visitCondition(ConditionalStatement &visited);
-    void visit(std::pair<const FunctionIdentification, FunctionDeclaration> &visited);
-    template <typename Node>
-    void visit(std::pair<const std::wstring, Node> &visited);
-    template <typename Node>
-    void visit(std::unique_ptr<Node> &visited);
-    template <typename... Types>
-    void visit(std::variant<Types...> &visited);
 };
 
 #endif

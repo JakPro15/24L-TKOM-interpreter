@@ -27,7 +27,7 @@ private:
     std::optional<Field> parseField();
     std::optional<std::wstring> parseTypeIdentifier();
     std::optional<std::wstring> parseBuiltinType();
-    std::vector<VariableDeclaration> parseParametersDeclaration();
+    std::vector<VariableDeclaration> parseParameters();
     std::optional<VariableDeclaration> parseVariableDeclaration();
     std::vector<std::unique_ptr<Instruction>> parseInstructionBlock();
     std::unique_ptr<Instruction> parseInstruction();
@@ -38,7 +38,7 @@ private:
     std::tuple<bool, std::wstring, std::unique_ptr<Expression>> parseNoTypeDecl();
     std::unique_ptr<AssignmentStatement> parseAssignmentStatement(Token firstToken);
     std::unique_ptr<FunctionCall> parseFunctionCall(Token firstToken);
-    std::vector<std::unique_ptr<Expression>> parseParameters();
+    std::vector<std::unique_ptr<Expression>> parseArguments();
     std::unique_ptr<ContinueStatement> parseContinueStatement();
     std::unique_ptr<BreakStatement> parseBreakStatement();
     std::unique_ptr<ReturnStatement> parseReturnStatement();

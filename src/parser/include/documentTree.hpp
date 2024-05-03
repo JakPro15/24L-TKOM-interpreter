@@ -253,7 +253,7 @@ struct FunctionCall: public Instruction,
 {
     FunctionCall(Position position, std::wstring functionName, std::vector<std::unique_ptr<Expression>> parameters);
     std::wstring functionName;
-    std::vector<std::unique_ptr<Expression>> parameters;
+    std::vector<std::unique_ptr<Expression>> arguments;
     void accept(DocumentTreeVisitor &visitor) override;
 };
 

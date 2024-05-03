@@ -89,8 +89,8 @@ AssignmentStatement::AssignmentStatement(Position position, Assignable left, std
 {}
 
 FunctionCall::FunctionCall(
-    Position position, std::wstring functionName, std::vector<std::unique_ptr<Expression>> parameters
-): DocumentTreeNode(position), functionName(functionName), parameters(std::move(parameters))
+    Position position, std::wstring functionName, std::vector<std::unique_ptr<Expression>> arguments
+): DocumentTreeNode(position), functionName(functionName), arguments(std::move(arguments))
 {}
 
 ContinueStatement::ContinueStatement(Position position): DocumentTreeNode(position) {}

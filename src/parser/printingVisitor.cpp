@@ -186,7 +186,7 @@ void PrintingVisitor::visit(AssignmentStatement &visited)
 void PrintingVisitor::visit(FunctionCall &visited)
 {
     out << L"FunctionCall " << visited.getPosition() << L" functionName=" << visited.functionName << L"\n";
-    visitContainer(visited.parameters);
+    visitContainer(visited.arguments);
 }
 
 void PrintingVisitor::visit(ReturnStatement &visited)

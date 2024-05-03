@@ -185,7 +185,7 @@ std::optional<std::pair<FunctionIdentification, FunctionDeclaration>> Parser::pa
 
     std::wstring name = loadAndAdvance(IDENTIFIER);
     checkAndAdvance(LPAREN);
-    std::vector<VariableDeclaration> parameters = parseParametersDeclaration();
+    std::vector<VariableDeclaration> parameters = parseParameters();
     checkAndAdvance(RPAREN);
     std::optional<std::wstring> returnType;
     if(current.getType() == ARROW)
@@ -208,7 +208,7 @@ std::optional<std::pair<FunctionIdentification, FunctionDeclaration>> Parser::pa
 }
 
 // PARAMETERS = VARIABLE_DECL, {',', VARIABLE_DECL};
-std::vector<VariableDeclaration> Parser::parseParametersDeclaration()
+std::vector<VariableDeclaration> Parser::parseParameters()
 {
     std::optional<VariableDeclaration> parameter;
     if(!(parameter = parseVariableDeclaration()))
@@ -375,28 +375,28 @@ std::unique_ptr<FunctionCall> Parser::parseFunctionCall(Token functionNameToken)
     Position begin = functionNameToken.getPosition();
     std::wstring name = std::get<std::wstring>(functionNameToken.getValue());
 
-    std::vector<std::unique_ptr<Expression>> parameters = parseParameters();
+    std::vector<std::unique_ptr<Expression>> arguments = parseArguments();
     checkAndAdvance(RPAREN);
-    return std::make_unique<FunctionCall>(begin, name, std::move(parameters));
+    return std::make_unique<FunctionCall>(begin, name, std::move(arguments));
 }
 
 // [ EXPRESSION, { ',', EXPRESSION } ]
-std::vector<std::unique_ptr<Expression>> Parser::parseParameters()
+std::vector<std::unique_ptr<Expression>> Parser::parseArguments()
 {
-    std::vector<std::unique_ptr<Expression>> parameters;
-    std::unique_ptr<Expression> parameterBuilt;
-    if((parameterBuilt = parseExpression()))
+    std::vector<std::unique_ptr<Expression>> arguments;
+    std::unique_ptr<Expression> argumentBuilt;
+    if((argumentBuilt = parseExpression()))
     {
-        parameters.push_back(std::move(parameterBuilt));
+        arguments.push_back(std::move(argumentBuilt));
         while(current.getType() == COMMA)
         {
             advance();
-            if(!(parameterBuilt = parseExpression()))
+            if(!(argumentBuilt = parseExpression()))
                 throw SyntaxError(std::format(L"Expected expression, got {}", current), current.getPosition());
-            parameters.push_back(std::move(parameterBuilt));
+            arguments.push_back(std::move(argumentBuilt));
         }
     }
-    return parameters;
+    return arguments;
 }
 
 // 'continue', ';'
@@ -848,11 +848,11 @@ std::unique_ptr<Expression> Parser::parseStructExpression()
     {
         Position begin = current.getPosition();
         advance();
-        std::vector<std::unique_ptr<Expression>> parameters = parseParameters();
-        if(parameters.size() < 1)
-            throw SyntaxError(L"Expected at least 1 parameter in StructExpression", begin);
+        std::vector<std::unique_ptr<Expression>> arguments = parseArguments();
+        if(arguments.size() < 1)
+            throw SyntaxError(L"Expected at least 1 argument in StructExpression", begin);
         checkAndAdvance(RBRACE);
-        return std::make_unique<StructExpression>(begin, std::move(parameters));
+        return std::make_unique<StructExpression>(begin, std::move(arguments));
     }
     return parseParenthExpression();
 }

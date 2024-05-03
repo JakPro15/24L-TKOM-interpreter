@@ -3,14 +3,9 @@
 
 #include "readerExceptions.hpp"
 
-class ParserException: public ErrorAtPosition
+class SyntaxError: public ErrorAtPosition
 {
     using ErrorAtPosition::ErrorAtPosition;
-};
-
-class SyntaxError: public ParserException
-{
-    using ParserException::ParserException;
 };
 
 #endif

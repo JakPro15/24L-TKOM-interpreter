@@ -323,3 +323,29 @@ TEST_CASE("factorial example", "[Lexer+Parser]")
     };
     checkLexingAndParsing(source, {}, {}, expectedFunctions);
 }
+
+TEST_CASE("typical errors", "[Lexer+Parser]")
+{
+    std::wstring source = L"func main() {\n"
+                          L"    int a = 4;\n"
+                          L"    if(a = 4) {\n"
+                          L"        print(\"message\");\n"
+                          L"    }\n"
+                          L"}\n";
+    REQUIRE_THROWS_AS(getTree(source), SyntaxError); // = instead of ==
+
+    source = L"func main() {\n"
+             L"    int a = 4;\n"
+             L"    if(a == 4) {\n"
+             L"        print(\"message\");\n"
+             L"    }\n";
+    REQUIRE_THROWS_AS(getTree(source), SyntaxError); // no closing brace
+
+    source = L"func main() {\n"
+             L"    int a = 4\n"
+             L"    if(a == 4) {\n"
+             L"        print(\"message\");\n"
+             L"    }\n"
+             L"}\n";
+    REQUIRE_THROWS_AS(getTree(source), SyntaxError); // no semicolon
+}

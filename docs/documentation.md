@@ -953,7 +953,7 @@ powinny wygenerować taką samą sekwencję tokenów:
 - operator `-`
 - identyfikator `abc`
 
-Testy jednostkowe Parsera będą polegać na sprawdzeniu poprawności drzewa składniowego utworzonego na podstawie podanej sekwencji tokenów. Poprawność drzewa będzie weryfikowana przez wypisanie go do stringa i porównanie ze wzorcem. Dla każdej produkcji będzie co najmniej jeden test jednostkowy. Ponadto, testowane będą przypadki typowych błędów programistów, np. użycie `=` zamiast `==`:
+Testy jednostkowe Parsera będą polegać na sprawdzeniu poprawności drzewa składniowego utworzonego na podstawie podanej sekwencji tokenów. Poprawność drzewa będzie weryfikowana przez wypisanie go do stringa i porównanie ze wzorcem. Dla każdej produkcji będzie co najmniej jeden test jednostkowy. Testowane będą przypadki typowych błędów programistów, np. użycie `=` zamiast `==`:
 ```
 func main() {
     int a = 4;

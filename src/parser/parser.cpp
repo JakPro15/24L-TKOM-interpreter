@@ -357,7 +357,7 @@ std::unique_ptr<AssignmentStatement> Parser::parseAssignmentStatement(Token firs
         std::wstring right = loadAndAdvance(IDENTIFIER);
         leftAssignable = Assignable(begin, std::make_unique<Assignable>(std::move(leftAssignable)), right);
     }
-    checkAndAdvance(OP_ASSIGN, std::format(L"Expected . or =, got {}", current));
+    checkAndAdvance(OP_ASSIGN, std::format(L"Expected '.' or '=', got {}", current));
 
     std::unique_ptr<Expression> value;
     if(!(value = parseExpression()))
@@ -540,7 +540,7 @@ std::unique_ptr<Expression> Parser::parseExpression()
         advance();
         std::unique_ptr<Expression> right;
         if(!(right = parseXorExpression()))
-            throw SyntaxError(std::format(L"Expected expression after or, got {}", current), current.getPosition());
+            throw SyntaxError(std::format(L"Expected expression after 'or', got {}", current), current.getPosition());
         left = std::make_unique<OrExpression>(begin, std::move(left), std::move(right));
     }
     return left;
@@ -558,7 +558,7 @@ std::unique_ptr<Expression> Parser::parseXorExpression()
         advance();
         std::unique_ptr<Expression> right;
         if(!(right = parseAndExpression()))
-            throw SyntaxError(std::format(L"Expected expression after xor, got {}", current), current.getPosition());
+            throw SyntaxError(std::format(L"Expected expression after 'xor', got {}", current), current.getPosition());
         left = std::make_unique<XorExpression>(begin, std::move(left), std::move(right));
     }
     return left;
@@ -576,7 +576,7 @@ std::unique_ptr<Expression> Parser::parseAndExpression()
         advance();
         std::unique_ptr<Expression> right;
         if(!(right = parseEqualityExpression()))
-            throw SyntaxError(std::format(L"Expected expression after and, got {}", current), current.getPosition());
+            throw SyntaxError(std::format(L"Expected expression after 'and', got {}", current), current.getPosition());
         left = std::make_unique<AndExpression>(begin, std::move(left), std::move(right));
     }
     return left;
@@ -627,7 +627,7 @@ std::unique_ptr<Expression> Parser::parseConcatExpression()
         advance();
         std::unique_ptr<Expression> right;
         if(!(right = parseStringMultiplyExpression()))
-            throw SyntaxError(std::format(L"Expected expression after !, got {}", current), current.getPosition());
+            throw SyntaxError(std::format(L"Expected expression after '!', got {}", current), current.getPosition());
         left = std::make_unique<ConcatExpression>(begin, std::move(left), std::move(right));
     }
     return left;
@@ -645,7 +645,7 @@ std::unique_ptr<Expression> Parser::parseStringMultiplyExpression()
         advance();
         std::unique_ptr<Expression> right;
         if(!(right = parseCompareExpression()))
-            throw SyntaxError(std::format(L"Expected expression after @, got {}", current), current.getPosition());
+            throw SyntaxError(std::format(L"Expected expression after '@', got {}", current), current.getPosition());
         left = std::make_unique<StringMultiplyExpression>(begin, std::move(left), std::move(right));
     }
     return left;
@@ -756,7 +756,7 @@ std::unique_ptr<Expression> Parser::parseExponentExpression()
         advance();
         std::unique_ptr<Expression> right;
         if(!(right = parseUnaryExpression()))
-            throw SyntaxError(std::format(L"Expected expression after **, got {}", current), current.getPosition());
+            throw SyntaxError(std::format(L"Expected expression after '**', got {}", current), current.getPosition());
         left = std::make_unique<ExponentExpression>(begin, std::move(left), std::move(right));
     }
     return left;

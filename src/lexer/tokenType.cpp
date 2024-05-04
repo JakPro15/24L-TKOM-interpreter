@@ -7,154 +7,154 @@ std::wostream &operator<<(std::wostream &out, TokenType tokenType)
     switch(tokenType)
     {
     case KW_INCLUDE:
-        out << L"include";
+        out << L"'include'";
         break;
     case KW_STRUCT:
-        out << L"struct";
+        out << L"'struct'";
         break;
     case KW_VARIANT:
-        out << L"variant";
+        out << L"'variant'";
         break;
     case KW_FUNC:
-        out << L"func";
+        out << L"'func'";
         break;
     case KW_CONTINUE:
-        out << L"continue";
+        out << L"'continue'";
         break;
     case KW_BREAK:
-        out << L"break";
+        out << L"'break'";
         break;
     case KW_RETURN:
-        out << L"return";
+        out << L"'return'";
         break;
     case KW_IF:
-        out << L"if";
+        out << L"'if'";
         break;
     case KW_ELIF:
-        out << L"elif";
+        out << L"'elif'";
         break;
     case KW_ELSE:
-        out << L"else";
+        out << L"'else'";
         break;
     case KW_WHILE:
-        out << L"while";
+        out << L"'while'";
         break;
     case KW_DO:
-        out << L"do";
+        out << L"'do'";
         break;
     case KW_IS:
-        out << L"is";
+        out << L"'is'";
         break;
     case KW_OR:
-        out << L"or";
+        out << L"'or'";
         break;
     case KW_XOR:
-        out << L"xor";
+        out << L"'xor'";
         break;
     case KW_AND:
-        out << L"and";
+        out << L"'and'";
         break;
     case KW_NOT:
-        out << L"not";
+        out << L"'not'";
         break;
     case KW_INT:
-        out << L"int";
+        out << L"'int'";
         break;
     case KW_FLOAT:
-        out << L"float";
+        out << L"'float'";
         break;
     case KW_BOOL:
-        out << L"bool";
+        out << L"'bool'";
         break;
     case KW_STR:
-        out << L"str";
+        out << L"'str'";
         break;
     case LBRACE:
-        out << L"{";
+        out << L"'{'";
         break;
     case RBRACE:
-        out << L"}";
+        out << L"'}'";
         break;
     case SEMICOLON:
-        out << L";";
+        out << L"';'";
         break;
     case LPAREN:
-        out << L"(";
+        out << L"'('";
         break;
     case RPAREN:
-        out << L")";
+        out << L"')'";
         break;
     case ARROW:
-        out << L"->";
+        out << L"'->'";
         break;
     case COMMA:
-        out << L",";
+        out << L"','";
         break;
     case DOLLAR_SIGN:
-        out << L"$";
+        out << L"'$'";
         break;
     case OP_ASSIGN:
-        out << L"=";
+        out << L"'='";
         break;
     case OP_DOT:
-        out << L".";
+        out << L"'.'";
         break;
     case OP_EQUAL:
-        out << L"==";
+        out << L"'=='";
         break;
     case OP_NOT_EQUAL:
-        out << L"!=";
+        out << L"'!='";
         break;
     case OP_IDENTICAL:
-        out << L"===";
+        out << L"'==='";
         break;
     case OP_NOT_IDENTICAL:
-        out << L"!==";
+        out << L"'!=='";
         break;
     case OP_CONCAT:
-        out << L"!";
+        out << L"'!'";
         break;
     case OP_STR_MULTIPLY:
-        out << L"@";
+        out << L"'@'";
         break;
     case OP_GREATER:
-        out << L">";
+        out << L"'>'";
         break;
     case OP_LESSER:
-        out << L"<";
+        out << L"'<'";
         break;
     case OP_GREATER_EQUAL:
-        out << L">=";
+        out << L"'>='";
         break;
     case OP_LESSER_EQUAL:
-        out << L"<=";
+        out << L"'<='";
         break;
     case OP_PLUS:
-        out << L"+";
+        out << L"'+'";
         break;
     case OP_MINUS:
-        out << L"-";
+        out << L"'-'";
         break;
     case OP_MULTIPLY:
-        out << L"*";
+        out << L"'*'";
         break;
     case OP_DIVIDE:
-        out << L"/";
+        out << L"'/'";
         break;
     case OP_FLOOR_DIVIDE:
-        out << L"//";
+        out << L"'//'";
         break;
     case OP_MODULO:
-        out << L"%";
+        out << L"'%'";
         break;
     case OP_EXPONENT:
-        out << L"**";
+        out << L"'**'";
         break;
     case LSQUAREBRACE:
-        out << L"[";
+        out << L"'['";
         break;
     case RSQUAREBRACE:
-        out << L"]";
+        out << L"']'";
         break;
     case IDENTIFIER:
         out << L"identifier";
@@ -169,10 +169,10 @@ std::wostream &operator<<(std::wostream &out, TokenType tokenType)
         out << "floating-point literal";
         break;
     case TRUE_LITERAL:
-        out << L"true";
+        out << L"'true'";
         break;
     case FALSE_LITERAL:
-        out << L"false";
+        out << L"'false'";
         break;
     case COMMENT:
         out << L"comment";

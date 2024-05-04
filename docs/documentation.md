@@ -906,7 +906,7 @@ Błędy czasu wykonania, napotkane podczas wykonywania kodu pośredniego, powodu
 
 Przykładowy komunikat o błędzie:
 ```
-Error: expected '=', got ';'
+Error: Expected '=', got ';'
 at line 32, column 20 of input.
 ```
 

@@ -393,10 +393,10 @@ struct IncludeStatement: public DocumentTreeNode
 struct Program: public DocumentTreeNode
 {
     explicit Program(Position position);
-    std::unordered_map<FunctionIdentification, FunctionDeclaration> functions;
     std::vector<IncludeStatement> includes;
     std::unordered_map<std::wstring, StructDeclaration> structs;
     std::unordered_map<std::wstring, VariantDeclaration> variants;
+    std::unordered_map<FunctionIdentification, FunctionDeclaration> functions;
     void accept(DocumentTreeVisitor &visitor) override;
 };
 

@@ -130,7 +130,7 @@ std::pair<std::wstring, std::vector<Field>> Parser::parseDeclarationBlock()
     }
     while((fieldBuilt = parseField()));
 
-    checkAndAdvance(RBRACE);
+    checkAndAdvance(RBRACE, std::format(L"Expected field or }}, got {}", current));
     return {name, fields};
 }
 
@@ -186,7 +186,7 @@ std::optional<std::pair<FunctionIdentification, FunctionDeclaration>> Parser::pa
     std::wstring name = loadAndAdvance(IDENTIFIER);
     checkAndAdvance(LPAREN);
     std::vector<VariableDeclaration> parameters = parseParameters();
-    checkAndAdvance(RPAREN);
+    checkAndAdvance(RPAREN, std::format(L"Expected parameter or ), got {}", current));
     std::optional<std::wstring> returnType;
     if(current.getType() == ARROW)
     {
@@ -357,7 +357,7 @@ std::unique_ptr<AssignmentStatement> Parser::parseAssignmentStatement(Token firs
         std::wstring right = loadAndAdvance(IDENTIFIER);
         leftAssignable = Assignable(begin, std::make_unique<Assignable>(std::move(leftAssignable)), right);
     }
-    checkAndAdvance(OP_ASSIGN);
+    checkAndAdvance(OP_ASSIGN, std::format(L"Expected . or =, got {}", current));
 
     std::unique_ptr<Expression> value;
     if(!(value = parseExpression()))
@@ -376,7 +376,7 @@ std::unique_ptr<FunctionCall> Parser::parseFunctionCall(Token functionNameToken)
     std::wstring name = std::get<std::wstring>(functionNameToken.getValue());
 
     std::vector<std::unique_ptr<Expression>> arguments = parseArguments();
-    checkAndAdvance(RPAREN);
+    checkAndAdvance(RPAREN, std::format(L"Expected argument or ), got {}", current));
     return std::make_unique<FunctionCall>(begin, name, std::move(arguments));
 }
 
@@ -851,7 +851,7 @@ std::unique_ptr<Expression> Parser::parseStructExpression()
         std::vector<std::unique_ptr<Expression>> arguments = parseArguments();
         if(arguments.size() < 1)
             throw SyntaxError(L"Expected at least 1 argument in StructExpression", begin);
-        checkAndAdvance(RBRACE);
+        checkAndAdvance(RBRACE, std::format(L"Expected struct expression argument or }}, got {}", current));
         return std::make_unique<StructExpression>(begin, std::move(arguments));
     }
     return parseParenthExpression();

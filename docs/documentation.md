@@ -891,9 +891,8 @@ W ogólności kod języka będzie przetwarzany kolejno przez następujące klasy
 - Lexer - wykonuje analizę leksykalną, leniwie produkuje kolejne tokeny. Przyjmuje obiekt spełniający interfejs IReader; posiada metodę zwracającą kolejny token, wraz z jego pozycją w źródle.
 - CommentDiscarder - przyjmuje obiekt spełniający interfejs ILexer, ze strumienia tokenów usuwa tokeny komentarzy.
 - Parser - przyjmuje obiekt spełniający interfejs ILexer, ze strumienia tokenów tworzy drzewo składniowe. Klasy węzłów drzewa składniowego będą wspierać wzorzec wizytatora, w celu umożliwienia wypisania drzewa do stringa oraz dla dalszych elementów programu.
-- SemanticAnalyzer - przyjmuje drzewo składniowe wyprodukowane przez Parser, sprawdza jego poprawność semantyczną oraz w razie potrzeby je modyfikuje, np. dodając instrukcje konwersji typów.
-- CodeGenerator - przyjmuje sprawdzone przez SemanticAnalyzer drzewo składniowe, produkuje sekwencję instrukcji kodu pośredniego.
-- Interpreter - przyjmuje wygenerowaną sekwencję instrukcji kodu pośredniego oraz strumień wyjściowy programu, wykonuje program.
+- SemanticAnalyzer - wizytator analizujący drzewo składniowe wyprodukowane przez Parser, sprawdza jego poprawność semantyczną oraz w razie potrzeby je modyfikuje, np. dodając instrukcje konwersji typów.
+- Interpreter - wizytator przyjmujący drzewo składniowe oraz strumień wyjściowy programu, wykonuje program.
 
 Wartości takie jak maksymalna długość identyfikatora lub stałej tekstowej, zakres typu `int` będą określone w kodzie, jako argumenty dla leksera.
 
@@ -922,15 +921,13 @@ while executing line 32 of input.
 `inter` to nazwa pliku wykonywalnego interpretera.
 
 ```
-usage: inter [FILES] [--dump-ast|--dump-bc|--args ARGS]
+usage: inter [FILES] [--dump-dt|--args ARGS]
 ```
 Wywołanie interpretera bezargumentowo powoduje załadowanie programu z wejścia standardowego. Interpreter nie jest interaktywny - przed wykonaniem programu wejście standardowe musi dobiec końca.
 
 Wywołanie interpretera z argumentami załaduje kod programu z podanych plików zamiast z wejścia standardowego. Wywołanie takie jest równoważne wywołaniu z jednym plikiem wejściowym z instrukcjami `include` na początku ładującymi pozostałe pliki.
 
-Wywołanie z opcją `--dump-ast` spowoduje wypisanie drzewa składniowego programu na wyjście standardowe interpretera zamiast wykonania programu.
-
-Wywołanie z opcją `--dump-bc` spowoduje wypisanie kodu pośredniego programu na wyjście standardowe interpretera zamiast wykonania programu.
+Wywołanie z opcją `--dump-dt` spowoduje wypisanie drzewa dokumentu programu na wyjście standardowe interpretera zamiast wykonania programu.
 
 Wszystkie argumenty po opcji `--args` są traktowane jak argumenty wywołania interpretowanego programu.
 
@@ -991,9 +988,7 @@ Testy jednostkowe SemanticAnalyzera będą polegać na sprawdzaniu poprawnego ws
 
 i innych. Na każdy rodzaj błędu będzie min. 1 test jednostkowy.
 
-Testy jednostkowe generatora kodu pośredniego będą polegać na sprawdzaniu poprawności sekwencji instrukcji wygenerowanych na podstawie drzewa składniowego. Poprawność kodu pośredniego będzie weryfikowana przez wypisanie go do stringa i porównanie ze wzorcem. Generator kodu pośredniego przyjmuje drzewo zweryfikowane wcześniej przez analizator semantyczny, zatem nie będą testowane przypadki błędów w drzewie, które wykrywa analizator semantyczny.
-
-Testy jednostkowe Interpretera będą polegały na sprawdzeniu zachowania interpretera dla różnych sekwencji instrukcji kodu pośredniego. Weryfikacja przypadków bez błędów będzie polegać na sprawdzeniu zawartości strumienia wyjściowego programu (w testach będzie to string). Będzie co najmniej 1 test jednostkowy na każdy rodzaj błędu czasu wykonania.
+Testy jednostkowe Interpretera będą polegały na sprawdzeniu zachowania interpretera dla różnych drzew dokumentu. Weryfikacja przypadków bez błędów będzie polegać na sprawdzeniu zawartości strumienia wyjściowego programu (w testach będzie to string). Będzie co najmniej 1 test jednostkowy na każdy rodzaj błędu czasu wykonania.
 
 Ponadto, coraz większe części potoku przetwarzania (Lexer-Parser, Lexer-Parser-SemanticAnalyzer, itd.) będą weryfikowane testami integracyjnymi na przykładach z pierwszej sekcji dokumentacji wstępnej. Jeżeli w przykładzie podawane były instrukcje poza funkcją, zostaną one umieszczone w funkcji `main`, żeby utworzyć poprawny program.
 

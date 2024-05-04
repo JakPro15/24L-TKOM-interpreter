@@ -8,7 +8,7 @@
 class Parser
 {
 public:
-    Parser(ILexer &source);
+    explicit Parser(ILexer &source);
     Program parseProgram();
 private:
     ILexer &source;

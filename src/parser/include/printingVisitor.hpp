@@ -12,7 +12,7 @@
 class PrintingVisitor: public DocumentTreeVisitor
 {
 public:
-    PrintingVisitor(std::wostream &out);
+    explicit PrintingVisitor(std::wostream &out);
     void visit(Literal &visited) override;
     void visit(Variable &visited) override;
     void visit(OrExpression &visited) override;

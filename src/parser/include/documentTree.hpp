@@ -4,8 +4,11 @@
 #include "documentTreeVisitor.hpp"
 #include "position.hpp"
 
+#include <format>
 #include <memory>
 #include <optional>
+#include <ostream>
+#include <sstream>
 #include <string>
 #include <unordered_map>
 #include <variant>
@@ -333,6 +336,19 @@ struct FunctionIdentification
     std::wstring name;
     std::vector<std::wstring> parameterTypes;
     bool operator==(const FunctionIdentification &other) const = default;
+    friend std::wostream &operator<<(std::wostream &out, const FunctionIdentification &id);
+};
+
+template <>
+struct std::formatter<FunctionIdentification, wchar_t>: std::formatter<std::wstring, wchar_t>
+{
+    template <class FormatContext>
+    auto format(const FunctionIdentification &id, FormatContext &context) const
+    {
+        std::wstringstream out;
+        out << id;
+        return std::formatter<std::wstring, wchar_t>::format(out.str(), context);
+    }
 };
 
 template <>

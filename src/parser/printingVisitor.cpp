@@ -63,19 +63,7 @@ void PrintingVisitor::visitBinaryOperation(std::wstring name, BinaryOperation &v
 
 void PrintingVisitor::visit(std::pair<const FunctionIdentification, FunctionDeclaration> &visited)
 {
-    out << visited.first.name;
-    if(visited.first.parameterTypes.size() > 0)
-    {
-        out << L"(";
-        for(const std::wstring &parameter: visited.first.parameterTypes)
-        {
-            out << parameter;
-            if(&parameter != &visited.first.parameterTypes.back())
-                out << L", ";
-        }
-        out << L")";
-    }
-    out << L": ";
+    out << visited.first << L": ";
     visited.second.accept(*this);
 }
 

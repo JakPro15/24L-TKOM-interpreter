@@ -16,7 +16,7 @@ void Parser::advance()
 
 void Parser::checkAndAdvance(TokenType type)
 {
-    checkAndAdvance(type, std::format(L"Expected {}, got {}", type, current));
+    checkAndAdvance(type, std::format(L"Expected '{}', got '{}'", type, current));
 }
 
 void Parser::checkAndAdvance(TokenType type, std::wstring errorMessage)
@@ -29,7 +29,7 @@ void Parser::checkAndAdvance(TokenType type, std::wstring errorMessage)
 std::wstring Parser::loadAndAdvance(TokenType type)
 {
     if(current.getType() != type)
-        throw SyntaxError(std::format(L"Expected {}, got {}", type, current), current.getPosition());
+        throw SyntaxError(std::format(L"Expected {}, got '{}'", type, current), current.getPosition());
     std::wstring loaded = std::get<std::wstring>(current.getValue());
     advance();
     return loaded;
@@ -59,18 +59,37 @@ bool Parser::tryAddTopLevelStatement(Program &program)
     std::optional<std::pair<std::wstring, StructDeclaration>> structBuilt;
     if((structBuilt = parseStructDeclaration()))
     {
+        if(program.structs.find(structBuilt->first) != program.structs.end())
+        {
+            throw DuplicateStructError(
+                std::format(L"Duplicate structure with name {}", structBuilt->first), structBuilt->second.getPosition()
+            );
+        }
         program.structs.insert(std::move(*structBuilt));
         return true;
     }
     std::optional<std::pair<std::wstring, VariantDeclaration>> variantBuilt;
     if((variantBuilt = parseVariantDeclaration()))
     {
+        if(program.variants.find(variantBuilt->first) != program.variants.end())
+        {
+            throw DuplicateVariantError(
+                std::format(L"Duplicate variant with name {}", variantBuilt->first), variantBuilt->second.getPosition()
+            );
+        }
         program.variants.insert(std::move(*variantBuilt));
         return true;
     }
     std::optional<std::pair<FunctionIdentification, FunctionDeclaration>> functionBuilt;
     if((functionBuilt = parseFunctionDeclaration()))
     {
+        if(program.functions.find(functionBuilt->first) != program.functions.end())
+        {
+            throw DuplicateFunctionError(
+                std::format(L"Duplicate function with signature {}", functionBuilt->first),
+                functionBuilt->second.getPosition()
+            );
+        }
         program.functions.insert(std::move(*functionBuilt));
         return true;
     }
@@ -123,14 +142,14 @@ std::pair<std::wstring, std::vector<Field>> Parser::parseDeclarationBlock()
     std::vector<Field> fields;
     std::optional<Field> fieldBuilt = parseField();
     if(!fieldBuilt.has_value())
-        throw SyntaxError(std::format(L"Expected a type identifier, got {}", current), current.getPosition());
+        throw SyntaxError(std::format(L"Expected a type identifier, got '{}'", current), current.getPosition());
     do
     {
         fields.push_back(*fieldBuilt);
     }
     while((fieldBuilt = parseField()));
 
-    checkAndAdvance(RBRACE, std::format(L"Expected field or }}, got {}", current));
+    checkAndAdvance(RBRACE, std::format(L"Expected field or }}, got '{}'", current));
     return {name, fields};
 }
 
@@ -186,14 +205,14 @@ std::optional<std::pair<FunctionIdentification, FunctionDeclaration>> Parser::pa
     std::wstring name = loadAndAdvance(IDENTIFIER);
     checkAndAdvance(LPAREN);
     std::vector<VariableDeclaration> parameters = parseParameters();
-    checkAndAdvance(RPAREN, std::format(L"Expected parameter or ), got {}", current));
+    checkAndAdvance(RPAREN, std::format(L"Expected parameter or ')', got '{}'", current));
     std::optional<std::wstring> returnType;
     if(current.getType() == ARROW)
     {
         advance();
         if(!(returnType = parseTypeIdentifier()))
             throw SyntaxError(
-                std::format(L"Expected type identifier, got {}", current.getType()), current.getPosition()
+                std::format(L"Expected type identifier, got '{}'", current.getType()), current.getPosition()
             );
     }
     std::vector<std::unique_ptr<Instruction>> body = parseInstructionBlock();
@@ -219,7 +238,7 @@ std::vector<VariableDeclaration> Parser::parseParameters()
         advance();
         if(!(parameter = parseVariableDeclaration()))
             throw SyntaxError(
-                std::format(L"Expected type identifier, got {}", current.getType()), current.getPosition()
+                std::format(L"Expected type identifier, got '{}'", current.getType()), current.getPosition()
             );
         parameters.push_back(*parameter);
     }
@@ -260,7 +279,7 @@ std::vector<std::unique_ptr<Instruction>> Parser::parseInstructionBlock()
     std::unique_ptr<Instruction> instruction;
     while((instruction = parseInstruction()))
         instructions.push_back(std::move(instruction));
-    checkAndAdvance(RBRACE, std::format(L"Expected instruction or }}, got {}", current));
+    checkAndAdvance(RBRACE, std::format(L"Expected instruction or '}}', got '{}'", current));
     return instructions;
 }
 
@@ -295,7 +314,7 @@ std::unique_ptr<Instruction> Parser::parseDeclOrAssignOrFunCall()
        !(instruction = parseAssignmentStatement(firstIdentifier)) &&
        !(instruction = parseFunctionCall(firstIdentifier)))
         throw SyntaxError(
-            std::format(L"Expected a variable declaration, an assignment or a function call, got {}", current),
+            std::format(L"Expected a variable declaration, an assignment or a function call, got '{}'", current),
             current.getPosition()
         );
     checkAndAdvance(SEMICOLON);
@@ -339,7 +358,7 @@ std::tuple<bool, std::wstring, std::unique_ptr<Expression>> Parser::parseNoTypeD
     checkAndAdvance(OP_ASSIGN);
     std::unique_ptr<Expression> value;
     if(!(value = parseExpression()))
-        throw SyntaxError(std::format(L"Expected expression, got {}", current), current.getPosition());
+        throw SyntaxError(std::format(L"Expected expression, got '{}'", current), current.getPosition());
     return std::tuple{isMutable, name, std::move(value)};
 }
 
@@ -357,11 +376,11 @@ std::unique_ptr<AssignmentStatement> Parser::parseAssignmentStatement(Token firs
         std::wstring right = loadAndAdvance(IDENTIFIER);
         leftAssignable = Assignable(begin, std::make_unique<Assignable>(std::move(leftAssignable)), right);
     }
-    checkAndAdvance(OP_ASSIGN, std::format(L"Expected '.' or '=', got {}", current));
+    checkAndAdvance(OP_ASSIGN, std::format(L"Expected '.' or '=', got '{}'", current));
 
     std::unique_ptr<Expression> value;
     if(!(value = parseExpression()))
-        throw SyntaxError(std::format(L"Expected expression, got {}", current), current.getPosition());
+        throw SyntaxError(std::format(L"Expected expression, got '{}'", current), current.getPosition());
     return std::make_unique<AssignmentStatement>(begin, std::move(leftAssignable), std::move(value));
 }
 
@@ -376,7 +395,7 @@ std::unique_ptr<FunctionCall> Parser::parseFunctionCall(Token functionNameToken)
     std::wstring name = std::get<std::wstring>(functionNameToken.getValue());
 
     std::vector<std::unique_ptr<Expression>> arguments = parseArguments();
-    checkAndAdvance(RPAREN, std::format(L"Expected argument or ), got {}", current));
+    checkAndAdvance(RPAREN, std::format(L"Expected argument or ')', got '{}'", current));
     return std::make_unique<FunctionCall>(begin, name, std::move(arguments));
 }
 
@@ -392,7 +411,7 @@ std::vector<std::unique_ptr<Expression>> Parser::parseArguments()
         {
             advance();
             if(!(argumentBuilt = parseExpression()))
-                throw SyntaxError(std::format(L"Expected expression, got {}", current), current.getPosition());
+                throw SyntaxError(std::format(L"Expected expression, got '{}'", current), current.getPosition());
             arguments.push_back(std::move(argumentBuilt));
         }
     }
@@ -489,7 +508,7 @@ VariableDeclStatement Parser::parseIfConditionDeclaration()
     std::optional<std::wstring> type;
     if(!(type = parseTypeIdentifier()))
         throw SyntaxError(
-            std::format(L"Expected a variable declaration or expression, got {}", current), current.getPosition()
+            std::format(L"Expected a variable declaration or expression, got '{}'", current), current.getPosition()
         );
     auto [isMutable, name, value] = parseNoTypeDecl();
     return VariableDeclStatement(begin, VariableDeclaration(begin, *type, name, isMutable), std::move(value));
@@ -505,7 +524,7 @@ std::unique_ptr<WhileStatement> Parser::parseWhileStatement()
     checkAndAdvance(LPAREN);
     std::unique_ptr<Expression> condition;
     if(!(condition = parseExpression()))
-        throw SyntaxError(std::format(L"Expected expression, got {}", current), current.getPosition());
+        throw SyntaxError(std::format(L"Expected expression, got '{}'", current), current.getPosition());
     checkAndAdvance(RPAREN);
     std::vector<std::unique_ptr<Instruction>> body = parseInstructionBlock();
     return std::make_unique<WhileStatement>(begin, std::move(condition), std::move(body));
@@ -523,7 +542,7 @@ std::unique_ptr<DoWhileStatement> Parser::parseDoWhileStatement()
     checkAndAdvance(LPAREN);
     std::unique_ptr<Expression> condition;
     if(!(condition = parseExpression()))
-        throw SyntaxError(std::format(L"Expected expression, got {}", current), current.getPosition());
+        throw SyntaxError(std::format(L"Expected expression, got '{}'", current), current.getPosition());
     checkAndAdvance(RPAREN);
     return std::make_unique<DoWhileStatement>(begin, std::move(condition), std::move(body));
 }
@@ -540,7 +559,7 @@ std::unique_ptr<Expression> Parser::parseExpression()
         advance();
         std::unique_ptr<Expression> right;
         if(!(right = parseXorExpression()))
-            throw SyntaxError(std::format(L"Expected expression after 'or', got {}", current), current.getPosition());
+            throw SyntaxError(std::format(L"Expected expression after 'or', got '{}'", current), current.getPosition());
         left = std::make_unique<OrExpression>(begin, std::move(left), std::move(right));
     }
     return left;
@@ -558,7 +577,9 @@ std::unique_ptr<Expression> Parser::parseXorExpression()
         advance();
         std::unique_ptr<Expression> right;
         if(!(right = parseAndExpression()))
-            throw SyntaxError(std::format(L"Expected expression after 'xor', got {}", current), current.getPosition());
+            throw SyntaxError(
+                std::format(L"Expected expression after 'xor', got '{}'", current), current.getPosition()
+            );
         left = std::make_unique<XorExpression>(begin, std::move(left), std::move(right));
     }
     return left;
@@ -576,7 +597,9 @@ std::unique_ptr<Expression> Parser::parseAndExpression()
         advance();
         std::unique_ptr<Expression> right;
         if(!(right = parseEqualityExpression()))
-            throw SyntaxError(std::format(L"Expected expression after 'and', got {}", current), current.getPosition());
+            throw SyntaxError(
+                std::format(L"Expected expression after 'and', got '{}'", current), current.getPosition()
+            );
         left = std::make_unique<AndExpression>(begin, std::move(left), std::move(right));
     }
     return left;
@@ -601,7 +624,7 @@ std::unique_ptr<Expression> Parser::parseEqualityExpression()
         std::unique_ptr<Expression> right;
         if(!(right = parseConcatExpression()))
             throw SyntaxError(
-                std::format(L"Expected expression after equality operator, got {}", current), current.getPosition()
+                std::format(L"Expected expression after equality operator, got '{}'", current), current.getPosition()
             );
         if(operation == OP_EQUAL)
             left = std::make_unique<EqualExpression>(begin, std::move(left), std::move(right));
@@ -627,7 +650,7 @@ std::unique_ptr<Expression> Parser::parseConcatExpression()
         advance();
         std::unique_ptr<Expression> right;
         if(!(right = parseStringMultiplyExpression()))
-            throw SyntaxError(std::format(L"Expected expression after '!', got {}", current), current.getPosition());
+            throw SyntaxError(std::format(L"Expected expression after '!', got '{}'", current), current.getPosition());
         left = std::make_unique<ConcatExpression>(begin, std::move(left), std::move(right));
     }
     return left;
@@ -645,7 +668,7 @@ std::unique_ptr<Expression> Parser::parseStringMultiplyExpression()
         advance();
         std::unique_ptr<Expression> right;
         if(!(right = parseCompareExpression()))
-            throw SyntaxError(std::format(L"Expected expression after '@', got {}", current), current.getPosition());
+            throw SyntaxError(std::format(L"Expected expression after '@', got '{}'", current), current.getPosition());
         left = std::make_unique<StringMultiplyExpression>(begin, std::move(left), std::move(right));
     }
     return left;
@@ -670,7 +693,7 @@ std::unique_ptr<Expression> Parser::parseCompareExpression()
         std::unique_ptr<Expression> right;
         if(!(right = parseAdditiveExpression()))
             throw SyntaxError(
-                std::format(L"Expected expression after comparison operator, got {}", current), current.getPosition()
+                std::format(L"Expected expression after comparison operator, got '{}'", current), current.getPosition()
             );
         if(operation == OP_GREATER)
             left = std::make_unique<GreaterExpression>(begin, std::move(left), std::move(right));
@@ -700,7 +723,7 @@ std::unique_ptr<Expression> Parser::parseAdditiveExpression()
         std::unique_ptr<Expression> right;
         if(!(right = parseMultiplicativeExpression()))
             throw SyntaxError(
-                std::format(L"Expected expression after additive operator, got {}", current), current.getPosition()
+                std::format(L"Expected expression after additive operator, got '{}'", current), current.getPosition()
             );
         if(operation == OP_PLUS)
             left = std::make_unique<PlusExpression>(begin, std::move(left), std::move(right));
@@ -729,7 +752,7 @@ std::unique_ptr<Expression> Parser::parseMultiplicativeExpression()
         std::unique_ptr<Expression> right;
         if(!(right = parseExponentExpression()))
             throw SyntaxError(
-                std::format(L"Expected expression after multiplicative operator, got {}", current),
+                std::format(L"Expected expression after multiplicative operator, got '{}'", current),
                 current.getPosition()
             );
         if(operation == OP_MULTIPLY)
@@ -756,7 +779,7 @@ std::unique_ptr<Expression> Parser::parseExponentExpression()
         advance();
         std::unique_ptr<Expression> right;
         if(!(right = parseUnaryExpression()))
-            throw SyntaxError(std::format(L"Expected expression after '**', got {}", current), current.getPosition());
+            throw SyntaxError(std::format(L"Expected expression after '**', got '{}'", current), current.getPosition());
         left = std::make_unique<ExponentExpression>(begin, std::move(left), std::move(right));
     }
     return left;
@@ -775,7 +798,7 @@ std::unique_ptr<Expression> Parser::parseUnaryExpression()
         std::unique_ptr<Expression> right;
         if(!(right = parseUnaryExpression()))
             throw SyntaxError(
-                std::format(L"Expected expression after unary expression, got {}", current), current.getPosition()
+                std::format(L"Expected expression after unary operator, got '{}'", current), current.getPosition()
             );
         if(operation == OP_MINUS)
             return std::make_unique<UnaryMinusExpression>(begin, std::move(right));
@@ -797,7 +820,7 @@ std::unique_ptr<Expression> Parser::parseIsExpression()
         advance();
         std::optional<std::wstring> right;
         if(!(right = parseTypeIdentifier()))
-            throw SyntaxError(std::format(L"Expected type identifier, got {}", current), current.getPosition());
+            throw SyntaxError(std::format(L"Expected type identifier, got '{}'", current), current.getPosition());
         return std::make_unique<IsExpression>(begin, std::move(left), *right);
     }
     return left;
@@ -816,7 +839,7 @@ std::unique_ptr<Expression> Parser::parseSubscriptExpression()
         std::unique_ptr<Expression> right;
         if(!(right = parseExpression()))
             throw SyntaxError(
-                std::format(L"Expected expression as subscript index, got {}", current), current.getPosition()
+                std::format(L"Expected expression as subscript index, got '{}'", current), current.getPosition()
             );
         checkAndAdvance(RSQUAREBRACE);
         left = std::make_unique<SubscriptExpression>(begin, std::move(left), std::move(right));
@@ -851,7 +874,7 @@ std::unique_ptr<Expression> Parser::parseStructExpression()
         std::vector<std::unique_ptr<Expression>> arguments = parseArguments();
         if(arguments.size() < 1)
             throw SyntaxError(L"Expected at least 1 argument in StructExpression", begin);
-        checkAndAdvance(RBRACE, std::format(L"Expected struct expression argument or }}, got {}", current));
+        checkAndAdvance(RBRACE, std::format(L"Expected struct expression argument or '}}', got '{}'", current));
         return std::make_unique<StructExpression>(begin, std::move(arguments));
     }
     return parseParenthExpression();
@@ -893,7 +916,7 @@ std::unique_ptr<Expression> Parser::parseExpressionInParentheses()
     advance();
     std::unique_ptr<Expression> expression = parseExpression();
     if(!expression)
-        throw SyntaxError(std::format(L"Expected expression, got {}", current), current.getPosition());
+        throw SyntaxError(std::format(L"Expected expression, got '{}'", current), current.getPosition());
     checkAndAdvance(RPAREN);
     return expression;
 }

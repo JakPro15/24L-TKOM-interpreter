@@ -24,12 +24,12 @@ void checkParsing(TokenContainer tokens, std::wstring expected)
     REQUIRE(output.str() == expected);
 }
 
-template <typename TokenContainer>
+template <typename ErrorType, typename TokenContainer>
 void checkParseError(TokenContainer tokens)
 {
     FakeLexer lexer(tokens);
     Parser parser(lexer);
-    REQUIRE_THROWS_AS(parser.parseProgram(), SyntaxError);
+    REQUIRE_THROWS_AS(parser.parseProgram(), ErrorType);
 }
 
 std::vector<Token> wrapInFunction(std::vector<Token> tokens)
@@ -91,13 +91,13 @@ TEST_CASE("IncludeStatement errors", "[Parser]")
         Token(SEMICOLON, {1, 6}),
         Token(EOT, {1, 9}),
     };
-    checkParseError(tokens); // no file name
+    checkParseError<SyntaxError>(tokens); // no file name
     tokens = {
         Token(KW_INCLUDE, {1, 1}),
         Token(STR_LITERAL, {1, 3}, L"file.txt"),
         Token(EOT, {1, 9}),
     };
-    checkParseError(tokens); // no semicolon
+    checkParseError<SyntaxError>(tokens); // no semicolon
 }
 
 TEST_CASE("StructDeclaration", "[Parser]")
@@ -138,13 +138,13 @@ TEST_CASE("StructDeclaration errors", "[Parser]")
         Token(RBRACE, {3, 1}),
         Token(EOT, {3, 2}),
     };
-    checkParseError(tokens); // no struct name
+    checkParseError<SyntaxError>(tokens); // no struct name
     tokens = {
         Token(KW_STRUCT, {1, 1}), Token(IDENTIFIER, {1, 3}, L"a_structure"),
         Token(LBRACE, {1, 6}),    Token(RBRACE, {3, 1}),
         Token(EOT, {3, 2}),
     };
-    checkParseError(tokens); // zero struct fields
+    checkParseError<SyntaxError>(tokens); // zero struct fields
     tokens = {
         Token(KW_STRUCT, {1, 1}),
         Token(IDENTIFIER, {1, 3}, L"a_structure"),
@@ -157,7 +157,7 @@ TEST_CASE("StructDeclaration errors", "[Parser]")
         Token(RBRACE, {3, 1}),
         Token(EOT, {3, 2}),
     };
-    checkParseError(tokens); // left brace missing
+    checkParseError<SyntaxError>(tokens); // left brace missing
     tokens = {
         Token(KW_STRUCT, {1, 1}),
         Token(IDENTIFIER, {1, 3}, L"a_structure"),
@@ -170,7 +170,7 @@ TEST_CASE("StructDeclaration errors", "[Parser]")
         Token(SEMICOLON, {2, 8}),
         Token(EOT, {3, 2}),
     };
-    checkParseError(tokens); // right brace missing
+    checkParseError<SyntaxError>(tokens); // right brace missing
     tokens = {
         Token(KW_STRUCT, {1, 1}),
         Token(IDENTIFIER, {1, 3}, L"a_structure"),
@@ -181,14 +181,14 @@ TEST_CASE("StructDeclaration errors", "[Parser]")
         Token(RBRACE, {3, 1}),
         Token(EOT, {3, 2}),
     };
-    checkParseError(tokens); // invalid token instead of field type
+    checkParseError<SyntaxError>(tokens); // invalid token instead of field type
     tokens = {
         Token(KW_STRUCT, {1, 1}),  Token(IDENTIFIER, {1, 3}, L"a_structure"),
         Token(LBRACE, {1, 6}),     Token(KW_INT, {1, 9}),
         Token(SEMICOLON, {1, 15}), Token(RBRACE, {3, 1}),
         Token(EOT, {3, 2}),
     };
-    checkParseError(tokens); // no field name
+    checkParseError<SyntaxError>(tokens); // no field name
     tokens = {
         Token(KW_STRUCT, {1, 1}),
         Token(IDENTIFIER, {1, 3}, L"a_structure"),
@@ -201,7 +201,31 @@ TEST_CASE("StructDeclaration errors", "[Parser]")
         Token(RBRACE, {3, 1}),
         Token(EOT, {3, 2}),
     };
-    checkParseError(tokens); // no semicolon after field declaration
+    checkParseError<SyntaxError>(tokens); // no semicolon after field declaration
+    tokens = {
+        Token(KW_STRUCT, {1, 1}),
+        Token(IDENTIFIER, {1, 3}, L"a_structure"),
+        Token(LBRACE, {1, 6}),
+        Token(KW_INT, {1, 9}),
+        Token(IDENTIFIER, {1, 12}, L"field_name"),
+        Token(SEMICOLON, {1, 15}),
+        Token(IDENTIFIER, {2, 1}, L"typename"),
+        Token(IDENTIFIER, {2, 3}, L"field_name_2"),
+        Token(SEMICOLON, {2, 8}),
+        Token(RBRACE, {3, 1}),
+        Token(KW_STRUCT, {4, 1}),
+        Token(IDENTIFIER, {4, 3}, L"a_structure"),
+        Token(LBRACE, {4, 6}),
+        Token(KW_INT, {4, 9}),
+        Token(IDENTIFIER, {4, 12}, L"field_name"),
+        Token(SEMICOLON, {4, 15}),
+        Token(IDENTIFIER, {5, 1}, L"typename"),
+        Token(IDENTIFIER, {5, 3}, L"field_name_2"),
+        Token(SEMICOLON, {5, 8}),
+        Token(RBRACE, {6, 1}),
+        Token(EOT, {6, 2}),
+    };
+    checkParseError<DuplicateStructError>(tokens); // two structs with same name
 }
 
 TEST_CASE("VariantDeclaration", "[Parser]")
@@ -242,13 +266,13 @@ TEST_CASE("VariantDeclaration errors", "[Parser]")
         Token(RBRACE, {3, 1}),
         Token(EOT, {3, 2}),
     };
-    checkParseError(tokens); // no variant name
+    checkParseError<SyntaxError>(tokens); // no variant name
     tokens = {
         Token(KW_VARIANT, {1, 1}), Token(IDENTIFIER, {1, 3}, L"a_variant"),
         Token(LBRACE, {1, 6}),     Token(RBRACE, {3, 1}),
         Token(EOT, {3, 2}),
     };
-    checkParseError(tokens); // zero variant fields
+    checkParseError<SyntaxError>(tokens); // zero variant fields
     tokens = {
         Token(KW_VARIANT, {1, 1}),
         Token(IDENTIFIER, {1, 3}, L"a_variant"),
@@ -261,7 +285,7 @@ TEST_CASE("VariantDeclaration errors", "[Parser]")
         Token(RBRACE, {3, 1}),
         Token(EOT, {3, 2}),
     };
-    checkParseError(tokens); // left brace missing
+    checkParseError<SyntaxError>(tokens); // left brace missing
     tokens = {
         Token(KW_VARIANT, {1, 1}),
         Token(IDENTIFIER, {1, 3}, L"a_variant"),
@@ -274,7 +298,7 @@ TEST_CASE("VariantDeclaration errors", "[Parser]")
         Token(SEMICOLON, {2, 8}),
         Token(EOT, {3, 2}),
     };
-    checkParseError(tokens); // right brace missing
+    checkParseError<SyntaxError>(tokens); // right brace missing
     tokens = {
         Token(KW_VARIANT, {1, 1}),
         Token(IDENTIFIER, {1, 3}, L"a_variant"),
@@ -285,14 +309,14 @@ TEST_CASE("VariantDeclaration errors", "[Parser]")
         Token(RBRACE, {3, 1}),
         Token(EOT, {3, 2}),
     };
-    checkParseError(tokens); // invalid token instead of field type
+    checkParseError<SyntaxError>(tokens); // invalid token instead of field type
     tokens = {
         Token(KW_VARIANT, {1, 1}), Token(IDENTIFIER, {1, 3}, L"a_variant"),
         Token(LBRACE, {1, 6}),     Token(KW_INT, {1, 9}),
         Token(SEMICOLON, {1, 15}), Token(RBRACE, {3, 1}),
         Token(EOT, {3, 2}),
     };
-    checkParseError(tokens); // no field name
+    checkParseError<SyntaxError>(tokens); // no field name
     tokens = {
         Token(KW_VARIANT, {1, 1}),
         Token(IDENTIFIER, {1, 3}, L"a_variant"),
@@ -305,7 +329,31 @@ TEST_CASE("VariantDeclaration errors", "[Parser]")
         Token(RBRACE, {3, 1}),
         Token(EOT, {3, 2}),
     };
-    checkParseError(tokens); // no semicolon after field declaration
+    checkParseError<SyntaxError>(tokens); // no semicolon after field declaration
+    tokens = {
+        Token(KW_VARIANT, {1, 1}),
+        Token(IDENTIFIER, {1, 3}, L"a_variant"),
+        Token(LBRACE, {1, 6}),
+        Token(KW_INT, {1, 9}),
+        Token(IDENTIFIER, {1, 12}, L"field_name"),
+        Token(SEMICOLON, {1, 15}),
+        Token(IDENTIFIER, {2, 1}, L"typename"),
+        Token(IDENTIFIER, {2, 3}, L"field_name_2"),
+        Token(SEMICOLON, {2, 8}),
+        Token(RBRACE, {3, 1}),
+        Token(KW_VARIANT, {4, 1}),
+        Token(IDENTIFIER, {4, 3}, L"a_variant"),
+        Token(LBRACE, {4, 6}),
+        Token(KW_INT, {4, 9}),
+        Token(IDENTIFIER, {4, 12}, L"field_name"),
+        Token(SEMICOLON, {4, 15}),
+        Token(IDENTIFIER, {5, 1}, L"typename"),
+        Token(IDENTIFIER, {5, 3}, L"field_name_2"),
+        Token(SEMICOLON, {5, 8}),
+        Token(RBRACE, {6, 1}),
+        Token(EOT, {6, 2}),
+    };
+    checkParseError<DuplicateVariantError>(tokens); // two variants with same name
 }
 
 TEST_CASE("FunctionDeclaration - empty function", "[Parser]")
@@ -358,37 +406,61 @@ TEST_CASE("FunctionDeclaration - errors", "[Parser]")
         Token(KW_FUNC, {1, 1}), Token(LPAREN, {1, 6}),  Token(RPAREN, {2, 9}),
         Token(LBRACE, {3, 12}), Token(RBRACE, {3, 15}), Token(EOT, {3, 18}),
     };
-    checkParseError(tokens); // no function name
+    checkParseError<SyntaxError>(tokens); // no function name
     tokens = {
         Token(KW_FUNC, {1, 1}), Token(IDENTIFIER, {1, 3}, L"a_function"),
         Token(LBRACE, {1, 12}), Token(RBRACE, {1, 15}),
         Token(EOT, {1, 18}),
     };
-    checkParseError(tokens); // parameter parentheses missing
+    checkParseError<SyntaxError>(tokens); // parameter parentheses missing
     tokens = {
         Token(KW_FUNC, {1, 1}), Token(IDENTIFIER, {1, 3}, L"a_function"),
         Token(LPAREN, {1, 6}),  Token(LBRACE, {1, 12}),
         Token(RBRACE, {1, 15}), Token(EOT, {1, 18}),
     };
-    checkParseError(tokens); // parameter list not closed
+    checkParseError<SyntaxError>(tokens); // parameter list not closed
     tokens = {
         Token(KW_FUNC, {1, 1}), Token(IDENTIFIER, {1, 3}, L"a_function"), Token(LPAREN, {1, 6}), Token(RPAREN, {1, 9}),
         Token(EOT, {1, 18}),
     };
-    checkParseError(tokens); // missing body
+    checkParseError<SyntaxError>(tokens); // missing body
     tokens = {
         Token(KW_FUNC, {1, 1}), Token(IDENTIFIER, {1, 3}, L"a_function"),
         Token(LPAREN, {1, 6}),  Token(RPAREN, {1, 9}),
         Token(LBRACE, {1, 12}), Token(EOT, {1, 18}),
     };
-    checkParseError(tokens); // body not closed
+    checkParseError<SyntaxError>(tokens); // body not closed
     tokens = {
         Token(KW_FUNC, {1, 1}), Token(IDENTIFIER, {1, 3}, L"a_function"),
         Token(LPAREN, {1, 6}),  Token(RPAREN, {1, 9}),
         Token(ARROW, {2, 1}),   Token(LBRACE, {1, 12}),
         Token(RBRACE, {1, 15}), Token(EOT, {1, 18}),
     };
-    checkParseError(tokens); // invalid return type
+    checkParseError<SyntaxError>(tokens); // invalid return type
+    tokens = {
+        Token(KW_FUNC, {1, 1}),
+        Token(IDENTIFIER, {1, 3}, L"f"),
+        Token(LPAREN, {1, 6}),
+        Token(KW_INT, {1, 9}),
+        Token(IDENTIFIER, {1, 12}, L"a"),
+        Token(RPAREN, {2, 9}),
+        Token(ARROW, {2, 12}),
+        Token(KW_STR, {2, 15}),
+        Token(LBRACE, {3, 12}),
+        Token(RBRACE, {3, 15}),
+        Token(KW_FUNC, {4, 1}),
+        Token(IDENTIFIER, {4, 3}, L"f"),
+        Token(LPAREN, {4, 6}),
+        Token(KW_INT, {4, 9}),
+        Token(IDENTIFIER, {4, 12}, L"b"),
+        Token(RPAREN, {5, 9}),
+        Token(ARROW, {2, 12}),
+        Token(KW_BOOL, {2, 15}),
+        Token(LBRACE, {6, 12}),
+        Token(RBRACE, {6, 15}),
+        Token(EOT, {6, 18}),
+    };
+    checkParseError<DuplicateFunctionError>(tokens); // two functions with same signature
 }
 
 TEST_CASE("FunctionDeclaration parameters - errors", "[Parser]")
@@ -399,7 +471,7 @@ TEST_CASE("FunctionDeclaration parameters - errors", "[Parser]")
         Token(RPAREN, {2, 9}),  Token(LBRACE, {3, 12}),
         Token(RBRACE, {3, 15}), Token(EOT, {3, 18}),
     };
-    checkParseError(tokens); // invalid token in place of parameter
+    checkParseError<SyntaxError>(tokens); // invalid token in place of parameter
     tokens = {
         Token(KW_FUNC, {1, 1}),
         Token(IDENTIFIER, {1, 3}, L"a_function"),
@@ -416,7 +488,7 @@ TEST_CASE("FunctionDeclaration parameters - errors", "[Parser]")
         Token(RBRACE, {3, 15}),
         Token(EOT, {3, 18}),
     };
-    checkParseError(tokens); // parameter name missing
+    checkParseError<SyntaxError>(tokens); // parameter name missing
     tokens = {
         Token(KW_FUNC, {1, 1}),
         Token(IDENTIFIER, {1, 3}, L"a_function"),
@@ -431,7 +503,7 @@ TEST_CASE("FunctionDeclaration parameters - errors", "[Parser]")
         Token(RBRACE, {3, 15}),
         Token(EOT, {3, 18}),
     };
-    checkParseError(tokens); // trailing comma in parameter list
+    checkParseError<SyntaxError>(tokens); // trailing comma in parameter list
 }
 
 TEST_CASE("VariableDeclStatement", "[Parser]")
@@ -472,7 +544,7 @@ TEST_CASE("VariableDeclStatement errors", "[Parser]")
         Token(INT_LITERAL, {4, 22}, 2),
         Token(SEMICOLON, {4, 25}),
     });
-    checkParseError(tokens); // missing variable name - builtin type case
+    checkParseError<SyntaxError>(tokens); // missing variable name - builtin type case
     tokens = wrapInFunction({
         Token(IDENTIFIER, {4, 1}, L"strct"),
         Token(DOLLAR_SIGN, {4, 10}),
@@ -480,28 +552,28 @@ TEST_CASE("VariableDeclStatement errors", "[Parser]")
         Token(INT_LITERAL, {4, 22}, 2),
         Token(SEMICOLON, {4, 25}),
     });
-    checkParseError(tokens); // missing variable name - identifier type case
+    checkParseError<SyntaxError>(tokens); // missing variable name - identifier type case
     tokens = wrapInFunction({
         Token(KW_INT, {4, 1}),
         Token(IDENTIFIER, {4, 5}, L"const_var"),
         Token(INT_LITERAL, {4, 22}, 2),
         Token(SEMICOLON, {4, 25}),
     });
-    checkParseError(tokens); // missing =
+    checkParseError<SyntaxError>(tokens); // missing =
     tokens = wrapInFunction({
         Token(KW_INT, {4, 1}),
         Token(IDENTIFIER, {4, 5}, L"const_var"),
         Token(OP_ASSIGN, {4, 20}),
         Token(SEMICOLON, {4, 25}),
     });
-    checkParseError(tokens); // missing expression
+    checkParseError<SyntaxError>(tokens); // missing expression
     tokens = wrapInFunction({
         Token(KW_INT, {4, 1}),
         Token(IDENTIFIER, {4, 5}, L"const_var"),
         Token(OP_ASSIGN, {4, 20}),
         Token(INT_LITERAL, {4, 22}, 2),
     });
-    checkParseError(tokens); // missing semicolon
+    checkParseError<SyntaxError>(tokens); // missing semicolon
 }
 
 TEST_CASE("AssignmentStatement", "[Parser]")
@@ -543,7 +615,7 @@ TEST_CASE("AssignmentStatement errors", "[Parser]")
         Token(INT_LITERAL, {4, 31}, 3),
         Token(SEMICOLON, {4, 32}),
     });
-    checkParseError(tokens); // missing =
+    checkParseError<SyntaxError>(tokens); // missing =
     tokens = wrapInFunction({
         Token(IDENTIFIER, {4, 1}, L"some_var"),
         Token(OP_DOT, {4, 8}),
@@ -551,7 +623,7 @@ TEST_CASE("AssignmentStatement errors", "[Parser]")
         Token(INT_LITERAL, {4, 31}, 3),
         Token(SEMICOLON, {4, 32}),
     });
-    checkParseError(tokens); // missing identifier after dot
+    checkParseError<SyntaxError>(tokens); // missing identifier after dot
     tokens = wrapInFunction({
         Token(IDENTIFIER, {4, 1}, L"some_var"),
         Token(OP_DOT, {4, 8}),
@@ -559,19 +631,19 @@ TEST_CASE("AssignmentStatement errors", "[Parser]")
         Token(INT_LITERAL, {4, 31}, 3),
         Token(SEMICOLON, {4, 32}),
     });
-    checkParseError(tokens); // missing =
+    checkParseError<SyntaxError>(tokens); // missing =
     tokens = wrapInFunction({
         Token(IDENTIFIER, {4, 1}, L"some_var"),
         Token(OP_ASSIGN, {4, 29}),
         Token(SEMICOLON, {4, 32}),
     });
-    checkParseError(tokens); // missing expression
+    checkParseError<SyntaxError>(tokens); // missing expression
     tokens = wrapInFunction({
         Token(IDENTIFIER, {3, 5}, L"some_var"),
         Token(OP_ASSIGN, {3, 12}),
         Token(INT_LITERAL, {3, 14}, 2),
     });
-    checkParseError(tokens); // missing semicolon
+    checkParseError<SyntaxError>(tokens); // missing semicolon
 }
 
 TEST_CASE("FunctionCall as an Instruction", "[Parser]")
@@ -621,7 +693,7 @@ TEST_CASE("FunctionCall errors", "[Parser]")
         Token(RPAREN, {5, 15}),
         Token(SEMICOLON, {5, 16}),
     });
-    checkParseError(tokens); // missing left parenthesis - instruction case
+    checkParseError<SyntaxError>(tokens); // missing left parenthesis - instruction case
     tokens = wrapExpression({
         Token(IDENTIFIER, {5, 1}, L"f3"),
         Token(INT_LITERAL, {5, 4}, 1),
@@ -629,7 +701,7 @@ TEST_CASE("FunctionCall errors", "[Parser]")
         Token(STR_LITERAL, {5, 7}, L"2"),
         Token(RPAREN, {5, 15}),
     });
-    checkParseError(tokens); // missing left parenthesis - expression case
+    checkParseError<SyntaxError>(tokens); // missing left parenthesis - expression case
     tokens = wrapInFunction({
         Token(IDENTIFIER, {5, 1}, L"f3"),
         Token(LPAREN, {5, 3}),
@@ -638,7 +710,7 @@ TEST_CASE("FunctionCall errors", "[Parser]")
         Token(RPAREN, {5, 15}),
         Token(SEMICOLON, {5, 16}),
     });
-    checkParseError(tokens); // missing first parameter (parameter list begins with comma)
+    checkParseError<SyntaxError>(tokens); // missing first parameter (parameter list begins with comma)
     tokens = wrapInFunction({
         Token(IDENTIFIER, {5, 1}, L"f3"),
         Token(LPAREN, {5, 3}),
@@ -647,7 +719,7 @@ TEST_CASE("FunctionCall errors", "[Parser]")
         Token(RPAREN, {5, 15}),
         Token(SEMICOLON, {5, 16}),
     });
-    checkParseError(tokens); // missing last parameter (parameter list ends with comma)
+    checkParseError<SyntaxError>(tokens); // missing last parameter (parameter list ends with comma)
     tokens = wrapInFunction({
         Token(IDENTIFIER, {5, 1}, L"f3"),
         Token(LPAREN, {5, 3}),
@@ -656,7 +728,7 @@ TEST_CASE("FunctionCall errors", "[Parser]")
         Token(STR_LITERAL, {5, 7}, L"2"),
         Token(SEMICOLON, {5, 16}),
     });
-    checkParseError(tokens); // missing right parenthesis
+    checkParseError<SyntaxError>(tokens); // missing right parenthesis
     tokens = wrapInFunction({
         Token(IDENTIFIER, {5, 1}, L"f3"),
         Token(LPAREN, {5, 3}),
@@ -665,7 +737,7 @@ TEST_CASE("FunctionCall errors", "[Parser]")
         Token(STR_LITERAL, {5, 7}, L"2"),
         Token(RPAREN, {5, 15}),
     });
-    checkParseError(tokens); // missing semicolon
+    checkParseError<SyntaxError>(tokens); // missing semicolon
 }
 
 TEST_CASE("ContinueStatement, BreakStatement, ReturnStatement", "[Parser]")
@@ -699,20 +771,20 @@ TEST_CASE("ContinueStatement, BreakStatement, ReturnStatement errors", "[Parser]
     std::vector tokens = wrapInFunction({
         Token(KW_CONTINUE, {4, 1}),
     });
-    checkParseError(tokens); // missing semicolon after continue
+    checkParseError<SyntaxError>(tokens); // missing semicolon after continue
     tokens = wrapInFunction({
         Token(KW_BREAK, {5, 1}),
     });
-    checkParseError(tokens); // missing semicolon after break
+    checkParseError<SyntaxError>(tokens); // missing semicolon after break
     tokens = wrapInFunction({
         Token(KW_RETURN, {6, 1}),
     });
-    checkParseError(tokens); // missing semicolon after return
+    checkParseError<SyntaxError>(tokens); // missing semicolon after return
     tokens = wrapInFunction({
         Token(KW_RETURN, {7, 1}),
         Token(TRUE_LITERAL, {7, 10}),
     });
-    checkParseError(tokens); // missing semicolon after return value
+    checkParseError<SyntaxError>(tokens); // missing semicolon after return value
 }
 
 TEST_CASE("IfStatement - basic", "[Parser]")
@@ -822,7 +894,7 @@ TEST_CASE("IfStatement errors", "[Parser]")
         Token(LBRACE, {5, 1}),
         Token(RBRACE, {7, 1}),
     });
-    checkParseError(tokens); // missing condition parentheses
+    checkParseError<SyntaxError>(tokens); // missing condition parentheses
     tokens = wrapInFunction({
         Token(KW_IF, {4, 1}),
         Token(LPAREN, {4, 5}),
@@ -830,7 +902,7 @@ TEST_CASE("IfStatement errors", "[Parser]")
         Token(LBRACE, {5, 1}),
         Token(RBRACE, {7, 1}),
     });
-    checkParseError(tokens); // missing condition
+    checkParseError<SyntaxError>(tokens); // missing condition
     tokens = wrapInFunction({
         Token(KW_IF, {4, 1}),
         Token(LPAREN, {4, 5}),
@@ -838,14 +910,14 @@ TEST_CASE("IfStatement errors", "[Parser]")
         Token(LBRACE, {5, 1}),
         Token(RBRACE, {7, 1}),
     });
-    checkParseError(tokens); // missing condition right parenthesis
+    checkParseError<SyntaxError>(tokens); // missing condition right parenthesis
     tokens = wrapInFunction({
         Token(KW_IF, {4, 1}),
         Token(LPAREN, {4, 5}),
         Token(INT_LITERAL, {4, 10}, 1),
         Token(RPAREN, {4, 15}),
     });
-    checkParseError(tokens); // missing body
+    checkParseError<SyntaxError>(tokens); // missing body
     tokens = wrapInFunction({
         Token(KW_IF, {4, 1}),
         Token(LPAREN, {4, 5}),
@@ -857,7 +929,7 @@ TEST_CASE("IfStatement errors", "[Parser]")
         Token(LBRACE, {7, 43}),
         Token(RBRACE, {7, 54}),
     });
-    checkParseError(tokens); // missing elif condition
+    checkParseError<SyntaxError>(tokens); // missing elif condition
     tokens = wrapInFunction({
         Token(KW_IF, {4, 1}),
         Token(LPAREN, {4, 5}),
@@ -870,7 +942,7 @@ TEST_CASE("IfStatement errors", "[Parser]")
         Token(IDENTIFIER, {7, 30}, L"variantVar"),
         Token(RPAREN, {7, 42}),
     });
-    checkParseError(tokens); // missing elif body
+    checkParseError<SyntaxError>(tokens); // missing elif body
     tokens = wrapInFunction({
         Token(KW_IF, {4, 1}),
         Token(LPAREN, {4, 5}),
@@ -880,7 +952,7 @@ TEST_CASE("IfStatement errors", "[Parser]")
         Token(RBRACE, {7, 1}),
         Token(KW_ELSE, {12, 1}),
     });
-    checkParseError(tokens); // missing else body
+    checkParseError<SyntaxError>(tokens); // missing else body
 }
 
 TEST_CASE("WhileStatement", "[Parser]")
@@ -915,14 +987,14 @@ TEST_CASE("WhileStatement errors", "[Parser]")
         Token(LBRACE, {5, 1}),
         Token(RBRACE, {7, 1}),
     });
-    checkParseError(tokens); // missing condition parentheses
+    checkParseError<SyntaxError>(tokens); // missing condition parentheses
     tokens = wrapInFunction({
         Token(KW_WHILE, {4, 1}),
         Token(LPAREN, {4, 5}),
         Token(RPAREN, {4, 15}),
         Token(RBRACE, {7, 1}),
     });
-    checkParseError(tokens); // missing condition
+    checkParseError<SyntaxError>(tokens); // missing condition
     tokens = wrapInFunction({
         Token(KW_WHILE, {4, 1}),
         Token(LPAREN, {4, 5}),
@@ -930,14 +1002,14 @@ TEST_CASE("WhileStatement errors", "[Parser]")
         Token(LBRACE, {5, 1}),
         Token(RBRACE, {7, 1}),
     });
-    checkParseError(tokens); // missing condition right parenthesis
+    checkParseError<SyntaxError>(tokens); // missing condition right parenthesis
     tokens = wrapInFunction({
         Token(KW_WHILE, {4, 1}),
         Token(LPAREN, {4, 5}),
         Token(INT_LITERAL, {4, 10}, 1),
         Token(RPAREN, {4, 15}),
     });
-    checkParseError(tokens); // missing body
+    checkParseError<SyntaxError>(tokens); // missing body
 }
 
 TEST_CASE("DoWhileStatement", "[Parser]")
@@ -975,7 +1047,7 @@ TEST_CASE("DoWhileStatement errors", "[Parser]")
         Token(INT_LITERAL, {8, 10}, 1),
         Token(RPAREN, {8, 15}),
     });
-    checkParseError(tokens); // missing body
+    checkParseError<SyntaxError>(tokens); // missing body
     tokens = wrapInFunction({
         Token(KW_DO, {4, 1}),
         Token(LBRACE, {5, 1}),
@@ -984,14 +1056,14 @@ TEST_CASE("DoWhileStatement errors", "[Parser]")
         Token(INT_LITERAL, {8, 10}, 1),
         Token(RPAREN, {8, 15}),
     });
-    checkParseError(tokens); // missing while
+    checkParseError<SyntaxError>(tokens); // missing while
     tokens = wrapInFunction({
         Token(KW_DO, {4, 1}),
         Token(LBRACE, {5, 1}),
         Token(RBRACE, {7, 1}),
         Token(KW_WHILE, {8, 1}),
     });
-    checkParseError(tokens); // missing condition parentheses
+    checkParseError<SyntaxError>(tokens); // missing condition parentheses
     tokens = wrapInFunction({
         Token(KW_DO, {4, 1}),
         Token(LBRACE, {5, 1}),
@@ -1000,7 +1072,7 @@ TEST_CASE("DoWhileStatement errors", "[Parser]")
         Token(LPAREN, {8, 5}),
         Token(RPAREN, {8, 15}),
     });
-    checkParseError(tokens); // missing condition
+    checkParseError<SyntaxError>(tokens); // missing condition
     tokens = wrapInFunction({
         Token(KW_DO, {4, 1}),
         Token(LBRACE, {5, 1}),
@@ -1009,7 +1081,7 @@ TEST_CASE("DoWhileStatement errors", "[Parser]")
         Token(LPAREN, {8, 5}),
         Token(INT_LITERAL, {8, 10}, 1),
     });
-    checkParseError(tokens); // missing condition right parenthesis
+    checkParseError<SyntaxError>(tokens); // missing condition right parenthesis
 }
 
 void checkBinaryOperator(TokenType operatorType, std::wstring expressionName)
@@ -1092,12 +1164,12 @@ void checkBinaryOpErrors(TokenType operatorType)
         Token(operatorType, {4, 3}),
         Token(IDENTIFIER, {4, 6}, L"b"),
     });
-    checkParseError(tokens); // first expression missing
+    checkParseError<SyntaxError>(tokens); // first expression missing
     tokens = wrapExpression({
         Token(IDENTIFIER, {4, 1}, L"a"),
         Token(operatorType, {4, 3}),
     });
-    checkParseError(tokens); // second expression missing
+    checkParseError<SyntaxError>(tokens); // second expression missing
 }
 
 void checkBinaryOpNonAssociativity(TokenType operatorType)
@@ -1109,7 +1181,7 @@ void checkBinaryOpNonAssociativity(TokenType operatorType)
         Token(operatorType, {4, 8}),
         Token(IDENTIFIER, {4, 6}, L"b"),
     });
-    checkParseError(tokens); // multiple operators in a row invalid
+    checkParseError<SyntaxError>(tokens); // multiple operators in a row invalid
 }
 
 TEST_CASE("binary operators with associativity errors", "[Parser]")
@@ -1204,7 +1276,7 @@ TEST_CASE("unary operators errors", "[Parser]")
         std::vector tokens = wrapExpression({
             Token(operatorType, {4, 1}),
         });
-        checkParseError(tokens); // expression after unary operator missing
+        checkParseError<SyntaxError>(tokens); // expression after unary operator missing
     }
 }
 
@@ -1242,7 +1314,7 @@ TEST_CASE("IsExpression errors", "[Parser]")
         Token(KW_IS, {4, 3}),
         Token(INT_LITERAL, {4, 10}, 2),
     });
-    checkParseError(tokens);
+    checkParseError<SyntaxError>(tokens);
 }
 
 TEST_CASE("SubscriptExpression", "[Parser]")
@@ -1282,25 +1354,25 @@ TEST_CASE("SubscriptExpression errors", "[Parser]")
         Token(IDENTIFIER, {4, 6}, L"b"),
         Token(RSQUAREBRACE, {4, 12}),
     });
-    checkParseError(tokens); // first expression missing
+    checkParseError<SyntaxError>(tokens); // first expression missing
     tokens = wrapExpression({
         Token(IDENTIFIER, {4, 1}, L"a"),
         Token(LSQUAREBRACE, {4, 3}),
         Token(RSQUAREBRACE, {4, 12}),
     });
-    checkParseError(tokens); // second expression missing
+    checkParseError<SyntaxError>(tokens); // second expression missing
     tokens = wrapExpression({
         Token(IDENTIFIER, {4, 1}, L"a"),
         Token(IDENTIFIER, {4, 6}, L"b"),
         Token(RSQUAREBRACE, {4, 12}),
     });
-    checkParseError(tokens); // left bracket missing
+    checkParseError<SyntaxError>(tokens); // left bracket missing
     tokens = wrapExpression({
         Token(IDENTIFIER, {4, 1}, L"a"),
         Token(LSQUAREBRACE, {4, 3}),
         Token(IDENTIFIER, {4, 6}, L"b"),
     });
-    checkParseError(tokens); // right bracket missing
+    checkParseError<SyntaxError>(tokens); // right bracket missing
 }
 
 TEST_CASE("DotExpression", "[Parser]")
@@ -1330,13 +1402,13 @@ TEST_CASE("DotExpression errors", "[Parser]")
         Token(OP_DOT, {4, 3}),
         Token(IDENTIFIER, {4, 6}, L"b"),
     });
-    checkParseError(tokens); // first expression missing
+    checkParseError<SyntaxError>(tokens); // first expression missing
     tokens = wrapExpression({
         Token(IDENTIFIER, {4, 1}, L"a"),
         Token(OP_DOT, {4, 3}),
         Token(STR_LITERAL, {4, 6}, L"b"),
     });
-    checkParseError(tokens); // non-identifier after .
+    checkParseError<SyntaxError>(tokens); // non-identifier after .
 }
 
 TEST_CASE("StructExpression", "[Parser]")
@@ -1375,26 +1447,26 @@ TEST_CASE("StructExpression errors", "[Parser]")
         Token(LBRACE, {4, 1}),
         Token(RBRACE, {4, 3}),
     });
-    checkParseError(tokens); // there needs to be at least 1 parameter
+    checkParseError<SyntaxError>(tokens); // there needs to be at least 1 parameter
     tokens = wrapExpression({
         Token(LBRACE, {5, 1}),
         Token(IDENTIFIER, {5, 2}, L"a"),
         Token(IDENTIFIER, {5, 4}, L"b"),
         Token(RBRACE, {5, 7}),
     });
-    checkParseError(tokens); // comma missing
+    checkParseError<SyntaxError>(tokens); // comma missing
     tokens = wrapExpression({
         Token(LBRACE, {4, 1}),
         Token(IDENTIFIER, {4, 2}, L"a"),
         Token(COMMA, {4, 4}),
         Token(RBRACE, {4, 3}),
     });
-    checkParseError(tokens); // trailing comma
+    checkParseError<SyntaxError>(tokens); // trailing comma
     tokens = wrapExpression({
         Token(LBRACE, {4, 1}),
         Token(IDENTIFIER, {4, 2}, L"a"),
     });
-    checkParseError(tokens); // closing brace missing
+    checkParseError<SyntaxError>(tokens); // closing brace missing
 }
 
 TEST_CASE("FunctionCall as an expression", "[Parser]")
@@ -1457,12 +1529,12 @@ TEST_CASE("Expression in parentheses errors", "[Parser]")
         Token(LPAREN, {4, 1}),
         Token(RPAREN, {4, 3}),
     });
-    checkParseError(tokens); // missing expression
+    checkParseError<SyntaxError>(tokens); // missing expression
     tokens = wrapExpression({
         Token(LPAREN, {4, 1}),
         Token(IDENTIFIER, {4, 2}, L"a"),
     });
-    checkParseError(tokens); // missing closing parenthesis
+    checkParseError<SyntaxError>(tokens); // missing closing parenthesis
 }
 
 TEST_CASE("Literal", "[Parser]")

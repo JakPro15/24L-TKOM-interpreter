@@ -51,19 +51,19 @@ std::wostream &operator<<(std::wostream &out, Token token)
     switch(token.type)
     {
     case IDENTIFIER:
-        out << L"'" << std::get<std::wstring>(token.getValue()) << L"'";
+        out << std::get<std::wstring>(token.getValue());
         break;
     case STR_LITERAL:
-        out << L"'\"" << std::get<std::wstring>(token.getValue()) << L"\"'";
+        out << std::get<std::wstring>(token.getValue());
         break;
     case INT_LITERAL:
-        out << L"'" << std::get<int32_t>(token.getValue()) << L"'";
+        out << std::get<int32_t>(token.getValue());
         break;
     case FLOAT_LITERAL:
-        out << L"'" << std::get<double>(token.getValue()) << L"'";
+        out << std::get<double>(token.getValue());
         break;
     case COMMENT:
-        out << L"'" << L"#" << std::get<std::wstring>(token.getValue()) << L"'";
+        out << L"#" << std::get<std::wstring>(token.getValue());
         break;
     default:
         out << token.type;

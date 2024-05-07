@@ -126,6 +126,23 @@ FunctionIdentification::FunctionIdentification(std::wstring name, std::vector<st
     name(name), parameterTypes(parameterTypes)
 {}
 
+std::wostream &operator<<(std::wostream &out, const FunctionIdentification &id)
+{
+    out << id.name;
+    if(id.parameterTypes.size() > 0)
+    {
+        out << L"(";
+        for(const std::wstring &parameter: id.parameterTypes)
+        {
+            out << parameter;
+            if(&parameter != &id.parameterTypes.back())
+                out << L", ";
+        }
+        out << L")";
+    }
+    return out;
+}
+
 Field::Field(Position position, std::wstring type, std::wstring name):
     DocumentTreeNode(position), type(type), name(name)
 {}

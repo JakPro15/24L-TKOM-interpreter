@@ -19,7 +19,6 @@ private:
     std::wstring loadAndAdvance(TokenType type);
     auto mustBePresent(auto built, std::wstring_view expectedMessage);
 
-    bool tryAddTopLevelStatement(Program &program);
     std::optional<IncludeStatement> parseIncludeStatement();
     std::optional<std::pair<std::wstring, StructDeclaration>> parseStructDeclaration();
     std::optional<std::pair<std::wstring, VariantDeclaration>> parseVariantDeclaration();

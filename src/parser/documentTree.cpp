@@ -1,5 +1,7 @@
 #include "documentTree.hpp"
 
+#include "parserExceptions.hpp"
+
 DocumentTreeNode::DocumentTreeNode(Position position): position(position) {}
 
 Position DocumentTreeNode::getPosition() const
@@ -140,6 +142,40 @@ IncludeStatement::IncludeStatement(Position position, std::wstring filePath):
 {}
 
 Program::Program(Position position): DocumentTreeNode(position) {}
+
+void Program::add(std::pair<std::wstring, StructDeclaration> structBuilt)
+{
+    if(structs.find(structBuilt.first) != structs.end())
+    {
+        throw DuplicateStructError(
+            std::format(L"Duplicate structure with name {}", structBuilt.first), structBuilt.second.getPosition()
+        );
+    }
+    structs.insert(std::move(structBuilt));
+}
+
+void Program::add(std::pair<std::wstring, VariantDeclaration> variantBuilt)
+{
+    if(variants.find(variantBuilt.first) != variants.end())
+    {
+        throw DuplicateVariantError(
+            std::format(L"Duplicate variant with name {}", variantBuilt.first), variantBuilt.second.getPosition()
+        );
+    }
+    variants.insert(std::move(variantBuilt));
+}
+
+void Program::add(std::pair<FunctionIdentification, FunctionDeclaration> functionBuilt)
+{
+    if(functions.find(functionBuilt.first) != functions.end())
+    {
+        throw DuplicateFunctionError(
+            std::format(L"Duplicate function with signature {}", functionBuilt.first),
+            functionBuilt.second.getPosition()
+        );
+    }
+    functions.insert(std::move(functionBuilt));
+}
 
 #define DEFINE_ACCEPT(type)                         \
     void type::accept(DocumentTreeVisitor &visitor) \

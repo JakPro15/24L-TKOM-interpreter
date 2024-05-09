@@ -45,60 +45,26 @@ auto Parser::mustBePresent(auto built, std::wstring_view expectedMessage)
 }
 
 // PROGRAM = { TOP_STMT } ;
-Program Parser::parseProgram()
-{
-    Program program(current.getPosition());
-    while(tryAddTopLevelStatement(program))
-        ;
-    return program;
-}
-
 // TOP_STMT = INCLUDE_STMT
 //          | STRUCT_DECL
 //          | VARIANT_DECL
 //          | FUNCTION_DECL ;
-bool Parser::tryAddTopLevelStatement(Program &program)
+Program Parser::parseProgram()
 {
-    if(auto includeBuilt = parseIncludeStatement())
+    Program program(current.getPosition());
+    while(true)
     {
-        program.includes.push_back(*includeBuilt);
-        return true;
+        if(auto includeBuilt = parseIncludeStatement())
+            program.includes.push_back(*includeBuilt);
+        else if(auto structBuilt = parseStructDeclaration())
+            program.add(std::move(*structBuilt));
+        else if(auto variantBuilt = parseVariantDeclaration())
+            program.add(std::move(*variantBuilt));
+        else if(auto functionBuilt = parseFunctionDeclaration())
+            program.add(std::move(*functionBuilt));
+        else
+            return program;
     }
-    if(auto structBuilt = parseStructDeclaration())
-    {
-        if(program.structs.find(structBuilt->first) != program.structs.end())
-        {
-            throw DuplicateStructError(
-                std::format(L"Duplicate structure with name {}", structBuilt->first), structBuilt->second.getPosition()
-            );
-        }
-        program.structs.insert(std::move(*structBuilt));
-        return true;
-    }
-    if(auto variantBuilt = parseVariantDeclaration())
-    {
-        if(program.variants.find(variantBuilt->first) != program.variants.end())
-        {
-            throw DuplicateVariantError(
-                std::format(L"Duplicate variant with name {}", variantBuilt->first), variantBuilt->second.getPosition()
-            );
-        }
-        program.variants.insert(std::move(*variantBuilt));
-        return true;
-    }
-    if(auto functionBuilt = parseFunctionDeclaration())
-    {
-        if(program.functions.find(functionBuilt->first) != program.functions.end())
-        {
-            throw DuplicateFunctionError(
-                std::format(L"Duplicate function with signature {}", functionBuilt->first),
-                functionBuilt->second.getPosition()
-            );
-        }
-        program.functions.insert(std::move(*functionBuilt));
-        return true;
-    }
-    return false;
 }
 
 // INCLUDE_STMT = 'include', STRING_LITERAL ;

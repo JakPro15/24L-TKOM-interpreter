@@ -17,6 +17,7 @@ private:
     void checkAndAdvance(TokenType type);
     void checkAndAdvance(TokenType type, std::wstring errorMessage);
     std::wstring loadAndAdvance(TokenType type);
+    auto mustBePresent(auto built, std::wstring_view expectedMessage);
 
     bool tryAddTopLevelStatement(Program &program);
     std::optional<IncludeStatement> parseIncludeStatement();

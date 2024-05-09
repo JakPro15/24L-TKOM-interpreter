@@ -289,11 +289,15 @@ std::vector<std::unique_ptr<Instruction>> Parser::parseInstructionBlock()
 std::unique_ptr<Instruction> Parser::parseInstruction()
 {
     std::unique_ptr<Instruction> instruction;
-    if((instruction = parseContinueStatement()) || (instruction = parseBreakStatement()) ||
-       (instruction = parseReturnStatement()) || (instruction = parseDeclOrAssignOrFunCall()) ||
-       (instruction = parseBuiltinDeclStatement()) || (instruction = parseIfStatement()) ||
-       (instruction = parseWhileStatement()) || (instruction = parseDoWhileStatement()))
-        return instruction;
+    for(auto tryParse: std::vector<std::function<std::unique_ptr<Instruction>(Parser *)>>{
+            &Parser::parseContinueStatement, &Parser::parseBreakStatement, &Parser::parseReturnStatement,
+            &Parser::parseDeclOrAssignOrFunCall, &Parser::parseBuiltinDeclStatement, &Parser::parseIfStatement,
+            &Parser::parseWhileStatement, &Parser::parseDoWhileStatement
+        })
+    {
+        if((instruction = std::invoke(tryParse, this)))
+            return instruction;
+    }
     return nullptr;
 }
 

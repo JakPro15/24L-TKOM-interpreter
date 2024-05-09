@@ -34,6 +34,7 @@ struct VariableDeclStatement;
 struct Assignable;
 struct AssignmentStatement;
 struct FunctionCall;
+struct FunctionCallInstruction;
 struct ReturnStatement;
 struct ContinueStatement;
 struct BreakStatement;
@@ -86,6 +87,7 @@ public:
     virtual void visit(Assignable &visited) = 0;
     virtual void visit(AssignmentStatement &visited) = 0;
     virtual void visit(FunctionCall &visited) = 0;
+    virtual void visit(FunctionCallInstruction &visited) = 0;
     virtual void visit(ReturnStatement &visited) = 0;
     virtual void visit(ContinueStatement &visited) = 0;
     virtual void visit(BreakStatement &visited) = 0;

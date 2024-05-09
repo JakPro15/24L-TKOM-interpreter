@@ -46,6 +46,7 @@ public:
     void visit(Assignable &visited) override;
     void visit(AssignmentStatement &visited) override;
     void visit(FunctionCall &visited) override;
+    void visit(FunctionCallInstruction &visited) override;
     void visit(ReturnStatement &visited) override;
     void visit(ContinueStatement &visited) override;
     void visit(BreakStatement &visited) override;

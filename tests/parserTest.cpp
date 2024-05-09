@@ -396,7 +396,8 @@ TEST_CASE("FunctionDeclaration - parameter list and return type", "[Parser]")
                 L" ||-VariableDeclaration <line: 1, col: 9> type=str name=param1 mutable=true\n"
                 L" |`-VariableDeclaration <line: 1, col: 27> type=typename name=param2 mutable=false\n"
                 L" `-Body:\n"
-                L"  `-FunctionCall <line: 4, col: 1> functionName=f\n"
+                L"  `-FunctionCallInstruction <line: 4, col: 1>\n"
+                L"   `-FunctionCall <line: 4, col: 1> functionName=f\n"
     );
 }
 
@@ -673,13 +674,16 @@ TEST_CASE("FunctionCall as an Instruction", "[Parser]")
                 L"Functions:\n"
                 L"`-a_function: FunctionDeclaration <line: 1, col: 1>\n"
                 L" `-Body:\n"
-                L"  |-FunctionCall <line: 3, col: 1> functionName=f1\n"
-                L"  |-FunctionCall <line: 4, col: 1> functionName=f2\n"
-                L"  |`-Literal <line: 4, col: 4> type=string value=1\n"
-                L"  `-FunctionCall <line: 5, col: 1> functionName=f3\n"
-                L"   |-Literal <line: 5, col: 4> type=int value=1\n"
-                L"   |-Literal <line: 5, col: 7> type=string value=2\n"
-                L"   `-Literal <line: 5, col: 12> type=float value=1.2\n"
+                L"  |-FunctionCallInstruction <line: 3, col: 1>\n"
+                L"  |`-FunctionCall <line: 3, col: 1> functionName=f1\n"
+                L"  |-FunctionCallInstruction <line: 4, col: 1>\n"
+                L"  |`-FunctionCall <line: 4, col: 1> functionName=f2\n"
+                L"  | `-Literal <line: 4, col: 4> type=string value=1\n"
+                L"  `-FunctionCallInstruction <line: 5, col: 1>\n"
+                L"   `-FunctionCall <line: 5, col: 1> functionName=f3\n"
+                L"    |-Literal <line: 5, col: 4> type=int value=1\n"
+                L"    |-Literal <line: 5, col: 7> type=string value=2\n"
+                L"    `-Literal <line: 5, col: 12> type=float value=1.2\n"
     );
 }
 
@@ -809,7 +813,8 @@ TEST_CASE("IfStatement - basic", "[Parser]")
                 L"  `-IfStatement <line: 4, col: 1>\n"
                 L"   `-SingleIfCase <line: 4, col: 1>\n"
                 L"    |-Literal <line: 4, col: 10> type=int value=1\n"
-                L"    `-FunctionCall <line: 6, col: 5> functionName=called\n"
+                L"    `-FunctionCallInstruction <line: 6, col: 5>\n"
+                L"     `-FunctionCall <line: 6, col: 5> functionName=called\n"
     );
 }
 
@@ -879,11 +884,14 @@ TEST_CASE("IfStatement - many cases", "[Parser]")
                 L"   ||-VariableDeclStatement <line: 8, col: 6>\n"
                 L"   |||-VariableDeclaration <line: 8, col: 6> type=type2 name=name2 mutable=true\n"
                 L"   ||`-Literal <line: 8, col: 22> type=string value=\n"
-                L"   ||-FunctionCall <line: 9, col: 5> functionName=called1\n"
-                L"   |`-FunctionCall <line: 10, col: 5> functionName=called2\n"
+                L"   ||-FunctionCallInstruction <line: 9, col: 5>\n"
+                L"   ||`-FunctionCall <line: 9, col: 5> functionName=called1\n"
+                L"   |`-FunctionCallInstruction <line: 10, col: 5>\n"
+                L"   | `-FunctionCall <line: 10, col: 5> functionName=called2\n"
                 L"   `-ElseCase:\n"
-                L"    `-FunctionCall <line: 14, col: 5> functionName=print\n"
-                L"     `-Literal <line: 14, col: 16> type=string value=else case\n"
+                L"    `-FunctionCallInstruction <line: 14, col: 5>\n"
+                L"     `-FunctionCall <line: 14, col: 5> functionName=print\n"
+                L"      `-Literal <line: 14, col: 16> type=string value=else case\n"
     );
 }
 
@@ -976,7 +984,8 @@ TEST_CASE("WhileStatement", "[Parser]")
                 L" `-Body:\n"
                 L"  `-WhileStatement <line: 4, col: 1>\n"
                 L"   |-Literal <line: 4, col: 10> type=int value=1\n"
-                L"   `-FunctionCall <line: 6, col: 5> functionName=called\n"
+                L"   `-FunctionCallInstruction <line: 6, col: 5>\n"
+                L"    `-FunctionCall <line: 6, col: 5> functionName=called\n"
     );
 }
 
@@ -1034,7 +1043,8 @@ TEST_CASE("DoWhileStatement", "[Parser]")
                 L" `-Body:\n"
                 L"  `-DoWhileStatement <line: 4, col: 1>\n"
                 L"   |-Literal <line: 8, col: 10> type=int value=1\n"
-                L"   `-FunctionCall <line: 6, col: 5> functionName=called\n"
+                L"   `-FunctionCallInstruction <line: 6, col: 5>\n"
+                L"    `-FunctionCall <line: 6, col: 5> functionName=called\n"
     );
 }
 
@@ -1097,10 +1107,11 @@ void checkBinaryOperator(TokenType operatorType, std::wstring expressionName)
                     L"Functions:\n"
                     L"`-a_function: FunctionDeclaration <line: 1, col: 1>\n"
                     L" `-Body:\n"
-                    L"  `-FunctionCall <line: 3, col: 15> functionName=print\n"
-                    L"   `-{} <line: 4, col: 1>\n"
-                    L"    |-Variable <line: 4, col: 1> name=a\n"
-                    L"    `-Variable <line: 4, col: 6> name=b\n",
+                    L"  `-FunctionCallInstruction <line: 3, col: 15>\n"
+                    L"   `-FunctionCall <line: 3, col: 15> functionName=print\n"
+                    L"    `-{} <line: 4, col: 1>\n"
+                    L"     |-Variable <line: 4, col: 1> name=a\n"
+                    L"     `-Variable <line: 4, col: 6> name=b\n",
                     expressionName
                 )
     );
@@ -1123,14 +1134,15 @@ void checkBinaryOpAssociativity(TokenType operatorType, std::wstring expressionN
                     L"Functions:\n"
                     L"`-a_function: FunctionDeclaration <line: 1, col: 1>\n"
                     L" `-Body:\n"
-                    L"  `-FunctionCall <line: 3, col: 15> functionName=print\n"
-                    L"   `-{} <line: 4, col: 1>\n"
-                    L"    |-{} <line: 4, col: 1>\n"
-                    L"    ||-{} <line: 4, col: 1>\n"
-                    L"    |||-Variable <line: 4, col: 1> name=a\n"
-                    L"    ||`-Variable <line: 4, col: 6> name=b\n"
-                    L"    |`-Variable <line: 4, col: 11> name=c\n"
-                    L"    `-Variable <line: 4, col: 16> name=d\n",
+                    L"  `-FunctionCallInstruction <line: 3, col: 15>\n"
+                    L"   `-FunctionCall <line: 3, col: 15> functionName=print\n"
+                    L"    `-{} <line: 4, col: 1>\n"
+                    L"     |-{} <line: 4, col: 1>\n"
+                    L"     ||-{} <line: 4, col: 1>\n"
+                    L"     |||-Variable <line: 4, col: 1> name=a\n"
+                    L"     ||`-Variable <line: 4, col: 6> name=b\n"
+                    L"     |`-Variable <line: 4, col: 11> name=c\n"
+                    L"     `-Variable <line: 4, col: 16> name=d\n",
                     expressionName, expressionName, expressionName
                 )
     );
@@ -1239,15 +1251,16 @@ TEST_CASE("MinusExpression and UnaryMinusExpression", "[Parser]")
                 L"Functions:\n"
                 L"`-a_function: FunctionDeclaration <line: 1, col: 1>\n"
                 L" `-Body:\n"
-                L"  `-FunctionCall <line: 3, col: 15> functionName=print\n"
-                L"   `-MinusExpression <line: 4, col: 1>\n"
-                L"    |-MinusExpression <line: 4, col: 1>\n"
-                L"    ||-UnaryMinusExpression <line: 4, col: 1>\n"
-                L"    ||`-Variable <line: 4, col: 2> name=a\n"
-                L"    |`-UnaryMinusExpression <line: 4, col: 4>\n"
-                L"    | `-Variable <line: 4, col: 5> name=b\n"
-                L"    `-UnaryMinusExpression <line: 4, col: 7>\n"
-                L"     `-Variable <line: 4, col: 8> name=c\n"
+                L"  `-FunctionCallInstruction <line: 3, col: 15>\n"
+                L"   `-FunctionCall <line: 3, col: 15> functionName=print\n"
+                L"    `-MinusExpression <line: 4, col: 1>\n"
+                L"     |-MinusExpression <line: 4, col: 1>\n"
+                L"     ||-UnaryMinusExpression <line: 4, col: 1>\n"
+                L"     ||`-Variable <line: 4, col: 2> name=a\n"
+                L"     |`-UnaryMinusExpression <line: 4, col: 4>\n"
+                L"     | `-Variable <line: 4, col: 5> name=b\n"
+                L"     `-UnaryMinusExpression <line: 4, col: 7>\n"
+                L"      `-Variable <line: 4, col: 8> name=c\n"
 
     );
 }
@@ -1263,9 +1276,10 @@ TEST_CASE("NotExpression", "[Parser]")
                 L"Functions:\n"
                 L"`-a_function: FunctionDeclaration <line: 1, col: 1>\n"
                 L" `-Body:\n"
-                L"  `-FunctionCall <line: 3, col: 15> functionName=print\n"
-                L"   `-NotExpression <line: 4, col: 1>\n"
-                L"    `-Variable <line: 4, col: 2> name=a\n"
+                L"  `-FunctionCallInstruction <line: 3, col: 15>\n"
+                L"   `-FunctionCall <line: 3, col: 15> functionName=print\n"
+                L"    `-NotExpression <line: 4, col: 1>\n"
+                L"     `-Variable <line: 4, col: 2> name=a\n"
     );
 }
 
@@ -1296,11 +1310,12 @@ TEST_CASE("IsExpression", "[Parser]")
                 L"Functions:\n"
                 L"`-a_function: FunctionDeclaration <line: 1, col: 1>\n"
                 L" `-Body:\n"
-                L"  `-FunctionCall <line: 3, col: 15> functionName=print\n"
-                L"   |-IsExpression <line: 4, col: 1> right=int\n"
-                L"   |`-Variable <line: 4, col: 1> name=a\n"
-                L"   `-IsExpression <line: 4, col: 10> right=type\n"
-                L"    `-Variable <line: 4, col: 10> name=a\n"
+                L"  `-FunctionCallInstruction <line: 3, col: 15>\n"
+                L"   `-FunctionCall <line: 3, col: 15> functionName=print\n"
+                L"    |-IsExpression <line: 4, col: 1> right=int\n"
+                L"    |`-Variable <line: 4, col: 1> name=a\n"
+                L"    `-IsExpression <line: 4, col: 10> right=type\n"
+                L"     `-Variable <line: 4, col: 10> name=a\n"
     );
 }
 
@@ -1336,14 +1351,15 @@ TEST_CASE("SubscriptExpression", "[Parser]")
                 L"Functions:\n"
                 L"`-a_function: FunctionDeclaration <line: 1, col: 1>\n"
                 L" `-Body:\n"
-                L"  `-FunctionCall <line: 3, col: 15> functionName=print\n"
-                L"   `-SubscriptExpression <line: 4, col: 1>\n"
-                L"    |-SubscriptExpression <line: 4, col: 1>\n"
-                L"    ||-Variable <line: 4, col: 1> name=a\n"
-                L"    |`-SubscriptExpression <line: 4, col: 6>\n"
-                L"    | |-Variable <line: 4, col: 6> name=b\n"
-                L"    | `-Variable <line: 4, col: 12> name=c\n"
-                L"    `-Literal <line: 4, col: 24> type=int value=2\n"
+                L"  `-FunctionCallInstruction <line: 3, col: 15>\n"
+                L"   `-FunctionCall <line: 3, col: 15> functionName=print\n"
+                L"    `-SubscriptExpression <line: 4, col: 1>\n"
+                L"     |-SubscriptExpression <line: 4, col: 1>\n"
+                L"     ||-Variable <line: 4, col: 1> name=a\n"
+                L"     |`-SubscriptExpression <line: 4, col: 6>\n"
+                L"     | |-Variable <line: 4, col: 6> name=b\n"
+                L"     | `-Variable <line: 4, col: 12> name=c\n"
+                L"     `-Literal <line: 4, col: 24> type=int value=2\n"
     );
 }
 
@@ -1389,10 +1405,11 @@ TEST_CASE("DotExpression", "[Parser]")
                 L"Functions:\n"
                 L"`-a_function: FunctionDeclaration <line: 1, col: 1>\n"
                 L" `-Body:\n"
-                L"  `-FunctionCall <line: 3, col: 15> functionName=print\n"
-                L"   `-DotExpression <line: 4, col: 1> field=c\n"
-                L"    `-DotExpression <line: 4, col: 1> field=b\n"
-                L"     `-Variable <line: 4, col: 1> name=a\n"
+                L"  `-FunctionCallInstruction <line: 3, col: 15>\n"
+                L"   `-FunctionCall <line: 3, col: 15> functionName=print\n"
+                L"    `-DotExpression <line: 4, col: 1> field=c\n"
+                L"     `-DotExpression <line: 4, col: 1> field=b\n"
+                L"      `-Variable <line: 4, col: 1> name=a\n"
     );
 }
 
@@ -1431,13 +1448,14 @@ TEST_CASE("StructExpression", "[Parser]")
                 L"Functions:\n"
                 L"`-a_function: FunctionDeclaration <line: 1, col: 1>\n"
                 L" `-Body:\n"
-                L"  `-FunctionCall <line: 3, col: 15> functionName=print\n"
-                L"   |-StructExpression <line: 4, col: 1>\n"
-                L"   |`-Variable <line: 4, col: 2> name=a\n"
-                L"   `-StructExpression <line: 5, col: 1>\n"
-                L"    |-Variable <line: 5, col: 2> name=a\n"
-                L"    |-Variable <line: 5, col: 4> name=b\n"
-                L"    `-Variable <line: 5, col: 6> name=c\n"
+                L"  `-FunctionCallInstruction <line: 3, col: 15>\n"
+                L"   `-FunctionCall <line: 3, col: 15> functionName=print\n"
+                L"    |-StructExpression <line: 4, col: 1>\n"
+                L"    |`-Variable <line: 4, col: 2> name=a\n"
+                L"    `-StructExpression <line: 5, col: 1>\n"
+                L"     |-Variable <line: 5, col: 2> name=a\n"
+                L"     |-Variable <line: 5, col: 4> name=b\n"
+                L"     `-Variable <line: 5, col: 6> name=c\n"
     );
 }
 
@@ -1495,14 +1513,15 @@ TEST_CASE("FunctionCall as an expression", "[Parser]")
                 L"Functions:\n"
                 L"`-a_function: FunctionDeclaration <line: 1, col: 1>\n"
                 L" `-Body:\n"
-                L"  `-FunctionCall <line: 3, col: 15> functionName=print\n"
-                L"   |-FunctionCall <line: 4, col: 1> functionName=f1\n"
-                L"   |-FunctionCall <line: 5, col: 1> functionName=f2\n"
-                L"   |`-Literal <line: 5, col: 4> type=string value=1\n"
-                L"   `-FunctionCall <line: 6, col: 1> functionName=f3\n"
-                L"    |-Literal <line: 6, col: 4> type=int value=1\n"
-                L"    |-Literal <line: 6, col: 7> type=string value=2\n"
-                L"    `-Literal <line: 6, col: 12> type=float value=1.2\n"
+                L"  `-FunctionCallInstruction <line: 3, col: 15>\n"
+                L"   `-FunctionCall <line: 3, col: 15> functionName=print\n"
+                L"    |-FunctionCall <line: 4, col: 1> functionName=f1\n"
+                L"    |-FunctionCall <line: 5, col: 1> functionName=f2\n"
+                L"    |`-Literal <line: 5, col: 4> type=string value=1\n"
+                L"    `-FunctionCall <line: 6, col: 1> functionName=f3\n"
+                L"     |-Literal <line: 6, col: 4> type=int value=1\n"
+                L"     |-Literal <line: 6, col: 7> type=string value=2\n"
+                L"     `-Literal <line: 6, col: 12> type=float value=1.2\n"
     );
 }
 
@@ -1518,8 +1537,9 @@ TEST_CASE("Expression in parentheses", "[Parser]")
                 L"Functions:\n"
                 L"`-a_function: FunctionDeclaration <line: 1, col: 1>\n"
                 L" `-Body:\n"
-                L"  `-FunctionCall <line: 3, col: 15> functionName=print\n"
-                L"   `-Variable <line: 4, col: 2> name=a\n"
+                L"  `-FunctionCallInstruction <line: 3, col: 15>\n"
+                L"   `-FunctionCall <line: 3, col: 15> functionName=print\n"
+                L"    `-Variable <line: 4, col: 2> name=a\n"
     );
 }
 
@@ -1555,11 +1575,12 @@ TEST_CASE("Literal", "[Parser]")
                 L"Functions:\n"
                 L"`-a_function: FunctionDeclaration <line: 1, col: 1>\n"
                 L" `-Body:\n"
-                L"  `-FunctionCall <line: 3, col: 15> functionName=print\n"
-                L"   |-Literal <line: 4, col: 1> type=int value=2\n"
-                L"   |-Literal <line: 4, col: 3> type=string value=2\n"
-                L"   |-Literal <line: 4, col: 7> type=float value=2\n"
-                L"   |-Literal <line: 4, col: 11> type=bool value=true\n"
-                L"   `-Literal <line: 4, col: 17> type=bool value=false\n"
+                L"  `-FunctionCallInstruction <line: 3, col: 15>\n"
+                L"   `-FunctionCall <line: 3, col: 15> functionName=print\n"
+                L"    |-Literal <line: 4, col: 1> type=int value=2\n"
+                L"    |-Literal <line: 4, col: 3> type=string value=2\n"
+                L"    |-Literal <line: 4, col: 7> type=float value=2\n"
+                L"    |-Literal <line: 4, col: 11> type=bool value=true\n"
+                L"    `-Literal <line: 4, col: 17> type=bool value=false\n"
     );
 }

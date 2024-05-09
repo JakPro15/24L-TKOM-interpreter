@@ -7,66 +7,36 @@ Position DocumentTreeNode::getPosition() const
     return position;
 }
 
-Expression::Expression(): DocumentTreeNode({0, 0}) {}
-
 Literal::Literal(Position position, std::variant<std::wstring, int32_t, double, bool> value):
-    DocumentTreeNode(position), value(value)
+    Expression(position), value(value)
 {}
 
-Variable::Variable(Position position, std::wstring name): DocumentTreeNode(position), name(name) {}
+Variable::Variable(Position position, std::wstring name): Expression(position), name(name) {}
 
-BinaryOperation::BinaryOperation(std::unique_ptr<Expression> left, std::unique_ptr<Expression> right):
-    left(std::move(left)), right(std::move(right))
+BinaryOperation::BinaryOperation(
+    Position position, std::unique_ptr<Expression> left, std::unique_ptr<Expression> right
+): Expression(position), left(std::move(left)), right(std::move(right))
 {}
-
-#define BINARY_OP_CONSTRUCTOR(type)                                                                  \
-    type::type(Position begin, std::unique_ptr<Expression> left, std::unique_ptr<Expression> right): \
-        DocumentTreeNode(begin), BinaryOperation(std::move(left), std::move(right))                  \
-    {}
-
-BINARY_OP_CONSTRUCTOR(OrExpression)
-BINARY_OP_CONSTRUCTOR(XorExpression)
-BINARY_OP_CONSTRUCTOR(AndExpression)
-BINARY_OP_CONSTRUCTOR(EqualExpression)
-BINARY_OP_CONSTRUCTOR(NotEqualExpression)
-BINARY_OP_CONSTRUCTOR(IdenticalExpression)
-BINARY_OP_CONSTRUCTOR(NotIdenticalExpression)
-BINARY_OP_CONSTRUCTOR(ConcatExpression)
-BINARY_OP_CONSTRUCTOR(StringMultiplyExpression)
-BINARY_OP_CONSTRUCTOR(GreaterExpression)
-BINARY_OP_CONSTRUCTOR(LesserExpression)
-BINARY_OP_CONSTRUCTOR(GreaterEqualExpression)
-BINARY_OP_CONSTRUCTOR(LesserEqualExpression)
-BINARY_OP_CONSTRUCTOR(PlusExpression)
-BINARY_OP_CONSTRUCTOR(MinusExpression)
-BINARY_OP_CONSTRUCTOR(MultiplyExpression)
-BINARY_OP_CONSTRUCTOR(DivideExpression)
-BINARY_OP_CONSTRUCTOR(FloorDivideExpression)
-BINARY_OP_CONSTRUCTOR(ModuloExpression)
-BINARY_OP_CONSTRUCTOR(ExponentExpression)
-BINARY_OP_CONSTRUCTOR(SubscriptExpression)
 
 UnaryMinusExpression::UnaryMinusExpression(Position position, std::unique_ptr<Expression> value):
-    DocumentTreeNode(position), value(std::move(value))
+    Expression(position), value(std::move(value))
 {}
 
 NotExpression::NotExpression(Position position, std::unique_ptr<Expression> value):
-    DocumentTreeNode(position), value(std::move(value))
+    Expression(position), value(std::move(value))
 {}
 
 IsExpression::IsExpression(Position begin, std::unique_ptr<Expression> left, std::wstring right):
-    DocumentTreeNode(begin), left(std::move(left)), right(right)
+    Expression(begin), left(std::move(left)), right(right)
 {}
 
 DotExpression::DotExpression(Position position, std::unique_ptr<Expression> value, std::wstring field):
-    DocumentTreeNode(position), value(std::move(value)), field(field)
+    Expression(position), value(std::move(value)), field(field)
 {}
 
 StructExpression::StructExpression(Position position, std::vector<std::unique_ptr<Expression>> arguments):
-    DocumentTreeNode(position), arguments(std::move(arguments))
+    Expression(position), arguments(std::move(arguments))
 {}
-
-Instruction::Instruction(): DocumentTreeNode({0, 0}) {}
 
 VariableDeclaration::VariableDeclaration(Position position, std::wstring type, std::wstring name, bool isMutable):
     DocumentTreeNode(position), type(type), name(name), isMutable(isMutable)
@@ -74,7 +44,7 @@ VariableDeclaration::VariableDeclaration(Position position, std::wstring type, s
 
 VariableDeclStatement::VariableDeclStatement(
     Position position, VariableDeclaration declaration, std::unique_ptr<Expression> value
-): DocumentTreeNode(position), declaration(declaration), value(std::move(value))
+): Instruction(position), declaration(declaration), value(std::move(value))
 {}
 
 Assignable::Assignable(Position position, std::unique_ptr<Assignable> left, std::wstring right):
@@ -85,20 +55,24 @@ Assignable::Assignable(Position position, std::wstring value): DocumentTreeNode(
 {}
 
 AssignmentStatement::AssignmentStatement(Position position, Assignable left, std::unique_ptr<Expression> right):
-    DocumentTreeNode(position), left(std::move(left)), right(std::move(right))
+    Instruction(position), left(std::move(left)), right(std::move(right))
 {}
 
 FunctionCall::FunctionCall(
     Position position, std::wstring functionName, std::vector<std::unique_ptr<Expression>> arguments
-): DocumentTreeNode(position), functionName(functionName), arguments(std::move(arguments))
+): Expression(position), functionName(functionName), arguments(std::move(arguments))
 {}
 
-ContinueStatement::ContinueStatement(Position position): DocumentTreeNode(position) {}
+FunctionCallInstruction::FunctionCallInstruction(Position position, FunctionCall functionCall):
+    Instruction(position), functionCall(std::move(functionCall))
+{}
 
-BreakStatement::BreakStatement(Position position): DocumentTreeNode(position) {}
+ContinueStatement::ContinueStatement(Position position): Instruction(position) {}
+
+BreakStatement::BreakStatement(Position position): Instruction(position) {}
 
 ReturnStatement::ReturnStatement(Position position, std::unique_ptr<Expression> returnValue):
-    DocumentTreeNode(position), returnValue(std::move(returnValue))
+    Instruction(position), returnValue(std::move(returnValue))
 {}
 
 SingleIfCase::SingleIfCase(
@@ -109,17 +83,17 @@ SingleIfCase::SingleIfCase(
 
 IfStatement::IfStatement(
     Position position, std::vector<SingleIfCase> cases, std::vector<std::unique_ptr<Instruction>> elseCaseBody
-): DocumentTreeNode(position), cases(std::move(cases)), elseCaseBody(std::move(elseCaseBody))
+): Instruction(position), cases(std::move(cases)), elseCaseBody(std::move(elseCaseBody))
 {}
 
 WhileStatement::WhileStatement(
     Position position, std::unique_ptr<Expression> condition, std::vector<std::unique_ptr<Instruction>> body
-): DocumentTreeNode(position), condition(std::move(condition)), body(std::move(body))
+): Instruction(position), condition(std::move(condition)), body(std::move(body))
 {}
 
 DoWhileStatement::DoWhileStatement(
     Position position, std::unique_ptr<Expression> condition, std::vector<std::unique_ptr<Instruction>> body
-): DocumentTreeNode(position), condition(std::move(condition)), body(std::move(body))
+): Instruction(position), condition(std::move(condition)), body(std::move(body))
 {}
 
 FunctionIdentification::FunctionIdentification(std::wstring name, std::vector<std::wstring> parameterTypes):
@@ -206,6 +180,7 @@ DEFINE_ACCEPT(VariableDeclStatement);
 DEFINE_ACCEPT(Assignable);
 DEFINE_ACCEPT(AssignmentStatement);
 DEFINE_ACCEPT(FunctionCall);
+DEFINE_ACCEPT(FunctionCallInstruction);
 DEFINE_ACCEPT(ReturnStatement);
 DEFINE_ACCEPT(ContinueStatement);
 DEFINE_ACCEPT(BreakStatement);

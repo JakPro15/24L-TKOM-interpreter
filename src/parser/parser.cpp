@@ -312,7 +312,7 @@ std::unique_ptr<Instruction> Parser::parseDeclOrAssignOrFunCall()
     std::unique_ptr<Instruction> instruction;
     if(!(instruction = parseVariableDeclStatement(firstIdentifier)) &&
        !(instruction = parseAssignmentStatement(firstIdentifier)) &&
-       !(instruction = parseFunctionCall(firstIdentifier)))
+       !(instruction = parseFunctionCallInstruction(firstIdentifier)))
         throw SyntaxError(
             std::format(L"Expected a variable declaration, an assignment or a function call, got '{}'", current),
             current.getPosition()
@@ -385,10 +385,10 @@ std::unique_ptr<AssignmentStatement> Parser::parseAssignmentStatement(Token firs
 }
 
 // IDENTIFIER, '(', [ EXPRESSION, { ',', EXPRESSION } ] , ')'
-std::unique_ptr<FunctionCall> Parser::parseFunctionCall(Token functionNameToken)
+std::optional<FunctionCall> Parser::parseFunctionCall(Token functionNameToken)
 {
     if(current.getType() != LPAREN)
-        return std::unique_ptr<FunctionCall>(nullptr);
+        return std::nullopt;
     advance();
 
     Position begin = functionNameToken.getPosition();
@@ -396,7 +396,25 @@ std::unique_ptr<FunctionCall> Parser::parseFunctionCall(Token functionNameToken)
 
     std::vector<std::unique_ptr<Expression>> arguments = parseArguments();
     checkAndAdvance(RPAREN, std::format(L"Expected argument or ')', got '{}'", current));
-    return std::make_unique<FunctionCall>(begin, name, std::move(arguments));
+    return FunctionCall(begin, name, std::move(arguments));
+}
+
+std::unique_ptr<FunctionCall> Parser::parseFunctionCallExpression(Token firstToken)
+{
+    std::optional<FunctionCall> built;
+    if((built = parseFunctionCall(firstToken)))
+        return std::make_unique<FunctionCall>(std::move(*built));
+    else
+        return nullptr;
+}
+
+std::unique_ptr<FunctionCallInstruction> Parser::parseFunctionCallInstruction(Token firstToken)
+{
+    std::optional<FunctionCall> built;
+    if((built = parseFunctionCall(firstToken)))
+        return std::make_unique<FunctionCallInstruction>(built->getPosition(), std::move(*built));
+    else
+        return nullptr;
 }
 
 // [ EXPRESSION, { ',', EXPRESSION } ]
@@ -901,7 +919,7 @@ std::unique_ptr<Expression> Parser::parseVariableOrFunCall()
     Token firstIdentifier = current;
     advance();
     std::unique_ptr<FunctionCall> call;
-    if((call = parseFunctionCall(firstIdentifier)))
+    if((call = parseFunctionCallExpression(firstIdentifier)))
         return call;
     return std::make_unique<Variable>(
         firstIdentifier.getPosition(), std::get<std::wstring>(firstIdentifier.getValue())

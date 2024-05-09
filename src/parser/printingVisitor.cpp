@@ -177,6 +177,15 @@ void PrintingVisitor::visit(FunctionCall &visited)
     visitContainer(visited.arguments);
 }
 
+void PrintingVisitor::visit(FunctionCallInstruction &visited)
+{
+    out << L"FunctionCallInstruction " << visited.getPosition() << L"\n";
+    out << indent << L"`-";
+    indent += L" ";
+    visited.functionCall.accept(*this);
+    popIndent();
+}
+
 void PrintingVisitor::visit(ReturnStatement &visited)
 {
     out << L"ReturnStatement " << visited.getPosition() << L"\n";

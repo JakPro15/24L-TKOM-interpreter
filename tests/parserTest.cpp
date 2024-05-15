@@ -69,6 +69,15 @@ TEST_CASE("empty Program", "[Parser]")
     checkParsing(tokens, L"Program containing:\n");
 }
 
+TEST_CASE("unknown token instead of end of text", "[Parser]")
+{
+    std::vector tokens = {
+        Token(RPAREN, {1, 1}),
+        Token(EOT, {1, 2}),
+    };
+    checkParseError<SyntaxError>(tokens);
+}
+
 TEST_CASE("IncludeStatement", "[Parser]")
 {
     std::vector tokens = {

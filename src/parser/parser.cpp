@@ -63,7 +63,16 @@ Program Parser::parseProgram()
         else if(auto functionBuilt = parseFunctionDeclaration())
             program.add(std::move(*functionBuilt));
         else
+        {
+            if(current.getType() != EOT)
+                throw SyntaxError(
+                    std::format(
+                        L"Expected 'include', 'struct', 'variant', 'function' or end of text, got '{}'", current
+                    ),
+                    current.getPosition()
+                );
             return program;
+        }
     }
 }
 

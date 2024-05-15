@@ -122,7 +122,7 @@ TEST_CASE("structs and variants example", "[Lexer+Parser]")
                           L"func main() {\n"
                           L"    S2 s = {S1({2, 3}), 2};\n"
                           L"    # konieczne jest podanie typu S1, ponieważ jest wewnątrz rekordu wariantowego\n"
-                          L"};\n";
+                          L"}\n";
     std::set<std::wstring> expectedStructs = {
         L"S1: StructDeclaration <line: 1, col: 1>\n"
         L"|-Field <line: 2, col: 5> type=int name=a\n"

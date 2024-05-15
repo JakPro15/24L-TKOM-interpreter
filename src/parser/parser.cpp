@@ -582,12 +582,22 @@ std::unique_ptr<Expression> Parser::parseAndExpression()
 typedef std::function<std::unique_ptr<Expression>(Position, std::unique_ptr<Expression>, std::unique_ptr<Expression>)>
     BinaryExpressionConstructor;
 
-std::map<TokenType, BinaryExpressionConstructor> tokenTypeToEqualityExpression = {
+namespace {
+const std::map<TokenType, BinaryExpressionConstructor> tokenTypeToEqualityExpression = {
     BINARY_OP_CONSTRUCTOR_PAIR(OP_EQUAL, EqualExpression),
     BINARY_OP_CONSTRUCTOR_PAIR(OP_NOT_EQUAL, NotEqualExpression),
     BINARY_OP_CONSTRUCTOR_PAIR(OP_IDENTICAL, IdenticalExpression),
     BINARY_OP_CONSTRUCTOR_PAIR(OP_NOT_IDENTICAL, NotIdenticalExpression),
 };
+
+template <typename ValueType>
+bool isIn(TokenType tokenType, const std::map<TokenType, ValueType> &container)
+{
+    return std::find_if(container.begin(), container.end(), [&](const std::pair<TokenType, ValueType> &mapPair) {
+               return tokenType == mapPair.first;
+           }) != container.end();
+}
+}
 
 // EQUALITY_EXPR = CONCAT_EXPR, [ EQUALITY_OP, CONCAT_EXPR ] ;
 // EQUALITY_OP = '=='
@@ -600,8 +610,7 @@ std::unique_ptr<Expression> Parser::parseEqualityExpression()
     std::unique_ptr<Expression> left = parseConcatExpression();
     if(!left)
         return nullptr;
-    if(current.getType() == OP_EQUAL || current.getType() == OP_NOT_EQUAL || current.getType() == OP_IDENTICAL ||
-       current.getType() == OP_NOT_IDENTICAL)
+    if(isIn(current.getType(), tokenTypeToEqualityExpression))
     {
         TokenType operation = current.getType();
         advance();
@@ -645,12 +654,14 @@ std::unique_ptr<Expression> Parser::parseStringMultiplyExpression()
     return left;
 }
 
-std::map<TokenType, BinaryExpressionConstructor> tokenTypeToCompareExpression = {
+namespace {
+const std::map<TokenType, BinaryExpressionConstructor> tokenTypeToCompareExpression = {
     BINARY_OP_CONSTRUCTOR_PAIR(OP_GREATER, GreaterExpression),
     BINARY_OP_CONSTRUCTOR_PAIR(OP_LESSER, LesserExpression),
     BINARY_OP_CONSTRUCTOR_PAIR(OP_GREATER_EQUAL, GreaterEqualExpression),
     BINARY_OP_CONSTRUCTOR_PAIR(OP_LESSER_EQUAL, LesserEqualExpression),
 };
+}
 
 // COMPARE_EXPR = ADDITIVE_EXPR, [ COMPARISON_OP, ADDITIVE_EXPR ] ;
 // COMPARISON_OP = '>'
@@ -663,8 +674,7 @@ std::unique_ptr<Expression> Parser::parseCompareExpression()
     std::unique_ptr<Expression> left = parseAdditiveExpression();
     if(!left)
         return nullptr;
-    if(current.getType() == OP_GREATER || current.getType() == OP_LESSER || current.getType() == OP_GREATER_EQUAL ||
-       current.getType() == OP_LESSER_EQUAL)
+    if(isIn(current.getType(), tokenTypeToCompareExpression))
     {
         TokenType operation = current.getType();
         advance();
@@ -676,10 +686,12 @@ std::unique_ptr<Expression> Parser::parseCompareExpression()
     return left;
 }
 
-std::map<TokenType, BinaryExpressionConstructor> tokenTypeToAdditiveExpression = {
+namespace {
+const std::map<TokenType, BinaryExpressionConstructor> tokenTypeToAdditiveExpression = {
     BINARY_OP_CONSTRUCTOR_PAIR(OP_PLUS, PlusExpression),
     BINARY_OP_CONSTRUCTOR_PAIR(OP_MINUS, MinusExpression),
 };
+}
 
 // ADDITIVE_EXPR = TERM, { ADDITIVE_OP, TERM } ;
 // ADDITIVE_OP = '+'
@@ -690,7 +702,7 @@ std::unique_ptr<Expression> Parser::parseAdditiveExpression()
     std::unique_ptr<Expression> left = parseMultiplicativeExpression();
     if(!left)
         return nullptr;
-    while(current.getType() == OP_PLUS || current.getType() == OP_MINUS)
+    while(isIn(current.getType(), tokenTypeToAdditiveExpression))
     {
         TokenType operation = current.getType();
         advance();
@@ -702,12 +714,14 @@ std::unique_ptr<Expression> Parser::parseAdditiveExpression()
     return left;
 }
 
-std::map<TokenType, BinaryExpressionConstructor> tokenTypeToMultiplicativeExpression = {
+namespace {
+const std::map<TokenType, BinaryExpressionConstructor> tokenTypeToMultiplicativeExpression = {
     BINARY_OP_CONSTRUCTOR_PAIR(OP_MULTIPLY, MultiplyExpression),
     BINARY_OP_CONSTRUCTOR_PAIR(OP_DIVIDE, DivideExpression),
     BINARY_OP_CONSTRUCTOR_PAIR(OP_FLOOR_DIVIDE, FloorDivideExpression),
     BINARY_OP_CONSTRUCTOR_PAIR(OP_MODULO, ModuloExpression),
 };
+}
 
 // TERM = FACTOR, { MULTIPL_OP, FACTOR } ;
 // MULTIPL_OP =    '*'
@@ -720,8 +734,7 @@ std::unique_ptr<Expression> Parser::parseMultiplicativeExpression()
     std::unique_ptr<Expression> left = parseExponentExpression();
     if(!left)
         return nullptr;
-    while(current.getType() == OP_MULTIPLY || current.getType() == OP_DIVIDE || current.getType() == OP_FLOOR_DIVIDE ||
-          current.getType() == OP_MODULO)
+    while(isIn(current.getType(), tokenTypeToMultiplicativeExpression))
     {
         TokenType operation = current.getType();
         advance();

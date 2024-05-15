@@ -67,17 +67,16 @@ enum class TokenType
     EOT
 };
 
+std::wstring toString(TokenType tokenType);
 std::wostream &operator<<(std::wostream &out, TokenType tokenType);
 
 template <>
 struct std::formatter<TokenType, wchar_t>: std::formatter<std::wstring, wchar_t>
 {
     template <class FormatContext>
-    auto format(TokenType token, FormatContext &context) const
+    auto format(TokenType tokenType, FormatContext &context) const
     {
-        std::wstringstream out;
-        out << token;
-        return std::formatter<std::wstring, wchar_t>::format(out.str(), context);
+        return std::formatter<std::wstring, wchar_t>::format(toString(tokenType), context);
     }
 };
 

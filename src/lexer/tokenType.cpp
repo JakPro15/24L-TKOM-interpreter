@@ -2,185 +2,133 @@
 
 using enum TokenType;
 
-std::wostream &operator<<(std::wostream &out, TokenType tokenType)
+std::wstring toString(TokenType tokenType)
 {
     switch(tokenType)
     {
     case KW_INCLUDE:
-        out << L"include";
-        break;
+        return L"include";
     case KW_STRUCT:
-        out << L"struct";
-        break;
+        return L"struct";
     case KW_VARIANT:
-        out << L"variant";
-        break;
+        return L"variant";
     case KW_FUNC:
-        out << L"func";
-        break;
+        return L"func";
     case KW_CONTINUE:
-        out << L"continue";
-        break;
+        return L"continue";
     case KW_BREAK:
-        out << L"break";
-        break;
+        return L"break";
     case KW_RETURN:
-        out << L"return";
-        break;
+        return L"return";
     case KW_IF:
-        out << L"if";
-        break;
+        return L"if";
     case KW_ELIF:
-        out << L"elif";
-        break;
+        return L"elif";
     case KW_ELSE:
-        out << L"else";
-        break;
+        return L"else";
     case KW_WHILE:
-        out << L"while";
-        break;
+        return L"while";
     case KW_DO:
-        out << L"do";
-        break;
+        return L"do";
     case KW_IS:
-        out << L"is";
-        break;
+        return L"is";
     case KW_OR:
-        out << L"or";
-        break;
+        return L"or";
     case KW_XOR:
-        out << L"xor";
-        break;
+        return L"xor";
     case KW_AND:
-        out << L"and";
-        break;
+        return L"and";
     case KW_NOT:
-        out << L"not";
-        break;
+        return L"not";
     case KW_INT:
-        out << L"int";
-        break;
+        return L"int";
     case KW_FLOAT:
-        out << L"float";
-        break;
+        return L"float";
     case KW_BOOL:
-        out << L"bool";
-        break;
+        return L"bool";
     case KW_STR:
-        out << L"str";
-        break;
+        return L"str";
     case LBRACE:
-        out << L"{";
-        break;
+        return L"{";
     case RBRACE:
-        out << L"}";
-        break;
+        return L"}";
     case SEMICOLON:
-        out << L";";
-        break;
+        return L";";
     case LPAREN:
-        out << L"(";
-        break;
+        return L"(";
     case RPAREN:
-        out << L")";
-        break;
+        return L")";
     case ARROW:
-        out << L"->";
-        break;
+        return L"->";
     case COMMA:
-        out << L",";
-        break;
+        return L",";
     case DOLLAR_SIGN:
-        out << L"$";
-        break;
+        return L"$";
     case OP_ASSIGN:
-        out << L"=";
-        break;
+        return L"=";
     case OP_DOT:
-        out << L".";
-        break;
+        return L".";
     case OP_EQUAL:
-        out << L"==";
-        break;
+        return L"==";
     case OP_NOT_EQUAL:
-        out << L"!=";
-        break;
+        return L"!=";
     case OP_IDENTICAL:
-        out << L"===";
-        break;
+        return L"===";
     case OP_NOT_IDENTICAL:
-        out << L"!==";
-        break;
+        return L"!==";
     case OP_CONCAT:
-        out << L"!";
-        break;
+        return L"!";
     case OP_STR_MULTIPLY:
-        out << L"@";
-        break;
+        return L"@";
     case OP_GREATER:
-        out << L">";
-        break;
+        return L">";
     case OP_LESSER:
-        out << L"<";
-        break;
+        return L"<";
     case OP_GREATER_EQUAL:
-        out << L">=";
-        break;
+        return L">=";
     case OP_LESSER_EQUAL:
-        out << L"<=";
-        break;
+        return L"<=";
     case OP_PLUS:
-        out << L"+";
-        break;
+        return L"+";
     case OP_MINUS:
-        out << L"-";
-        break;
+        return L"-";
     case OP_MULTIPLY:
-        out << L"*";
-        break;
+        return L"*";
     case OP_DIVIDE:
-        out << L"/";
-        break;
+        return L"/";
     case OP_FLOOR_DIVIDE:
-        out << L"//";
-        break;
+        return L"//";
     case OP_MODULO:
-        out << L"%";
-        break;
+        return L"%";
     case OP_EXPONENT:
-        out << L"**";
-        break;
+        return L"**";
     case LSQUAREBRACE:
-        out << L"[";
-        break;
+        return L"[";
     case RSQUAREBRACE:
-        out << L"]";
-        break;
+        return L"]";
     case IDENTIFIER:
-        out << L"identifier";
-        break;
+        return L"identifier";
     case STR_LITERAL:
-        out << L"string literal";
-        break;
+        return L"string literal";
     case INT_LITERAL:
-        out << L"integer literal";
-        break;
+        return L"integer literal";
     case FLOAT_LITERAL:
-        out << "floating-point literal";
-        break;
+        return L"floating-point literal";
     case TRUE_LITERAL:
-        out << L"true";
-        break;
+        return L"true";
     case FALSE_LITERAL:
-        out << L"false";
-        break;
+        return L"false";
     case COMMENT:
-        out << L"comment";
-        break;
+        return L"comment";
     case EOT:
-        out << L"end of text";
-        break;
+        return L"end of text";
+    default:
+        return L"unknown";
     }
+}
 
+std::wostream &operator<<(std::wostream &out, TokenType tokenType)
+{
+    out << toString(tokenType);
     return out;
 }

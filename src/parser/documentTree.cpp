@@ -2,6 +2,8 @@
 
 #include "parserExceptions.hpp"
 
+#include <iterator>
+
 DocumentTreeNode::DocumentTreeNode(Position position): position(position) {}
 
 Position DocumentTreeNode::getPosition() const
@@ -104,18 +106,8 @@ FunctionIdentification::FunctionIdentification(std::wstring name, std::vector<st
 
 std::wostream &operator<<(std::wostream &out, const FunctionIdentification &id)
 {
-    out << id.name;
-    if(id.parameterTypes.size() > 0)
-    {
-        out << L"(";
-        for(const std::wstring &parameter: id.parameterTypes)
-        {
-            out << parameter;
-            if(&parameter != &id.parameterTypes.back())
-                out << L", ";
-        }
-        out << L")";
-    }
+    std::ostream_iterator<wchar_t, wchar_t> outIterator(out);
+    std::format_to(outIterator, L"{}", id);
     return out;
 }
 

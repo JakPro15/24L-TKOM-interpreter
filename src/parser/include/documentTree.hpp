@@ -4,6 +4,7 @@
 #include "documentTreeVisitor.hpp"
 #include "position.hpp"
 
+#include <algorithm>
 #include <format>
 #include <memory>
 #include <optional>
@@ -345,9 +346,17 @@ struct std::formatter<FunctionIdentification, wchar_t>: std::formatter<std::wstr
     template <class FormatContext>
     auto format(const FunctionIdentification &id, FormatContext &context) const
     {
-        std::wstringstream out;
-        out << id;
-        return std::formatter<std::wstring, wchar_t>::format(out.str(), context);
+        std::format_to(context.out(), L"{}", id.name);
+        if(id.parameterTypes.size() > 0)
+        {
+            std::format_to(context.out(), L"({}", id.parameterTypes[0]);
+            std::transform(
+                id.parameterTypes.begin() + 1, id.parameterTypes.end(), context.out(),
+                [](const std::wstring &parameter) { return L", " + parameter; }
+            );
+            std::format_to(context.out(), L")");
+        }
+        return context.out();
     }
 };
 

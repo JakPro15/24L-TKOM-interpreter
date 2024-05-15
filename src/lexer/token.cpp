@@ -3,6 +3,7 @@
 #include "lexerExceptions.hpp"
 
 #include <array>
+#include <iterator>
 #include <ostream>
 
 using enum TokenType;
@@ -48,25 +49,7 @@ std::variant<std::monostate, std::wstring, int32_t, double> Token::getValue() co
 
 std::wostream &operator<<(std::wostream &out, Token token)
 {
-    switch(token.type)
-    {
-    case IDENTIFIER:
-        out << std::get<std::wstring>(token.getValue());
-        break;
-    case STR_LITERAL:
-        out << std::get<std::wstring>(token.getValue());
-        break;
-    case INT_LITERAL:
-        out << std::get<int32_t>(token.getValue());
-        break;
-    case FLOAT_LITERAL:
-        out << std::get<double>(token.getValue());
-        break;
-    case COMMENT:
-        out << L"#" << std::get<std::wstring>(token.getValue());
-        break;
-    default:
-        out << token.type;
-    }
+    std::ostream_iterator<wchar_t, wchar_t> outIterator(out);
+    std::format_to(outIterator, L"{}", token);
     return out;
 }

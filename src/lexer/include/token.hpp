@@ -35,9 +35,22 @@ struct std::formatter<Token, wchar_t>: std::formatter<std::wstring, wchar_t>
     template <class FormatContext>
     auto format(Token token, FormatContext &context) const
     {
-        std::wstringstream out;
-        out << token;
-        return std::formatter<std::wstring, wchar_t>::format(out.str(), context);
+        using enum TokenType;
+        switch(token.getType())
+        {
+        case IDENTIFIER:
+            return std::format_to(context.out(), L"{}", std::get<std::wstring>(token.getValue()));
+        case STR_LITERAL:
+            return std::format_to(context.out(), L"{}", std::get<std::wstring>(token.getValue()));
+        case INT_LITERAL:
+            return std::format_to(context.out(), L"{}", std::get<int32_t>(token.getValue()));
+        case FLOAT_LITERAL:
+            return std::format_to(context.out(), L"{}", std::get<double>(token.getValue()));
+        case COMMENT:
+            return std::format_to(context.out(), L"#{}", std::get<std::wstring>(token.getValue()));
+        default:
+            return std::format_to(context.out(), L"{}", token.getType());
+        }
     }
 };
 

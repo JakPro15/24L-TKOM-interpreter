@@ -44,6 +44,15 @@ auto Parser::mustBePresent(auto built, std::wstring_view expectedMessage)
     return built;
 }
 
+void Parser::checkForEOT()
+{
+    if(current.getType() != EOT)
+        throw SyntaxError(
+            std::format(L"Expected 'include', 'struct', 'variant', 'function' or end of text, got '{}'", current),
+            current.getPosition()
+        );
+}
+
 // PROGRAM = { TOP_STMT } ;
 // TOP_STMT = INCLUDE_STMT
 //          | STRUCT_DECL
@@ -64,13 +73,7 @@ Program Parser::parseProgram()
             program.add(std::move(*functionBuilt));
         else
         {
-            if(current.getType() != EOT)
-                throw SyntaxError(
-                    std::format(
-                        L"Expected 'include', 'struct', 'variant', 'function' or end of text, got '{}'", current
-                    ),
-                    current.getPosition()
-                );
+            checkForEOT();
             return program;
         }
     }

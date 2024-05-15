@@ -18,6 +18,7 @@ private:
     void checkAndAdvance(TokenType type, std::wstring errorMessage);
     std::wstring loadAndAdvance(TokenType type);
     auto mustBePresent(auto built, std::wstring_view expectedMessage);
+    void checkForEOT();
 
     std::optional<IncludeStatement> parseIncludeStatement();
     std::optional<std::pair<std::wstring, StructDeclaration>> parseStructDeclaration();

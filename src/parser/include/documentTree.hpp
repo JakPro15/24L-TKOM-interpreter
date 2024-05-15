@@ -341,8 +341,16 @@ struct FunctionIdentification
 };
 
 template <>
-struct std::formatter<FunctionIdentification, wchar_t>: std::formatter<std::wstring, wchar_t>
+struct std::formatter<FunctionIdentification, wchar_t>
 {
+    template <class ParseContext>
+    constexpr auto parse(ParseContext &context)
+    {
+        if(context.begin() != context.end() && *context.begin() != L'}')
+            throw std::format_error("FunctionIdentification does not take any format args.");
+        return context.begin();
+    }
+
     template <class FormatContext>
     auto format(const FunctionIdentification &id, FormatContext &context) const
     {

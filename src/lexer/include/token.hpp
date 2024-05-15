@@ -30,8 +30,16 @@ private:
 };
 
 template <>
-struct std::formatter<Token, wchar_t>: std::formatter<std::wstring, wchar_t>
+struct std::formatter<Token, wchar_t>
 {
+    template <class ParseContext>
+    constexpr auto parse(ParseContext &context)
+    {
+        if(context.begin() != context.end() && *context.begin() != L'}')
+            throw std::format_error("Token does not take any format args.");
+        return context.begin();
+    }
+
     template <class FormatContext>
     auto format(Token token, FormatContext &context) const
     {

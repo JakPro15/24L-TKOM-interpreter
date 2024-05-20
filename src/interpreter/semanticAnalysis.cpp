@@ -12,7 +12,7 @@ namespace {
 class SemanticAnalyzer: public DocumentTreeVisitor
 {
 public:
-    explicit SemanticAnalyzer(Program &visitedProgram): program(program) {}
+    explicit SemanticAnalyzer(Program &program): program(program) {}
 
     void visit(Literal &visited) override
     {
@@ -236,10 +236,10 @@ public:
     // Returns std::nullopt if no type of the given name exists.
     std::optional<std::reference_wrapper<std::vector<Field>>> getStructOrVariantFields(const std::wstring &name)
     {
-        auto foundStruct = std::find(program.structs.begin(), program.structs.end(), name);
+        auto foundStruct = program.structs.find(name);
         if(foundStruct != program.structs.end())
             return foundStruct->second.fields;
-        auto foundVariant = std::find(program.variants.begin(), program.variants.end(), name);
+        auto foundVariant = program.variants.find(name);
         if(foundVariant != program.variants.end())
             return foundVariant->second.fields;
         return std::nullopt;

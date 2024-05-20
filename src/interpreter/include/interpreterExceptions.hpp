@@ -35,7 +35,7 @@ class NameCollisionError: public ErrorAtPosition
 {
 public:
     template <typename T1, typename T2>
-    NameCollisionError(std::wstring firstName, T1 first, std::wstring secondName, T2 second):
+    NameCollisionError(std::wstring firstName, T1 &first, std::wstring secondName, T2 &second):
         ErrorAtPosition(
             std::format(
                 L"Name collision of {}\n"

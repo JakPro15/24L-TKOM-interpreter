@@ -2,9 +2,9 @@ add_library(
     Interpreter OBJECT
     include/includeExecution.hpp
     include/interpreterExceptions.hpp
-    include/semanticAnalyzer.hpp
+    include/semanticAnalysis.hpp
     includeExecution.cpp
-    semanticAnalyzer.cpp
+    semanticAnalysis.cpp
 )
 target_include_directories(Interpreter PUBLIC include)
 target_compile_options(Interpreter PUBLIC -fprofile-arcs -ftest-coverage)

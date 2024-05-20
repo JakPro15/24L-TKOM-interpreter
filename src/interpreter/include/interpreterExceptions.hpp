@@ -17,6 +17,11 @@ class CircularIncludeError: public ErrorAtPosition
     using ErrorAtPosition::ErrorAtPosition;
 };
 
+class IncludeInSemanticAnalysisError: public std::runtime_error
+{
+    using std::runtime_error::runtime_error;
+};
+
 class SemanticError: public ErrorAtPosition
 {
     using ErrorAtPosition::ErrorAtPosition;

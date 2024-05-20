@@ -358,7 +358,9 @@ public:
     void visit(Program &visited) override
     {
         if(!visited.includes.empty())
-            throw std::logic_error("Program's include statements should be executed before calling doSemanticAnalysis");
+            throw IncludeInSemanticAnalysisError(
+                "Program's include statements should be executed before calling doSemanticAnalysis"
+            );
 
         checkNameDuplicates(visited);
         for(const auto &[name, variant]: visited.variants)

@@ -23,6 +23,13 @@ TEST_CASE("valid single top level statement Programs", "[doSemanticAnalysis]")
     doSemanticAnalysis(program);
 }
 
+TEST_CASE("include in semantic analysis", "[doSemanticAnalysis]")
+{
+    Program program({1, 1});
+    program.includes.push_back(IncludeStatement({1, 1}, L"file"));
+    REQUIRE_THROWS_AS(doSemanticAnalysis(program), IncludeInSemanticAnalysisError);
+}
+
 TEST_CASE("nonexistent field types", "[doSemanticAnalysis]")
 {
     Program program({1, 1});

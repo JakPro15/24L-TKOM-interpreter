@@ -15,6 +15,47 @@
 #include <variant>
 #include <vector>
 
+struct Type
+{
+    enum class Builtin
+    {
+        INT,
+        FLOAT,
+        STR,
+        BOOL
+    };
+    std::variant<Builtin, std::wstring> value;
+    bool operator==(const Type &other) const = default;
+};
+
+std::wstring toString(Type::Builtin type);
+std::wstring toString(const std::wstring &type);
+std::wostream &operator<<(std::wostream &out, Type type);
+
+template <>
+struct std::formatter<Type, wchar_t>: std::formatter<std::wstring, wchar_t>
+{
+    template <class FormatContext>
+    auto format(Type type, FormatContext &context) const
+    {
+        return std::formatter<std::wstring, wchar_t>::format(
+            std::visit([](auto value) { return toString(value); }, type.value), context
+        );
+    }
+};
+
+template <>
+struct std::hash<Type>
+{
+    std::size_t operator()(const Type &type) const
+    {
+        if(std::holds_alternative<Type::Builtin>(type.value))
+            return static_cast<std::size_t>(std::get<Type::Builtin>(type.value));
+        else
+            return std::hash<std::wstring>()(std::get<std::wstring>(type.value));
+    }
+};
+
 class DocumentTreeNode
 {
 public:
@@ -34,6 +75,7 @@ struct Expression: public DocumentTreeNode
 struct Literal: public Expression
 {
     explicit Literal(Position position, std::variant<std::wstring, int32_t, double, bool> value);
+    Type getType() const;
     std::variant<std::wstring, int32_t, double, bool> value;
     void accept(DocumentTreeVisitor &visitor) override;
 };
@@ -187,9 +229,9 @@ struct NotExpression: public Expression
 
 struct IsExpression: public Expression
 {
-    explicit IsExpression(Position begin, std::unique_ptr<Expression> left, std::wstring right);
+    explicit IsExpression(Position begin, std::unique_ptr<Expression> left, Type right);
     std::unique_ptr<Expression> left;
-    std::wstring right;
+    Type right;
     void accept(DocumentTreeVisitor &visitor) override;
 };
 
@@ -221,8 +263,9 @@ struct Instruction: public DocumentTreeNode
 
 struct VariableDeclaration: public DocumentTreeNode
 {
-    explicit VariableDeclaration(Position position, std::wstring type, std::wstring name, bool isMutable);
-    std::wstring type, name;
+    explicit VariableDeclaration(Position position, Type type, std::wstring name, bool isMutable);
+    Type type;
+    std::wstring name;
     bool isMutable;
     void accept(DocumentTreeVisitor &visitor) override;
 };
@@ -333,9 +376,9 @@ struct DoWhileStatement: public Instruction
 
 struct FunctionIdentification
 {
-    FunctionIdentification(std::wstring name, std::vector<std::wstring> parameterTypes);
+    FunctionIdentification(std::wstring name, std::vector<Type> parameterTypes);
     std::wstring name;
-    std::vector<std::wstring> parameterTypes;
+    std::vector<Type> parameterTypes;
     bool operator==(const FunctionIdentification &other) const = default;
     friend std::wostream &operator<<(std::wostream &out, const FunctionIdentification &id);
 };
@@ -360,7 +403,7 @@ struct std::formatter<FunctionIdentification, wchar_t>
             std::format_to(context.out(), L"({}", id.parameterTypes[0]);
             std::transform(
                 id.parameterTypes.begin() + 1, id.parameterTypes.end(), context.out(),
-                [](const std::wstring &parameter) { return L", " + parameter; }
+                [](const Type &parameter) { return std::format(L", {}", parameter); }
             );
             std::format_to(context.out(), L")");
         }
@@ -374,10 +417,10 @@ struct std::hash<FunctionIdentification>
     std::size_t operator()(const FunctionIdentification &id) const
     {
         std::size_t value = std::hash<std::wstring>()(id.name);
-        for(const std::wstring &type: id.parameterTypes)
+        for(const Type &type: id.parameterTypes)
         {
             value <<= 1;
-            value ^= std::hash<std::wstring>()(type);
+            value ^= std::hash<Type>()(type);
         }
         return value;
     }
@@ -385,8 +428,9 @@ struct std::hash<FunctionIdentification>
 
 struct Field: public DocumentTreeNode
 {
-    explicit Field(Position position, std::wstring type, std::wstring name);
-    std::wstring type, name;
+    explicit Field(Position position, Type type, std::wstring name);
+    Type type;
+    std::wstring name;
     void accept(DocumentTreeVisitor &visitor) override;
 };
 
@@ -414,11 +458,11 @@ struct FunctionDeclaration: public DocumentTreeNode
 {
     explicit FunctionDeclaration(
         Position position, std::wstring source, std::vector<VariableDeclaration> parameters,
-        std::optional<std::wstring> returnType, std::vector<std::unique_ptr<Instruction>> body
+        std::optional<Type> returnType, std::vector<std::unique_ptr<Instruction>> body
     );
     std::wstring getSource() const;
     std::vector<VariableDeclaration> parameters;
-    std::optional<std::wstring> returnType;
+    std::optional<Type> returnType;
     std::vector<std::unique_ptr<Instruction>> body;
     void accept(DocumentTreeVisitor &visitor) override;
 private:

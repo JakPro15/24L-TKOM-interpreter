@@ -141,7 +141,7 @@ std::pair<std::wstring, std::vector<Field>> Parser::parseDeclarationBlock()
 std::optional<Field> Parser::parseField()
 {
     Position begin = current.getPosition();
-    std::optional<std::wstring> type;
+    std::optional<Type> type;
     if(!(type = parseTypeIdentifier()))
         return std::nullopt;
 
@@ -152,7 +152,7 @@ std::optional<Field> Parser::parseField()
 
 // TYPE_IDENT = BUILTIN_TYPE
 //            | IDENTIFIER ;
-std::optional<std::wstring> Parser::parseTypeIdentifier()
+std::optional<Type> Parser::parseTypeIdentifier()
 {
     if(auto builtinType = parseBuiltinType())
         return *builtinType;
@@ -160,21 +160,37 @@ std::optional<std::wstring> Parser::parseTypeIdentifier()
         return std::nullopt;
     std::wstring type = std::get<std::wstring>(current.getValue());
     advance();
-    return type;
+    return {{type}};
+}
+
+namespace {
+const std::map<TokenType, Type::Builtin> tokenToBuiltinType = {
+    {KW_INT, Type::Builtin::INT},
+    {KW_FLOAT, Type::Builtin::FLOAT},
+    {KW_STR, Type::Builtin::STR},
+    {KW_BOOL, Type::Builtin::BOOL},
+};
+
+template <typename ValueType>
+bool isIn(TokenType tokenType, const std::map<TokenType, ValueType> &container)
+{
+    return std::find_if(container.begin(), container.end(), [&](const std::pair<TokenType, ValueType> &mapPair) {
+               return tokenType == mapPair.first;
+           }) != container.end();
+}
 }
 
 // BUILTIN_TYPE = 'int'
 //              | 'float'
 //              | 'str'
 //              | 'bool' ;
-std::optional<std::wstring> Parser::parseBuiltinType()
+std::optional<Type> Parser::parseBuiltinType()
 {
-    if(current.getType() != KW_INT && current.getType() != KW_FLOAT && current.getType() != KW_STR &&
-       current.getType() != KW_BOOL)
+    TokenType type = current.getType();
+    if(!isIn(type, tokenToBuiltinType))
         return std::nullopt;
-    std::wstring typeAsString = std::format(L"{}", current);
     advance();
-    return typeAsString;
+    return {{tokenToBuiltinType.at(type)}};
 }
 
 // FUNCTION_DECL = 'func', IDENTIFIER, '(', [ PARAMETERS ], ')', [ '->', TYPE_IDENT ] , INSTR_BLOCK ;
@@ -189,14 +205,14 @@ std::optional<std::pair<FunctionIdentification, FunctionDeclaration>> Parser::pa
     checkAndAdvance(LPAREN);
     std::vector<VariableDeclaration> parameters = parseParameters();
     checkAndAdvance(RPAREN, std::format(L"Expected parameter or ')', got '{}'", current));
-    std::optional<std::wstring> returnType;
+    std::optional<Type> returnType;
     if(current.getType() == ARROW)
     {
         advance();
         returnType = mustBePresent(parseTypeIdentifier(), L"type identifier");
     }
     std::vector<std::unique_ptr<Instruction>> body = parseInstructionBlock();
-    std::vector<std::wstring> parameterTypes;
+    std::vector<Type> parameterTypes;
     for(VariableDeclaration parameter: parameters)
         parameterTypes.push_back(parameter.type);
 
@@ -226,7 +242,7 @@ std::vector<VariableDeclaration> Parser::parseParameters()
 std::optional<VariableDeclaration> Parser::parseVariableDeclaration()
 {
     Position begin = current.getPosition();
-    std::optional<std::wstring> type;
+    std::optional<Type> type;
     if(!(type = parseTypeIdentifier()))
         return std::nullopt;
 
@@ -309,7 +325,7 @@ std::unique_ptr<VariableDeclStatement> Parser::parseVariableDeclStatement(Token 
         return nullptr;
 
     Position begin = firstToken.getPosition();
-    std::wstring type = std::get<std::wstring>(firstToken.getValue());
+    Type type = {std::get<std::wstring>(firstToken.getValue())};
     auto [isMutable, name, value] = parseNoTypeDecl();
 
     return std::make_unique<VariableDeclStatement>(
@@ -321,7 +337,7 @@ std::unique_ptr<VariableDeclStatement> Parser::parseVariableDeclStatement(Token 
 std::unique_ptr<VariableDeclStatement> Parser::parseBuiltinDeclStatement()
 {
     Position begin = current.getPosition();
-    std::optional<std::wstring> type;
+    std::optional<Type> type;
     if(!(type = parseBuiltinType()))
         return nullptr;
     auto [isMutable, name, value] = parseNoTypeDecl();
@@ -496,7 +512,7 @@ std::variant<VariableDeclStatement, std::unique_ptr<Expression>> Parser::parseIf
 VariableDeclStatement Parser::parseIfConditionDeclaration()
 {
     Position begin = current.getPosition();
-    std::wstring type = *mustBePresent(parseTypeIdentifier(), L"a variable declaration or expression");
+    Type type = *mustBePresent(parseTypeIdentifier(), L"a variable declaration or expression");
     auto [isMutable, name, value] = parseNoTypeDecl();
     return VariableDeclStatement(begin, VariableDeclaration(begin, type, name, isMutable), std::move(value));
 }
@@ -596,14 +612,6 @@ const std::map<TokenType, BinaryExpressionConstructor> tokenTypeToEqualityExpres
     BINARY_OP_CONSTRUCTOR_PAIR(OP_IDENTICAL, IdenticalExpression),
     BINARY_OP_CONSTRUCTOR_PAIR(OP_NOT_IDENTICAL, NotIdenticalExpression),
 };
-
-template <typename ValueType>
-bool isIn(TokenType tokenType, const std::map<TokenType, ValueType> &container)
-{
-    return std::find_if(container.begin(), container.end(), [&](const std::pair<TokenType, ValueType> &mapPair) {
-               return tokenType == mapPair.first;
-           }) != container.end();
-}
 }
 
 // EQUALITY_EXPR = CONCAT_EXPR, [ EQUALITY_OP, CONCAT_EXPR ] ;
@@ -798,7 +806,7 @@ std::unique_ptr<Expression> Parser::parseIsExpression()
     if(current.getType() == KW_IS)
     {
         advance();
-        std::wstring right = *mustBePresent(parseTypeIdentifier(), L"type identifier");
+        Type right = *mustBePresent(parseTypeIdentifier(), L"type identifier");
         return std::make_unique<IsExpression>(begin, std::move(left), right);
     }
     return left;

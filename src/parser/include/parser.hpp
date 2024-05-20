@@ -27,8 +27,8 @@ private:
     std::optional<std::pair<FunctionIdentification, FunctionDeclaration>> parseFunctionDeclaration();
     std::pair<std::wstring, std::vector<Field>> parseDeclarationBlock();
     std::optional<Field> parseField();
-    std::optional<std::wstring> parseTypeIdentifier();
-    std::optional<std::wstring> parseBuiltinType();
+    std::optional<Type> parseTypeIdentifier();
+    std::optional<Type> parseBuiltinType();
     std::vector<VariableDeclaration> parseParameters();
     std::optional<VariableDeclaration> parseVariableDeclaration();
     std::vector<std::unique_ptr<Instruction>> parseInstructionBlock();

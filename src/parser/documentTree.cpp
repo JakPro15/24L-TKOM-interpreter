@@ -4,6 +4,36 @@
 
 #include <iterator>
 
+std::wstring toString(Type::Builtin type)
+{
+    using enum Type::Builtin;
+    switch(type)
+    {
+    case INT:
+        return L"int";
+    case FLOAT:
+        return L"float";
+    case STR:
+        return L"str";
+    case BOOL:
+        return L"bool";
+    default:
+        return L"unknown";
+    }
+}
+
+std::wstring toString(const std::wstring &type)
+{
+    return type;
+}
+
+std::wostream &operator<<(std::wostream &out, Type type)
+{
+    std::ostream_iterator<wchar_t, wchar_t> outIterator(out);
+    std::format_to(outIterator, L"{}", type);
+    return out;
+}
+
 DocumentTreeNode::DocumentTreeNode(Position position): position(position) {}
 
 Position DocumentTreeNode::getPosition() const
@@ -14,6 +44,21 @@ Position DocumentTreeNode::getPosition() const
 Literal::Literal(Position position, std::variant<std::wstring, int32_t, double, bool> value):
     Expression(position), value(value)
 {}
+
+Type Literal::getType() const
+{
+    using enum Type::Builtin;
+    if(std::holds_alternative<int32_t>(value))
+        return {INT};
+    else if(std::holds_alternative<double>(value))
+        return {FLOAT};
+    else if(std::holds_alternative<std::wstring>(value))
+        return {STR};
+    else if(std::holds_alternative<bool>(value))
+        return {BOOL};
+    else
+        return {L"unknown"};
+}
 
 Variable::Variable(Position position, std::wstring name): Expression(position), name(name) {}
 
@@ -30,7 +75,7 @@ NotExpression::NotExpression(Position position, std::unique_ptr<Expression> valu
     Expression(position), value(std::move(value))
 {}
 
-IsExpression::IsExpression(Position begin, std::unique_ptr<Expression> left, std::wstring right):
+IsExpression::IsExpression(Position begin, std::unique_ptr<Expression> left, Type right):
     Expression(begin), left(std::move(left)), right(right)
 {}
 
@@ -42,7 +87,7 @@ StructExpression::StructExpression(Position position, std::vector<std::unique_pt
     Expression(position), arguments(std::move(arguments))
 {}
 
-VariableDeclaration::VariableDeclaration(Position position, std::wstring type, std::wstring name, bool isMutable):
+VariableDeclaration::VariableDeclaration(Position position, Type type, std::wstring name, bool isMutable):
     DocumentTreeNode(position), type(type), name(name), isMutable(isMutable)
 {}
 
@@ -100,7 +145,7 @@ DoWhileStatement::DoWhileStatement(
 ): Instruction(position), condition(std::move(condition)), body(std::move(body))
 {}
 
-FunctionIdentification::FunctionIdentification(std::wstring name, std::vector<std::wstring> parameterTypes):
+FunctionIdentification::FunctionIdentification(std::wstring name, std::vector<Type> parameterTypes):
     name(name), parameterTypes(parameterTypes)
 {}
 
@@ -111,9 +156,7 @@ std::wostream &operator<<(std::wostream &out, const FunctionIdentification &id)
     return out;
 }
 
-Field::Field(Position position, std::wstring type, std::wstring name):
-    DocumentTreeNode(position), type(type), name(name)
-{}
+Field::Field(Position position, Type type, std::wstring name): DocumentTreeNode(position), type(type), name(name) {}
 
 StructDeclaration::StructDeclaration(Position position, std::wstring source, std::vector<Field> fields):
     DocumentTreeNode(position), fields(fields), source(source)
@@ -134,8 +177,8 @@ std::wstring VariantDeclaration::getSource() const
 }
 
 FunctionDeclaration::FunctionDeclaration(
-    Position position, std::wstring source, std::vector<VariableDeclaration> parameters,
-    std::optional<std::wstring> returnType, std::vector<std::unique_ptr<Instruction>> body
+    Position position, std::wstring source, std::vector<VariableDeclaration> parameters, std::optional<Type> returnType,
+    std::vector<std::unique_ptr<Instruction>> body
 ): DocumentTreeNode(position), parameters(parameters), returnType(returnType), body(std::move(body)), source(source)
 {}
 

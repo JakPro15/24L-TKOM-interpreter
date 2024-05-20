@@ -226,11 +226,26 @@ public:
         static_cast<void>(visited);
     }
 
-    void visit(FunctionDeclaration &visited) override
+    void checkParameterDuplicates(const std::vector<VariableDeclaration> &parameters)
     {
-        static_cast<void>(visited);
+        std::unordered_set<std::wstring> parameterNames;
+        for(const VariableDeclaration &parameter: parameters)
+        {
+            if(parameterNames.find(parameter.name) != parameterNames.end())
+                throw ParameterNameCollisionError(
+                    std::format(L"More than one function parameter have the same name: {}", parameter.name),
+                    currentSource, parameter.getPosition()
+                );
+            parameterNames.insert(parameter.name);
+        }
     }
 
+    void visit(FunctionDeclaration &visited) override
+    {
+        checkParameterDuplicates(visited.parameters);
+    }
+
+    // these are verified via regular functions, not visitation
     EMPTY_VISIT(StructDeclaration);
     EMPTY_VISIT(VariantDeclaration);
     EMPTY_VISIT(IncludeStatement);

@@ -50,5 +50,6 @@ public:
 };
 
 DECLARE_SEMANTIC_ERROR(FieldNameCollisionError);
+DECLARE_SEMANTIC_ERROR(ParameterNameCollisionError);
 
 #endif

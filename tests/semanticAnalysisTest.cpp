@@ -143,3 +143,37 @@ TEST_CASE("struct, variant, function name collisions", "[doSemanticAnalysis]")
     );
     REQUIRE_THROWS_AS(doSemanticAnalysis(program), NameCollisionError);
 }
+
+TEST_CASE("valid function parameters", "[doSemanticAnalysis]")
+{
+    Program program({1, 1});
+    program.functions.insert(
+        {FunctionIdentification(L"function", {}), FunctionDeclaration(
+                                                      {1, 1}, L"<test>",
+                                                      {
+                                                          VariableDeclaration({2, 1}, {INT}, L"a", false),
+                                                          VariableDeclaration({3, 1}, {STR}, L"b", true),
+                                                          VariableDeclaration({4, 1}, {BOOL}, L"c", false),
+                                                          VariableDeclaration({5, 1}, {INT}, L"d", false),
+                                                      },
+                                                      {}, {}
+                                                  )}
+    );
+    doSemanticAnalysis(program);
+}
+
+TEST_CASE("function parameter name collision", "[doSemanticAnalysis]")
+{
+    Program program({1, 1}); // struct-variant collision
+    program.functions.insert(
+        {FunctionIdentification(L"function", {}), FunctionDeclaration(
+                                                      {1, 1}, L"<test>",
+                                                      {
+                                                          VariableDeclaration({2, 1}, {INT}, L"a", false),
+                                                          VariableDeclaration({3, 1}, {STR}, L"a", true),
+                                                      },
+                                                      {}, {}
+                                                  )}
+    );
+    REQUIRE_THROWS_AS(doSemanticAnalysis(program), ParameterNameCollisionError);
+}

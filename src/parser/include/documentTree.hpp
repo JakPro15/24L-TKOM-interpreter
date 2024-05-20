@@ -393,17 +393,21 @@ struct Field: public DocumentTreeNode
 struct StructDeclaration: public DocumentTreeNode
 {
     explicit StructDeclaration(Position position, std::wstring source, std::vector<Field> fields);
-    std::wstring source;
+    std::wstring getSource() const;
     std::vector<Field> fields;
     void accept(DocumentTreeVisitor &visitor) override;
+private:
+    std::wstring source;
 };
 
 struct VariantDeclaration: public DocumentTreeNode
 {
     explicit VariantDeclaration(Position position, std::wstring source, std::vector<Field> fields);
-    std::wstring source;
+    std::wstring getSource() const;
     std::vector<Field> fields;
     void accept(DocumentTreeVisitor &visitor) override;
+private:
+    std::wstring source;
 };
 
 struct FunctionDeclaration: public DocumentTreeNode
@@ -412,11 +416,13 @@ struct FunctionDeclaration: public DocumentTreeNode
         Position position, std::wstring source, std::vector<VariableDeclaration> parameters,
         std::optional<std::wstring> returnType, std::vector<std::unique_ptr<Instruction>> body
     );
-    std::wstring source;
+    std::wstring getSource() const;
     std::vector<VariableDeclaration> parameters;
     std::optional<std::wstring> returnType;
     std::vector<std::unique_ptr<Instruction>> body;
     void accept(DocumentTreeVisitor &visitor) override;
+private:
+    std::wstring source;
 };
 
 struct IncludeStatement: public DocumentTreeNode

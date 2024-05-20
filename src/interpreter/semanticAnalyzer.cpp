@@ -1,5 +1,12 @@
 #include "semanticAnalyzer.hpp"
 
+void SemanticAnalyzer::doSemanticAnalysis(Program &program)
+{
+    SemanticAnalyzer(program).visit(program);
+}
+
+SemanticAnalyzer::SemanticAnalyzer(Program &visitedProgram): visitedProgram(visitedProgram) {}
+
 void SemanticAnalyzer::visit(Literal &visited)
 {
     static_cast<void>(visited);

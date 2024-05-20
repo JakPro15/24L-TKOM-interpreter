@@ -1,10 +1,13 @@
+#ifndef SEMANTICANALYZER_HPP
+#define SEMANTICANALYZER_HPP
+
 #include "documentTree.hpp"
 #include "documentTreeVisitor.hpp"
 
 class SemanticAnalyzer: public DocumentTreeVisitor
 {
 public:
-    explicit SemanticAnalyzer() = default;
+    static void doSemanticAnalysis(Program &program);
     void visit(Literal &visited) override;
     void visit(Variable &visited) override;
     void visit(OrExpression &visited) override;
@@ -52,4 +55,9 @@ public:
     void visit(FunctionDeclaration &visited) override;
     void visit(IncludeStatement &visited) override;
     void visit(Program &visited) override;
+private:
+    explicit SemanticAnalyzer(Program &visitedProgram);
+    Program &visitedProgram;
 };
+
+#endif

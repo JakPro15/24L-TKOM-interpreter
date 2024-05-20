@@ -264,13 +264,13 @@ void PrintingVisitor::visit(Field &visited)
 
 void PrintingVisitor::visit(StructDeclaration &visited)
 {
-    out << L"StructDeclaration " << visited.getPosition() << L"\n";
+    out << L"StructDeclaration " << visited.getPosition() << L" source=" << visited.source << L"\n";
     visitContainer(visited.fields);
 }
 
 void PrintingVisitor::visit(VariantDeclaration &visited)
 {
-    out << L"VariantDeclaration " << visited.getPosition() << L"\n";
+    out << L"VariantDeclaration " << visited.getPosition() << L" source=" << visited.source << L"\n";
     visitContainer(visited.fields);
 }
 

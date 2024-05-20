@@ -6,6 +6,7 @@ add_library(
     include/iLexer.hpp
     include/lexer.hpp
     include/commentDiscarder.hpp
+    lexerExceptions.cpp
     lexer.cpp
     token.cpp
     tokenType.cpp

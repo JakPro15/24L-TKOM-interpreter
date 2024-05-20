@@ -16,7 +16,7 @@ template <typename TokenContainer>
 void checkParsing(TokenContainer tokens, std::wstring expected)
 {
     FakeLexer lexer(tokens);
-    Parser parser(lexer, L"<test>");
+    Parser parser(lexer);
     Program documentTree = parser.parseProgram();
     std::wstringstream output;
     PrintingVisitor printer(output);
@@ -28,7 +28,7 @@ template <typename ErrorType, typename TokenContainer>
 void checkParseError(TokenContainer tokens)
 {
     FakeLexer lexer(tokens);
-    Parser parser(lexer, L"<test>");
+    Parser parser(lexer);
     REQUIRE_THROWS_AS(parser.parseProgram(), ErrorType);
 }
 
@@ -127,7 +127,7 @@ TEST_CASE("StructDeclaration", "[Parser]")
     checkParsing(
         tokens, L"Program containing:\n"
                 L"Structs:\n"
-                L"`-a_structure: StructDeclaration <line: 1, col: 1>\n"
+                L"`-a_structure: StructDeclaration <line: 1, col: 1> source=<test>\n"
                 L" |-Field <line: 1, col: 9> type=int name=field_name\n"
                 L" `-Field <line: 2, col: 1> type=typename name=field_name_2\n"
     );
@@ -255,7 +255,7 @@ TEST_CASE("VariantDeclaration", "[Parser]")
     checkParsing(
         tokens, L"Program containing:\n"
                 L"Variants:\n"
-                L"`-a_variant: VariantDeclaration <line: 1, col: 1>\n"
+                L"`-a_variant: VariantDeclaration <line: 1, col: 1> source=<test>\n"
                 L" |-Field <line: 1, col: 9> type=int name=field_name\n"
                 L" `-Field <line: 2, col: 1> type=typename name=field_name_2\n"
     );

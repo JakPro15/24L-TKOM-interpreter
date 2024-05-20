@@ -115,12 +115,12 @@ Field::Field(Position position, std::wstring type, std::wstring name):
     DocumentTreeNode(position), type(type), name(name)
 {}
 
-StructDeclaration::StructDeclaration(Position position, std::vector<Field> fields):
-    DocumentTreeNode(position), fields(fields)
+StructDeclaration::StructDeclaration(Position position, std::wstring source, std::vector<Field> fields):
+    DocumentTreeNode(position), source(source), fields(fields)
 {}
 
-VariantDeclaration::VariantDeclaration(Position position, std::vector<Field> fields):
-    DocumentTreeNode(position), fields(fields)
+VariantDeclaration::VariantDeclaration(Position position, std::wstring source, std::vector<Field> fields):
+    DocumentTreeNode(position), source(source), fields(fields)
 {}
 
 FunctionDeclaration::FunctionDeclaration(
@@ -135,23 +135,25 @@ IncludeStatement::IncludeStatement(Position position, std::wstring filePath):
 
 Program::Program(Position position): DocumentTreeNode(position) {}
 
-void Program::add(std::pair<std::wstring, StructDeclaration> structBuilt)
+void Program::add(std::pair<std::wstring, StructDeclaration> structBuilt, std::wstring sourceName)
 {
     if(structs.find(structBuilt.first) != structs.end())
     {
         throw DuplicateStructError(
-            std::format(L"Duplicate structure with name {}", structBuilt.first), structBuilt.second.getPosition()
+            std::format(L"Duplicate structure with name {}", structBuilt.first), sourceName,
+            structBuilt.second.getPosition()
         );
     }
     structs.insert(std::move(structBuilt));
 }
 
-void Program::add(std::pair<std::wstring, VariantDeclaration> variantBuilt)
+void Program::add(std::pair<std::wstring, VariantDeclaration> variantBuilt, std::wstring sourceName)
 {
     if(variants.find(variantBuilt.first) != variants.end())
     {
         throw DuplicateVariantError(
-            std::format(L"Duplicate variant with name {}", variantBuilt.first), variantBuilt.second.getPosition()
+            std::format(L"Duplicate variant with name {}", variantBuilt.first), sourceName,
+            variantBuilt.second.getPosition()
         );
     }
     variants.insert(std::move(variantBuilt));
@@ -162,11 +164,7 @@ void Program::add(std::pair<FunctionIdentification, FunctionDeclaration> functio
     if(functions.find(functionBuilt.first) != functions.end())
     {
         throw DuplicateFunctionError(
-            std::format(
-                L"Duplicate function with signature {}\n"
-                L"in file {}",
-                functionBuilt.first, functionBuilt.second.source
-            ),
+            std::format(L"Duplicate function with signature {}", functionBuilt.first), functionBuilt.second.source,
             functionBuilt.second.getPosition()
         );
     }

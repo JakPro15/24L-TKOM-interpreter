@@ -39,9 +39,14 @@ const std::unordered_map<std::wstring, TokenType> keywordToTokenType = {
 };
 }
 
-Lexer::Lexer(IReader &reader, std::wstring sourceName): reader(reader), sourceName(sourceName)
+Lexer::Lexer(IReader &reader): reader(reader), sourceName(reader.getSourceName())
 {
     prepareOperatorMap();
+}
+
+std::wstring Lexer::getSourceName()
+{
+    return sourceName;
 }
 
 void Lexer::skipWhitespace()

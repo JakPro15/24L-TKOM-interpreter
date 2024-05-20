@@ -12,7 +12,8 @@
 class Lexer: public ILexer
 {
 public:
-    explicit Lexer(IReader &reader, std::wstring sourceName);
+    explicit Lexer(IReader &reader);
+    std::wstring getSourceName() override;
     Token getNextToken() override;
 
     static const int MAX_IDENTIFIER_SIZE = 40;

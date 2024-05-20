@@ -25,6 +25,11 @@ DECLARE_LEXER_ERROR(IntWithLeadingZeroError);
 DECLARE_LEXER_ERROR(IntTooLargeError);
 DECLARE_LEXER_ERROR(InvalidExponentError);
 DECLARE_LEXER_ERROR(UnknownTokenError);
-DECLARE_LEXER_ERROR(InvalidTokenValueError);
+
+class InvalidTokenValueError: public std::runtime_error::runtime_error
+{
+public:
+    InvalidTokenValueError(std::wstring message);
+};
 
 #endif

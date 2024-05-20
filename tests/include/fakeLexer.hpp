@@ -6,6 +6,11 @@ class FakeLexer: public ILexer
 public:
     FakeLexer(const TokenContainer &tokens): current(std::begin(tokens)), end(std::end(tokens)) {}
 
+    std::wstring getSourceName() override
+    {
+        return L"<test>";
+    }
+
     Token getNextToken() override
     {
         if(current != end)

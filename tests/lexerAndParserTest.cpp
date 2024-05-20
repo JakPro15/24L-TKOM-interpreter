@@ -29,10 +29,10 @@ void checkContainer(NodeContainer &container, const std::set<std::wstring> &expe
 Program getTree(const std::wstring &source)
 {
     std::wstringstream sourceStream(source);
-    StreamReader reader(sourceStream);
+    StreamReader reader(sourceStream, L"<test>");
     Lexer lexer(reader);
     CommentDiscarder commentDiscarder(lexer);
-    Parser parser(commentDiscarder, L"<test>");
+    Parser parser(commentDiscarder);
     return parser.parseProgram();
 }
 
@@ -61,7 +61,7 @@ TEST_CASE("overloaded functions example", "[Lexer+Parser]")
                           L"    print(f(vart1)); # 1\n"
                           L"    print(f(vart2)); # 2\n"
                           L"}\n";
-    std::set<std::wstring> expectedVariants = {L"V: VariantDeclaration <line: 1, col: 1>\n"
+    std::set<std::wstring> expectedVariants = {L"V: VariantDeclaration <line: 1, col: 1> source=<test>\n"
                                                L"|-Field <line: 1, col: 12> type=int name=a\n"
                                                L"|-Field <line: 1, col: 19> type=str name=b\n"
                                                L"`-Field <line: 1, col: 26> type=bool name=c\n"};
@@ -124,14 +124,14 @@ TEST_CASE("structs and variants example", "[Lexer+Parser]")
                           L"    # konieczne jest podanie typu S1, ponieważ jest wewnątrz rekordu wariantowego\n"
                           L"}\n";
     std::set<std::wstring> expectedStructs = {
-        L"S1: StructDeclaration <line: 1, col: 1>\n"
+        L"S1: StructDeclaration <line: 1, col: 1> source=<test>\n"
         L"|-Field <line: 2, col: 5> type=int name=a\n"
         L"`-Field <line: 3, col: 5> type=int name=b\n",
-        L"S2: StructDeclaration <line: 9, col: 1>\n"
+        L"S2: StructDeclaration <line: 9, col: 1> source=<test>\n"
         L"|-Field <line: 10, col: 5> type=V name=v\n"
         L"`-Field <line: 11, col: 5> type=int name=i\n"
     };
-    std::set<std::wstring> expectedVariants = {L"V: VariantDeclaration <line: 5, col: 1>\n"
+    std::set<std::wstring> expectedVariants = {L"V: VariantDeclaration <line: 5, col: 1> source=<test>\n"
                                                L"|-Field <line: 6, col: 5> type=S1 name=s\n"
                                                L"`-Field <line: 7, col: 5> type=int name=i\n"};
     std::set<std::wstring> expectedFunctions = {

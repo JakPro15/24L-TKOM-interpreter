@@ -10,6 +10,11 @@ StreamReader::StreamReader(std::wistream &source, std::wstring sourceName):
     next(); // set to the first character of input
 }
 
+std::wstring StreamReader::getSourceName()
+{
+    return sourceName;
+}
+
 std::pair<wchar_t, Position> StreamReader::next()
 {
     if(current == EOT)

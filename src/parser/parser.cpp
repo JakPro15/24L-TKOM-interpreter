@@ -8,8 +8,8 @@
 
 using enum TokenType;
 
-Parser::Parser(ILexer &source, std::wstring sourceName):
-    source(source), sourceName(sourceName), current(source.getNextToken()), next(source.getNextToken())
+Parser::Parser(ILexer &source):
+    source(source), sourceName(source.getSourceName()), current(source.getNextToken()), next(source.getNextToken())
 {}
 
 void Parser::advance()
@@ -70,9 +70,9 @@ Program Parser::parseProgram()
         if(auto includeBuilt = parseIncludeStatement())
             program.includes.push_back(*includeBuilt);
         else if(auto structBuilt = parseStructDeclaration())
-            program.add(std::move(*structBuilt));
+            program.add(std::move(*structBuilt), sourceName);
         else if(auto variantBuilt = parseVariantDeclaration())
-            program.add(std::move(*variantBuilt));
+            program.add(std::move(*variantBuilt), sourceName);
         else if(auto functionBuilt = parseFunctionDeclaration())
             program.add(std::move(*functionBuilt));
         else
@@ -105,7 +105,7 @@ std::optional<std::pair<std::wstring, StructDeclaration>> Parser::parseStructDec
     advance();
 
     auto [structName, fields] = parseDeclarationBlock();
-    return std::pair{structName, StructDeclaration(begin, fields)};
+    return std::pair{structName, StructDeclaration(begin, sourceName, fields)};
 }
 
 // VARIANT_DECL = 'variant', DECL_BLOCK ;
@@ -117,7 +117,7 @@ std::optional<std::pair<std::wstring, VariantDeclaration>> Parser::parseVariantD
     advance();
 
     auto [variantName, fields] = parseDeclarationBlock();
-    return std::pair{variantName, VariantDeclaration(begin, fields)};
+    return std::pair{variantName, VariantDeclaration(begin, sourceName, fields)};
 }
 
 // DECL_BLOCK = IDENTIFIER, '{', FIELD_DECL, { FIELD_DECL } , '}' ;

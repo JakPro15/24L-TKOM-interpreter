@@ -2,6 +2,11 @@
 
 CommentDiscarder::CommentDiscarder(ILexer &lexer): lexer(lexer) {}
 
+std::wstring CommentDiscarder::getSourceName()
+{
+    return lexer.getSourceName();
+}
+
 Token CommentDiscarder::getNextToken()
 {
     Token returned = lexer.getNextToken();

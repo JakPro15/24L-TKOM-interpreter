@@ -14,7 +14,7 @@ TEST_CASE("no newlines ASCII case", "[StreamReader]")
 {
     std::wstringstream stream;
     stream.str(L"abc");
-    StreamReader reader(stream);
+    StreamReader reader(stream, L"<test>");
     checkChar(reader, L'a', {1, 1});
     reader.next();
     checkChar(reader, L'b', {1, 2});
@@ -33,7 +33,7 @@ TEST_CASE("empty string", "[StreamReader]")
 {
     std::wstringstream stream;
     stream.str(L"");
-    StreamReader reader(stream);
+    StreamReader reader(stream, L"<test>");
     checkChar(reader, IReader::EOT, {1, 1});
     checkChar(reader, IReader::EOT, {1, 1});
     reader.next();
@@ -49,7 +49,7 @@ TEST_CASE("no newlines Unicode case", "[StreamReader]")
 {
     std::wstringstream stream;
     stream.str(L"ść ඞ读");
-    StreamReader reader(stream);
+    StreamReader reader(stream, L"<test>");
     checkChar(reader, L'ś', {1, 1});
     nextAndCheck(reader, L'ć', {1, 2});
     nextAndCheck(reader, L' ', {1, 3});
@@ -65,7 +65,7 @@ TEST_CASE("newlines conversion", "[StreamReader]")
     {
         std::wstringstream stream;
         stream.str(toCheck);
-        StreamReader reader(stream);
+        StreamReader reader(stream, L"<test>");
         checkChar(reader, L'a', {1, 1});
         nextAndCheck(reader, L'\n', {1, 2});
         nextAndCheck(reader, L'b', {2, 1});
@@ -78,7 +78,7 @@ TEST_CASE("control character in input", "[StreamReader]")
 {
     std::wstringstream stream;
     stream.str(L"ab\3");
-    StreamReader reader(stream);
+    StreamReader reader(stream, L"<test>");
     reader.next();
     REQUIRE_THROWS_AS(reader.next(), ControlCharError);
 }
@@ -87,7 +87,7 @@ TEST_CASE("error in input stream", "[StreamReader]")
 {
     std::wstringstream stream;
     stream.str(L"ab\3");
-    StreamReader reader(stream);
+    StreamReader reader(stream, L"<test>");
     reader.next();
     stream.setstate(std::ios::badbit);
     REQUIRE_THROWS_AS(reader.next(), ReaderInputError);

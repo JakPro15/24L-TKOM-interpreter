@@ -11,7 +11,7 @@ using enum TokenType;
 Token lexSingleToken(std::wstring inputString)
 {
     std::wstringstream input(inputString);
-    StreamReader reader(input);
+    StreamReader reader(input, L"<test>");
     Lexer lexer(reader);
     return lexer.getNextToken();
 }
@@ -47,7 +47,7 @@ template <typename ErrorType>
 void checkTokenError(std::wstring inputString)
 {
     std::wstringstream input(inputString);
-    StreamReader reader(input);
+    StreamReader reader(input, L"<test>");
     Lexer lexer(reader);
     REQUIRE_THROWS_AS(lexer.getNextToken(), ErrorType);
 }
@@ -234,7 +234,7 @@ void getAndCheckToken(ILexer &lexer, TokenType tokenType, int32_t tokenValue)
 TEST_CASE("no whitespace input", "[Lexer]")
 {
     std::wstringstream input(L"abc+-abc");
-    StreamReader reader(input);
+    StreamReader reader(input, L"<test>");
     Lexer lexer(reader);
 
     getAndCheckToken(lexer, IDENTIFIER, L"abc");
@@ -246,7 +246,7 @@ TEST_CASE("no whitespace input", "[Lexer]")
 TEST_CASE("a lot of whitespace input", "[Lexer]")
 {
     std::wstringstream input(L"abc\t  +  \t-\n\n\nabc");
-    StreamReader reader(input);
+    StreamReader reader(input, L"<test>");
     Lexer lexer(reader);
 
     getAndCheckToken(lexer, IDENTIFIER, L"abc");
@@ -266,7 +266,7 @@ TEST_CASE("factorial code example", "[Lexer]")
                              "    }\n"
                              "}\n"
                              "\n");
-    StreamReader reader(input);
+    StreamReader reader(input, L"<test>");
     Lexer lexer(reader);
 
     getAndCheckToken(lexer, KW_FUNC);
@@ -331,7 +331,7 @@ TEST_CASE("nested structs example", "[Lexer]")
                              "    S2 s = {S1({2, 3}), 2};\n"
                              "    # konieczne jest podanie typu S1\n"
                              "}\n");
-    StreamReader reader(input);
+    StreamReader reader(input, L"<test>");
     Lexer lexer(reader);
 
     getAndCheckToken(lexer, KW_STRUCT);

@@ -9,6 +9,7 @@ class StreamReader final: public IReader
 {
 public:
     StreamReader(std::wistream &source, std::wstring sourceName);
+    std::wstring getSourceName() override;
     std::pair<wchar_t, Position> next() override;
     std::pair<wchar_t, Position> get() override;
 private:

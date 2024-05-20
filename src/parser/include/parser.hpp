@@ -8,7 +8,7 @@
 class Parser
 {
 public:
-    explicit Parser(ILexer &source, std::wstring sourceName);
+    explicit Parser(ILexer &source);
     Program parseProgram();
 private:
     ILexer &source;

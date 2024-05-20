@@ -392,14 +392,16 @@ struct Field: public DocumentTreeNode
 
 struct StructDeclaration: public DocumentTreeNode
 {
-    explicit StructDeclaration(Position position, std::vector<Field> fields);
+    explicit StructDeclaration(Position position, std::wstring source, std::vector<Field> fields);
+    std::wstring source;
     std::vector<Field> fields;
     void accept(DocumentTreeVisitor &visitor) override;
 };
 
 struct VariantDeclaration: public DocumentTreeNode
 {
-    explicit VariantDeclaration(Position position, std::vector<Field> fields);
+    explicit VariantDeclaration(Position position, std::wstring source, std::vector<Field> fields);
+    std::wstring source;
     std::vector<Field> fields;
     void accept(DocumentTreeVisitor &visitor) override;
 };
@@ -432,8 +434,8 @@ struct Program: public DocumentTreeNode
     std::unordered_map<std::wstring, VariantDeclaration> variants;
     std::unordered_map<FunctionIdentification, FunctionDeclaration> functions;
     void accept(DocumentTreeVisitor &visitor) override;
-    void add(std::pair<std::wstring, StructDeclaration> structBuilt);
-    void add(std::pair<std::wstring, VariantDeclaration> variantBuilt);
+    void add(std::pair<std::wstring, StructDeclaration> structBuilt, std::wstring sourceName);
+    void add(std::pair<std::wstring, VariantDeclaration> variantBuilt, std::wstring sourceName);
     void add(std::pair<FunctionIdentification, FunctionDeclaration> functionBuilt);
 };
 

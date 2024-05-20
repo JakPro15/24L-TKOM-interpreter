@@ -767,7 +767,7 @@ DOT_EXPR =      STRUCT_EXPR, { '.', IDENTIFIER } ;
 STRUCT_EXPR =   '{', EXPRESSION, { ',', EXPRESSION } , '}'
               | PARENTH_EXPR ;
 
-PARENTH_EXPR =  IDENTIFIER, [ '(', [ EXPRESSION, { ',', EXPRESSION } ] , ')' ]
+PARENTH_EXPR =  TYPE_IDENT, [ '(', [ EXPRESSION, { ',', EXPRESSION } ] , ')' ]
               | '(', EXPRESSION, ')'
               | LITERAL ;
 

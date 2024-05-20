@@ -378,23 +378,20 @@ std::unique_ptr<AssignmentStatement> Parser::parseAssignmentStatement(Token firs
 }
 
 // IDENTIFIER, '(', [ EXPRESSION, { ',', EXPRESSION } ] , ')'
-std::optional<FunctionCall> Parser::parseFunctionCall(Token functionNameToken)
+std::optional<FunctionCall> Parser::parseFunctionCall(std::wstring functionName, Position begin)
 {
     if(current.getType() != LPAREN)
         return std::nullopt;
     advance();
 
-    Position begin = functionNameToken.getPosition();
-    std::wstring name = std::get<std::wstring>(functionNameToken.getValue());
-
     std::vector<std::unique_ptr<Expression>> arguments = parseArguments();
     checkAndAdvance(RPAREN, std::format(L"Expected argument or ')', got '{}'", current));
-    return FunctionCall(begin, name, std::move(arguments));
+    return FunctionCall(begin, functionName, std::move(arguments));
 }
 
-std::unique_ptr<FunctionCall> Parser::parseFunctionCallExpression(Token firstToken)
+std::unique_ptr<FunctionCall> Parser::parseFunctionCallExpression(std::wstring functionName, Position begin)
 {
-    if(auto built = parseFunctionCall(firstToken))
+    if(auto built = parseFunctionCall(functionName, begin))
         return std::make_unique<FunctionCall>(std::move(*built));
     else
         return nullptr;
@@ -402,7 +399,7 @@ std::unique_ptr<FunctionCall> Parser::parseFunctionCallExpression(Token firstTok
 
 std::unique_ptr<FunctionCallInstruction> Parser::parseFunctionCallInstruction(Token firstToken)
 {
-    if(auto built = parseFunctionCall(firstToken))
+    if(auto built = parseFunctionCall(std::get<std::wstring>(firstToken.getValue()), firstToken.getPosition()))
         return std::make_unique<FunctionCallInstruction>(built->getPosition(), std::move(*built));
     else
         return nullptr;
@@ -878,12 +875,15 @@ std::unique_ptr<Expression> Parser::parseParenthExpression()
 // IDENTIFIER, [ '(', [ EXPRESSION, { ',', EXPRESSION } ] , ')' ]
 std::unique_ptr<Expression> Parser::parseVariableOrFunCall()
 {
+    Position begin = current.getPosition();
+    if(auto typeBuilt = parseBuiltinType())
+        return parseFunctionCallExpression(std::format(L"{}", *typeBuilt), begin);
     if(current.getType() != IDENTIFIER)
         return nullptr;
     Token firstIdentifier = current;
     advance();
     std::unique_ptr<FunctionCall> call;
-    if((call = parseFunctionCallExpression(firstIdentifier)))
+    if((call = parseFunctionCallExpression(std::get<std::wstring>(firstIdentifier.getValue()), begin)))
         return call;
     return std::make_unique<Variable>(
         firstIdentifier.getPosition(), std::get<std::wstring>(firstIdentifier.getValue())

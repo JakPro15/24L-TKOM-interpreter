@@ -700,6 +700,14 @@ TEST_CASE("FunctionCall as an Instruction", "[Parser]")
 TEST_CASE("FunctionCall errors", "[Parser]")
 {
     std::vector tokens = wrapInFunction({
+        Token(KW_INT, {5, 1}),
+        Token(LPAREN, {5, 4}),
+        Token(STR_LITERAL, {5, 7}, L"2"),
+        Token(RPAREN, {5, 15}),
+        Token(SEMICOLON, {5, 16}),
+    });
+    checkParseError<SyntaxError>(tokens); // explicit cast disallowed as instruction
+    tokens = wrapInFunction({
         Token(IDENTIFIER, {5, 1}, L"f3"),
         Token(INT_LITERAL, {5, 4}, 1),
         Token(COMMA, {5, 5}),
@@ -716,6 +724,14 @@ TEST_CASE("FunctionCall errors", "[Parser]")
         Token(RPAREN, {5, 15}),
     });
     checkParseError<SyntaxError>(tokens); // missing left parenthesis - expression case
+    tokens = wrapExpression({
+        Token(KW_INT, {5, 1}),
+        Token(INT_LITERAL, {5, 4}, 1),
+        Token(COMMA, {5, 5}),
+        Token(STR_LITERAL, {5, 7}, L"2"),
+        Token(RPAREN, {5, 15}),
+    });
+    checkParseError<SyntaxError>(tokens); // missing left parenthesis - explicit cast case
     tokens = wrapInFunction({
         Token(IDENTIFIER, {5, 1}, L"f3"),
         Token(LPAREN, {5, 3}),
@@ -1509,7 +1525,7 @@ TEST_CASE("FunctionCall as an expression", "[Parser]")
         Token(STR_LITERAL, {5, 4}, L"1"),
         Token(RPAREN, {5, 7}),
         Token(COMMA, {5, 8}),
-        Token(IDENTIFIER, {6, 1}, L"f3"),
+        Token(KW_INT, {6, 1}), // explicit cast parsed as function
         Token(LPAREN, {6, 3}),
         Token(INT_LITERAL, {6, 4}, 1),
         Token(COMMA, {6, 5}),
@@ -1528,7 +1544,7 @@ TEST_CASE("FunctionCall as an expression", "[Parser]")
                 L"    |-FunctionCall <line: 4, col: 1> functionName=f1\n"
                 L"    |-FunctionCall <line: 5, col: 1> functionName=f2\n"
                 L"    |`-Literal <line: 5, col: 4> type=string value=1\n"
-                L"    `-FunctionCall <line: 6, col: 1> functionName=f3\n"
+                L"    `-FunctionCall <line: 6, col: 1> functionName=int\n"
                 L"     |-Literal <line: 6, col: 4> type=int value=1\n"
                 L"     |-Literal <line: 6, col: 7> type=string value=2\n"
                 L"     `-Literal <line: 6, col: 12> type=float value=1.2\n"

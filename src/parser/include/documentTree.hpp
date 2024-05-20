@@ -434,8 +434,8 @@ struct Program: public DocumentTreeNode
     std::unordered_map<std::wstring, VariantDeclaration> variants;
     std::unordered_map<FunctionIdentification, FunctionDeclaration> functions;
     void accept(DocumentTreeVisitor &visitor) override;
-    void add(std::pair<std::wstring, StructDeclaration> structBuilt, std::wstring sourceName);
-    void add(std::pair<std::wstring, VariantDeclaration> variantBuilt, std::wstring sourceName);
+    void add(std::pair<std::wstring, StructDeclaration> structBuilt);
+    void add(std::pair<std::wstring, VariantDeclaration> variantBuilt);
     void add(std::pair<FunctionIdentification, FunctionDeclaration> functionBuilt);
 };
 

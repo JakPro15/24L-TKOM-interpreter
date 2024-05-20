@@ -70,9 +70,9 @@ Program Parser::parseProgram()
         if(auto includeBuilt = parseIncludeStatement())
             program.includes.push_back(*includeBuilt);
         else if(auto structBuilt = parseStructDeclaration())
-            program.add(std::move(*structBuilt), sourceName);
+            program.add(std::move(*structBuilt));
         else if(auto variantBuilt = parseVariantDeclaration())
-            program.add(std::move(*variantBuilt), sourceName);
+            program.add(std::move(*variantBuilt));
         else if(auto functionBuilt = parseFunctionDeclaration())
             program.add(std::move(*functionBuilt));
         else

@@ -135,24 +135,24 @@ IncludeStatement::IncludeStatement(Position position, std::wstring filePath):
 
 Program::Program(Position position): DocumentTreeNode(position) {}
 
-void Program::add(std::pair<std::wstring, StructDeclaration> structBuilt, std::wstring sourceName)
+void Program::add(std::pair<std::wstring, StructDeclaration> structBuilt)
 {
     if(structs.find(structBuilt.first) != structs.end())
     {
         throw DuplicateStructError(
-            std::format(L"Duplicate structure with name {}", structBuilt.first), sourceName,
+            std::format(L"Duplicate structure with name {}", structBuilt.first), structBuilt.second.source,
             structBuilt.second.getPosition()
         );
     }
     structs.insert(std::move(structBuilt));
 }
 
-void Program::add(std::pair<std::wstring, VariantDeclaration> variantBuilt, std::wstring sourceName)
+void Program::add(std::pair<std::wstring, VariantDeclaration> variantBuilt)
 {
     if(variants.find(variantBuilt.first) != variants.end())
     {
         throw DuplicateVariantError(
-            std::format(L"Duplicate variant with name {}", variantBuilt.first), sourceName,
+            std::format(L"Duplicate variant with name {}", variantBuilt.first), variantBuilt.second.source,
             variantBuilt.second.getPosition()
         );
     }

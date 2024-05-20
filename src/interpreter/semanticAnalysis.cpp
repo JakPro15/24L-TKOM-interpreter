@@ -331,26 +331,25 @@ public:
         }
     }
 
+    template <typename StructOrVariantDeclaration>
+    void checkStructOrVariant(const std::wstring &name, const StructOrVariantDeclaration &toCheck)
+    {
+        currentSource = toCheck.getSource();
+        checkFieldNameDuplicates(toCheck.fields);
+        ensureFieldTypesExist(toCheck.fields);
+        checkTypeRecursion(name, toCheck.fields);
+    }
+
     void visit(Program &visited) override
     {
         if(!visited.includes.empty())
             throw std::logic_error("Program's include statements should be executed before calling doSemanticAnalysis");
 
         checkNameDuplicates(visited);
-        for(auto &[name, variant]: visited.variants)
-        {
-            currentSource = variant.getSource();
-            checkFieldNameDuplicates(variant.fields);
-            ensureFieldTypesExist(variant.fields);
-            checkTypeRecursion(name, variant.fields);
-        }
-        for(auto &[name, structure]: visited.structs)
-        {
-            currentSource = structure.getSource();
-            checkFieldNameDuplicates(structure.fields);
-            ensureFieldTypesExist(structure.fields);
-            checkTypeRecursion(name, structure.fields);
-        }
+        for(const auto &[name, variant]: visited.variants)
+            checkStructOrVariant(name, variant);
+        for(const auto &[name, structure]: visited.structs)
+            checkStructOrVariant(name, structure);
         for(auto &function: visited.functions)
         {
             currentSource = function.second.getSource();

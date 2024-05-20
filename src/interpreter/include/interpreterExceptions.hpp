@@ -34,8 +34,8 @@ DECLARE_SEMANTIC_ERROR(FieldTypeRecursionError);
 class NameCollisionError: public ErrorAtPosition
 {
 public:
-    template <typename T1, typename T2>
-    NameCollisionError(std::wstring firstName, T1 &first, std::wstring secondName, T2 &second):
+    template <typename TopLevelStmt1, typename TopLevelStmt2>
+    NameCollisionError(std::wstring firstName, TopLevelStmt1 &first, std::wstring secondName, TopLevelStmt2 &second):
         ErrorAtPosition(
             std::format(
                 L"Name collision of {}\n"

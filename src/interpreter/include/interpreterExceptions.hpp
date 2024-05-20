@@ -49,4 +49,6 @@ public:
     {}
 };
 
+DECLARE_SEMANTIC_ERROR(FieldNameCollisionError);
+
 #endif

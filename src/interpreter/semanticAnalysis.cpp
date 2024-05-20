@@ -2,6 +2,8 @@
 
 #include "interpreterExceptions.hpp"
 
+#include <unordered_set>
+
 #define EMPTY_VISIT(type)              \
     void visit(type &visited) override \
     {                                  \
@@ -315,6 +317,20 @@ public:
         }
     }
 
+    void checkFieldNameDuplicates(const std::vector<Field> &fields)
+    {
+        std::unordered_set<std::wstring> fieldNames;
+        for(const Field &field: fields)
+        {
+            if(fieldNames.find(field.name) != fieldNames.end())
+                throw FieldNameCollisionError(
+                    std::format(L"More than one structure or variant fields have the same name: {}", field.name),
+                    currentSource, field.getPosition()
+                );
+            fieldNames.insert(field.name);
+        }
+    }
+
     void visit(Program &visited) override
     {
         if(!visited.includes.empty())
@@ -324,12 +340,14 @@ public:
         for(auto &[name, variant]: visited.variants)
         {
             currentSource = variant.getSource();
+            checkFieldNameDuplicates(variant.fields);
             ensureFieldTypesExist(variant.fields);
             checkTypeRecursion(name, variant.fields);
         }
         for(auto &[name, structure]: visited.structs)
         {
             currentSource = structure.getSource();
+            checkFieldNameDuplicates(structure.fields);
             ensureFieldTypesExist(structure.fields);
             checkTypeRecursion(name, structure.fields);
         }

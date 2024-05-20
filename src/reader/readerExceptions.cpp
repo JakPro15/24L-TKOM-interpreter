@@ -8,7 +8,7 @@ namespace {
 std::string formatErrorMessage(std::wstring sourceName, std::wstring message, Position position)
 {
     return std::format(
-        "Error: {}\nin file {}\nat line {}, column {} of input.", convertToString(sourceName), convertToString(message),
+        "Error: {}\nin file {}\nat line {}, column {}.", convertToString(sourceName), convertToString(message),
         position.line, position.column
     );
 }

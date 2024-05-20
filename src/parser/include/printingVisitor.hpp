@@ -86,7 +86,7 @@ public:
     template <typename ConditionalStatement>
     void visitCondition(ConditionalStatement &visited)
     {
-        if(visited.body.size() > 0)
+        if(!visited.body.empty())
         {
             out << L"|-";
             indent += L"|";

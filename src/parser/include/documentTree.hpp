@@ -398,7 +398,7 @@ struct std::formatter<FunctionIdentification, wchar_t>
     auto format(const FunctionIdentification &id, FormatContext &context) const
     {
         std::format_to(context.out(), L"{}", id.name);
-        if(id.parameterTypes.size() > 0)
+        if(!id.parameterTypes.empty())
         {
             std::format_to(context.out(), L"({}", id.parameterTypes[0]);
             std::transform(

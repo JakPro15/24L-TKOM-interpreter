@@ -221,7 +221,7 @@ void PrintingVisitor::visit(IfStatement &visited)
     for(auto &ifCase: visited.cases)
     {
         out << indent;
-        if(&ifCase != &visited.cases.back() || visited.elseCaseBody.size() > 0)
+        if(&ifCase != &visited.cases.back() || !visited.elseCaseBody.empty())
         {
             out << L"|-";
             indent += L"|";
@@ -234,7 +234,7 @@ void PrintingVisitor::visit(IfStatement &visited)
         ifCase.accept(*this);
         popIndent();
     }
-    if(visited.elseCaseBody.size() > 0)
+    if(!visited.elseCaseBody.empty())
     {
         out << indent << L"`-ElseCase:\n";
         indent += L" ";
@@ -280,10 +280,10 @@ void PrintingVisitor::visit(FunctionDeclaration &visited)
     if(visited.returnType.has_value())
         out << L" returnType=" << *visited.returnType;
     out << L"\n";
-    if(visited.parameters.size() > 0)
+    if(!visited.parameters.empty())
     {
         out << indent;
-        if(visited.body.size() > 0)
+        if(!visited.body.empty())
         {
             out << L"|-";
             indent += L"|";
@@ -297,7 +297,7 @@ void PrintingVisitor::visit(FunctionDeclaration &visited)
         visitContainer(visited.parameters);
         popIndent();
     }
-    if(visited.body.size() > 0)
+    if(!visited.body.empty())
     {
         out << indent << L"`-Body:\n";
         indent += L" ";
@@ -314,22 +314,22 @@ void PrintingVisitor::visit(IncludeStatement &visited)
 void PrintingVisitor::visit(Program &visited)
 {
     out << L"Program containing:\n";
-    if(visited.includes.size() > 0)
+    if(!visited.includes.empty())
     {
         out << indent << L"Includes:\n";
         visitContainer(visited.includes);
     }
-    if(visited.structs.size() > 0)
+    if(!visited.structs.empty())
     {
         out << indent << L"Structs:\n";
         visitContainer(visited.structs);
     }
-    if(visited.variants.size() > 0)
+    if(!visited.variants.empty())
     {
         out << indent << L"Variants:\n";
         visitContainer(visited.variants);
     }
-    if(visited.functions.size() > 0)
+    if(!visited.functions.empty())
     {
         out << indent << L"Functions:\n";
         visitContainer(visited.functions);

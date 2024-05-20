@@ -8,10 +8,11 @@
 class Parser
 {
 public:
-    explicit Parser(ILexer &source);
+    explicit Parser(ILexer &source, std::wstring sourceName);
     Program parseProgram();
 private:
     ILexer &source;
+    std::wstring sourceName;
     Token current, next;
     void advance();
     void checkAndAdvance(TokenType type);

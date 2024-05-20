@@ -276,7 +276,7 @@ void PrintingVisitor::visit(VariantDeclaration &visited)
 
 void PrintingVisitor::visit(FunctionDeclaration &visited)
 {
-    out << L"FunctionDeclaration " << visited.getPosition();
+    out << L"FunctionDeclaration " << visited.getPosition() << L" source=" << visited.source;
     if(visited.returnType.has_value())
         out << L" returnType=" << *visited.returnType;
     out << L"\n";

@@ -407,9 +407,10 @@ struct VariantDeclaration: public DocumentTreeNode
 struct FunctionDeclaration: public DocumentTreeNode
 {
     explicit FunctionDeclaration(
-        Position position, std::vector<VariableDeclaration> parameters, std::optional<std::wstring> returnType,
-        std::vector<std::unique_ptr<Instruction>> body
+        Position position, std::wstring source, std::vector<VariableDeclaration> parameters,
+        std::optional<std::wstring> returnType, std::vector<std::unique_ptr<Instruction>> body
     );
+    std::wstring source;
     std::vector<VariableDeclaration> parameters;
     std::optional<std::wstring> returnType;
     std::vector<std::unique_ptr<Instruction>> body;

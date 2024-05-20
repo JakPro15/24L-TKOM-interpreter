@@ -16,7 +16,7 @@ template <typename TokenContainer>
 void checkParsing(TokenContainer tokens, std::wstring expected)
 {
     FakeLexer lexer(tokens);
-    Parser parser(lexer);
+    Parser parser(lexer, L"<test>");
     Program documentTree = parser.parseProgram();
     std::wstringstream output;
     PrintingVisitor printer(output);
@@ -28,7 +28,7 @@ template <typename ErrorType, typename TokenContainer>
 void checkParseError(TokenContainer tokens)
 {
     FakeLexer lexer(tokens);
-    Parser parser(lexer);
+    Parser parser(lexer, L"<test>");
     REQUIRE_THROWS_AS(parser.parseProgram(), ErrorType);
 }
 
@@ -370,7 +370,7 @@ TEST_CASE("FunctionDeclaration - empty function", "[Parser]")
     checkParsing(
         wrapInFunction({}), L"Program containing:\n"
                             L"Functions:\n"
-                            L"`-a_function: FunctionDeclaration <line: 1, col: 1>\n"
+                            L"`-a_function: FunctionDeclaration <line: 1, col: 1> source=<test>\n"
     );
 }
 
@@ -398,15 +398,16 @@ TEST_CASE("FunctionDeclaration - parameter list and return type", "[Parser]")
         Token(EOT, {5, 2}),
     };
     checkParsing(
-        tokens, L"Program containing:\n"
-                L"Functions:\n"
-                L"`-a_function(str, typename): FunctionDeclaration <line: 1, col: 1> returnType=type_name\n"
-                L" |-Parameters:\n"
-                L" ||-VariableDeclaration <line: 1, col: 9> type=str name=param1 mutable=true\n"
-                L" |`-VariableDeclaration <line: 1, col: 27> type=typename name=param2 mutable=false\n"
-                L" `-Body:\n"
-                L"  `-FunctionCallInstruction <line: 4, col: 1>\n"
-                L"   `-FunctionCall <line: 4, col: 1> functionName=f\n"
+        tokens,
+        L"Program containing:\n"
+        L"Functions:\n"
+        L"`-a_function(str, typename): FunctionDeclaration <line: 1, col: 1> source=<test> returnType=type_name\n"
+        L" |-Parameters:\n"
+        L" ||-VariableDeclaration <line: 1, col: 9> type=str name=param1 mutable=true\n"
+        L" |`-VariableDeclaration <line: 1, col: 27> type=typename name=param2 mutable=false\n"
+        L" `-Body:\n"
+        L"  `-FunctionCallInstruction <line: 4, col: 1>\n"
+        L"   `-FunctionCall <line: 4, col: 1> functionName=f\n"
     );
 }
 
@@ -534,7 +535,7 @@ TEST_CASE("VariableDeclStatement", "[Parser]")
     checkParsing(
         tokens, L"Program containing:\n"
                 L"Functions:\n"
-                L"`-a_function: FunctionDeclaration <line: 1, col: 1>\n"
+                L"`-a_function: FunctionDeclaration <line: 1, col: 1> source=<test>\n"
                 L" `-Body:\n"
                 L"  |-VariableDeclStatement <line: 4, col: 1>\n"
                 L"  ||-VariableDeclaration <line: 4, col: 1> type=int name=const_var mutable=false\n"
@@ -605,7 +606,7 @@ TEST_CASE("AssignmentStatement", "[Parser]")
     checkParsing(
         tokens, L"Program containing:\n"
                 L"Functions:\n"
-                L"`-a_function: FunctionDeclaration <line: 1, col: 1>\n"
+                L"`-a_function: FunctionDeclaration <line: 1, col: 1> source=<test>\n"
                 L" `-Body:\n"
                 L"  |-AssignmentStatement <line: 3, col: 5>\n"
                 L"  ||-Assignable <line: 3, col: 5> right=some_var\n"
@@ -681,7 +682,7 @@ TEST_CASE("FunctionCall as an Instruction", "[Parser]")
     checkParsing(
         tokens, L"Program containing:\n"
                 L"Functions:\n"
-                L"`-a_function: FunctionDeclaration <line: 1, col: 1>\n"
+                L"`-a_function: FunctionDeclaration <line: 1, col: 1> source=<test>\n"
                 L" `-Body:\n"
                 L"  |-FunctionCallInstruction <line: 3, col: 1>\n"
                 L"  |`-FunctionCall <line: 3, col: 1> functionName=f1\n"
@@ -769,7 +770,7 @@ TEST_CASE("ContinueStatement, BreakStatement, ReturnStatement", "[Parser]")
     checkParsing(
         tokens, L"Program containing:\n"
                 L"Functions:\n"
-                L"`-a_function: FunctionDeclaration <line: 1, col: 1>\n"
+                L"`-a_function: FunctionDeclaration <line: 1, col: 1> source=<test>\n"
                 L" `-Body:\n"
                 L"  |-ContinueStatement <line: 4, col: 1>\n"
                 L"  |-BreakStatement <line: 5, col: 1>\n"
@@ -817,7 +818,7 @@ TEST_CASE("IfStatement - basic", "[Parser]")
     checkParsing(
         tokens, L"Program containing:\n"
                 L"Functions:\n"
-                L"`-a_function: FunctionDeclaration <line: 1, col: 1>\n"
+                L"`-a_function: FunctionDeclaration <line: 1, col: 1> source=<test>\n"
                 L" `-Body:\n"
                 L"  `-IfStatement <line: 4, col: 1>\n"
                 L"   `-SingleIfCase <line: 4, col: 1>\n"
@@ -878,7 +879,7 @@ TEST_CASE("IfStatement - many cases", "[Parser]")
     checkParsing(
         tokens, L"Program containing:\n"
                 L"Functions:\n"
-                L"`-a_function: FunctionDeclaration <line: 1, col: 1>\n"
+                L"`-a_function: FunctionDeclaration <line: 1, col: 1> source=<test>\n"
                 L" `-Body:\n"
                 L"  `-IfStatement <line: 4, col: 1>\n"
                 L"   |-SingleIfCase <line: 4, col: 1>\n"
@@ -989,7 +990,7 @@ TEST_CASE("WhileStatement", "[Parser]")
     checkParsing(
         tokens, L"Program containing:\n"
                 L"Functions:\n"
-                L"`-a_function: FunctionDeclaration <line: 1, col: 1>\n"
+                L"`-a_function: FunctionDeclaration <line: 1, col: 1> source=<test>\n"
                 L" `-Body:\n"
                 L"  `-WhileStatement <line: 4, col: 1>\n"
                 L"   |-Literal <line: 4, col: 10> type=int value=1\n"
@@ -1048,7 +1049,7 @@ TEST_CASE("DoWhileStatement", "[Parser]")
     checkParsing(
         tokens, L"Program containing:\n"
                 L"Functions:\n"
-                L"`-a_function: FunctionDeclaration <line: 1, col: 1>\n"
+                L"`-a_function: FunctionDeclaration <line: 1, col: 1> source=<test>\n"
                 L" `-Body:\n"
                 L"  `-DoWhileStatement <line: 4, col: 1>\n"
                 L"   |-Literal <line: 8, col: 10> type=int value=1\n"
@@ -1114,7 +1115,7 @@ void checkBinaryOperator(TokenType operatorType, std::wstring expressionName)
         tokens, std::format(
                     L"Program containing:\n"
                     L"Functions:\n"
-                    L"`-a_function: FunctionDeclaration <line: 1, col: 1>\n"
+                    L"`-a_function: FunctionDeclaration <line: 1, col: 1> source=<test>\n"
                     L" `-Body:\n"
                     L"  `-FunctionCallInstruction <line: 3, col: 15>\n"
                     L"   `-FunctionCall <line: 3, col: 15> functionName=print\n"
@@ -1141,7 +1142,7 @@ void checkBinaryOpAssociativity(TokenType operatorType, std::wstring expressionN
         tokens, std::format(
                     L"Program containing:\n"
                     L"Functions:\n"
-                    L"`-a_function: FunctionDeclaration <line: 1, col: 1>\n"
+                    L"`-a_function: FunctionDeclaration <line: 1, col: 1> source=<test>\n"
                     L" `-Body:\n"
                     L"  `-FunctionCallInstruction <line: 3, col: 15>\n"
                     L"   `-FunctionCall <line: 3, col: 15> functionName=print\n"
@@ -1258,7 +1259,7 @@ TEST_CASE("MinusExpression and UnaryMinusExpression", "[Parser]")
     checkParsing(
         tokens, L"Program containing:\n"
                 L"Functions:\n"
-                L"`-a_function: FunctionDeclaration <line: 1, col: 1>\n"
+                L"`-a_function: FunctionDeclaration <line: 1, col: 1> source=<test>\n"
                 L" `-Body:\n"
                 L"  `-FunctionCallInstruction <line: 3, col: 15>\n"
                 L"   `-FunctionCall <line: 3, col: 15> functionName=print\n"
@@ -1283,7 +1284,7 @@ TEST_CASE("NotExpression", "[Parser]")
     checkParsing(
         tokens, L"Program containing:\n"
                 L"Functions:\n"
-                L"`-a_function: FunctionDeclaration <line: 1, col: 1>\n"
+                L"`-a_function: FunctionDeclaration <line: 1, col: 1> source=<test>\n"
                 L" `-Body:\n"
                 L"  `-FunctionCallInstruction <line: 3, col: 15>\n"
                 L"   `-FunctionCall <line: 3, col: 15> functionName=print\n"
@@ -1317,7 +1318,7 @@ TEST_CASE("IsExpression", "[Parser]")
     checkParsing(
         tokens, L"Program containing:\n"
                 L"Functions:\n"
-                L"`-a_function: FunctionDeclaration <line: 1, col: 1>\n"
+                L"`-a_function: FunctionDeclaration <line: 1, col: 1> source=<test>\n"
                 L" `-Body:\n"
                 L"  `-FunctionCallInstruction <line: 3, col: 15>\n"
                 L"   `-FunctionCall <line: 3, col: 15> functionName=print\n"
@@ -1358,7 +1359,7 @@ TEST_CASE("SubscriptExpression", "[Parser]")
     checkParsing(
         tokens, L"Program containing:\n"
                 L"Functions:\n"
-                L"`-a_function: FunctionDeclaration <line: 1, col: 1>\n"
+                L"`-a_function: FunctionDeclaration <line: 1, col: 1> source=<test>\n"
                 L" `-Body:\n"
                 L"  `-FunctionCallInstruction <line: 3, col: 15>\n"
                 L"   `-FunctionCall <line: 3, col: 15> functionName=print\n"
@@ -1412,7 +1413,7 @@ TEST_CASE("DotExpression", "[Parser]")
     checkParsing(
         tokens, L"Program containing:\n"
                 L"Functions:\n"
-                L"`-a_function: FunctionDeclaration <line: 1, col: 1>\n"
+                L"`-a_function: FunctionDeclaration <line: 1, col: 1> source=<test>\n"
                 L" `-Body:\n"
                 L"  `-FunctionCallInstruction <line: 3, col: 15>\n"
                 L"   `-FunctionCall <line: 3, col: 15> functionName=print\n"
@@ -1455,7 +1456,7 @@ TEST_CASE("StructExpression", "[Parser]")
     checkParsing(
         tokens, L"Program containing:\n"
                 L"Functions:\n"
-                L"`-a_function: FunctionDeclaration <line: 1, col: 1>\n"
+                L"`-a_function: FunctionDeclaration <line: 1, col: 1> source=<test>\n"
                 L" `-Body:\n"
                 L"  `-FunctionCallInstruction <line: 3, col: 15>\n"
                 L"   `-FunctionCall <line: 3, col: 15> functionName=print\n"
@@ -1520,7 +1521,7 @@ TEST_CASE("FunctionCall as an expression", "[Parser]")
     checkParsing(
         tokens, L"Program containing:\n"
                 L"Functions:\n"
-                L"`-a_function: FunctionDeclaration <line: 1, col: 1>\n"
+                L"`-a_function: FunctionDeclaration <line: 1, col: 1> source=<test>\n"
                 L" `-Body:\n"
                 L"  `-FunctionCallInstruction <line: 3, col: 15>\n"
                 L"   `-FunctionCall <line: 3, col: 15> functionName=print\n"
@@ -1544,7 +1545,7 @@ TEST_CASE("Expression in parentheses", "[Parser]")
     checkParsing(
         tokens, L"Program containing:\n"
                 L"Functions:\n"
-                L"`-a_function: FunctionDeclaration <line: 1, col: 1>\n"
+                L"`-a_function: FunctionDeclaration <line: 1, col: 1> source=<test>\n"
                 L" `-Body:\n"
                 L"  `-FunctionCallInstruction <line: 3, col: 15>\n"
                 L"   `-FunctionCall <line: 3, col: 15> functionName=print\n"
@@ -1582,7 +1583,7 @@ TEST_CASE("Literal", "[Parser]")
     checkParsing(
         tokens, L"Program containing:\n"
                 L"Functions:\n"
-                L"`-a_function: FunctionDeclaration <line: 1, col: 1>\n"
+                L"`-a_function: FunctionDeclaration <line: 1, col: 1> source=<test>\n"
                 L" `-Body:\n"
                 L"  `-FunctionCallInstruction <line: 3, col: 15>\n"
                 L"   `-FunctionCall <line: 3, col: 15> functionName=print\n"

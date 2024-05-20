@@ -32,7 +32,7 @@ Program getTree(const std::wstring &source)
     StreamReader reader(sourceStream);
     Lexer lexer(reader);
     CommentDiscarder commentDiscarder(lexer);
-    Parser parser(commentDiscarder);
+    Parser parser(commentDiscarder, L"<test>");
     return parser.parseProgram();
 }
 
@@ -66,25 +66,25 @@ TEST_CASE("overloaded functions example", "[Lexer+Parser]")
                                                L"|-Field <line: 1, col: 19> type=str name=b\n"
                                                L"`-Field <line: 1, col: 26> type=bool name=c\n"};
     std::set<std::wstring> expectedFunctions = {
-        L"f(int): FunctionDeclaration <line: 2, col: 1> returnType=int\n"
+        L"f(int): FunctionDeclaration <line: 2, col: 1> source=<test> returnType=int\n"
         L"|-Parameters:\n"
         L"|`-VariableDeclaration <line: 2, col: 8> type=int name=v mutable=false\n"
         L"`-Body:\n"
         L" `-ReturnStatement <line: 2, col: 24>\n"
         L"  `-Literal <line: 2, col: 31> type=int value=1\n",
-        L"f(str): FunctionDeclaration <line: 3, col: 1> returnType=int\n"
+        L"f(str): FunctionDeclaration <line: 3, col: 1> source=<test> returnType=int\n"
         L"|-Parameters:\n"
         L"|`-VariableDeclaration <line: 3, col: 8> type=str name=v mutable=false\n"
         L"`-Body:\n"
         L" `-ReturnStatement <line: 3, col: 24>\n"
         L"  `-Literal <line: 3, col: 31> type=int value=2\n",
-        L"f(bool): FunctionDeclaration <line: 4, col: 1> returnType=int\n"
+        L"f(bool): FunctionDeclaration <line: 4, col: 1> source=<test> returnType=int\n"
         L"|-Parameters:\n"
         L"|`-VariableDeclaration <line: 4, col: 8> type=bool name=v mutable=false\n"
         L"`-Body:\n"
         L" `-ReturnStatement <line: 4, col: 25>\n"
         L"  `-Literal <line: 4, col: 32> type=int value=3\n",
-        L"main: FunctionDeclaration <line: 6, col: 1>\n"
+        L"main: FunctionDeclaration <line: 6, col: 1> source=<test>\n"
         L"`-Body:\n"
         L" |-VariableDeclStatement <line: 7, col: 5>\n"
         L" ||-VariableDeclaration <line: 7, col: 5> type=V name=vart1 mutable=false\n"
@@ -135,7 +135,7 @@ TEST_CASE("structs and variants example", "[Lexer+Parser]")
                                                L"|-Field <line: 6, col: 5> type=S1 name=s\n"
                                                L"`-Field <line: 7, col: 5> type=int name=i\n"};
     std::set<std::wstring> expectedFunctions = {
-        L"main: FunctionDeclaration <line: 14, col: 1>\n"
+        L"main: FunctionDeclaration <line: 14, col: 1> source=<test>\n"
         L"`-Body:\n"
         L" `-VariableDeclStatement <line: 15, col: 5>\n"
         L"  |-VariableDeclaration <line: 15, col: 5> type=S2 name=s mutable=false\n"
@@ -170,7 +170,7 @@ TEST_CASE("loops example", "[Lexer+Parser]")
                           L"# a === 8, b === 13\n"
                           L"}\n";
     std::set<std::wstring> expectedFunctions = {
-        L"main: FunctionDeclaration <line: 1, col: 1>\n"
+        L"main: FunctionDeclaration <line: 1, col: 1> source=<test>\n"
         L"`-Body:\n"
         L" |-VariableDeclStatement <line: 2, col: 5>\n"
         L" ||-VariableDeclaration <line: 2, col: 5> type=int name=a mutable=true\n"
@@ -233,7 +233,7 @@ void doPriorityTest(const std::wstring &expressionSource, const std::wstring &ex
 TEST_CASE("priority tests", "[Lexer+Parser]")
 {
     doPriorityTest(
-        L"2 / 2 * 3", L"FunctionDeclaration <line: 1, col: 1>\n"
+        L"2 / 2 * 3", L"FunctionDeclaration <line: 1, col: 1> source=<test>\n"
                       L"`-Body:\n"
                       L" `-FunctionCallInstruction <line: 1, col: 15>\n"
                       L"  `-FunctionCall <line: 1, col: 15> functionName=print\n"
@@ -244,7 +244,7 @@ TEST_CASE("priority tests", "[Lexer+Parser]")
                       L"    `-Literal <line: 1, col: 29> type=int value=3\n"
     );
     doPriorityTest(
-        L"\"4\" ** 2 ** \"1\"", L"FunctionDeclaration <line: 1, col: 1>\n"
+        L"\"4\" ** 2 ** \"1\"", L"FunctionDeclaration <line: 1, col: 1> source=<test>\n"
                                 L"`-Body:\n"
                                 L" `-FunctionCallInstruction <line: 1, col: 15>\n"
                                 L"  `-FunctionCall <line: 1, col: 15> functionName=print\n"
@@ -255,7 +255,7 @@ TEST_CASE("priority tests", "[Lexer+Parser]")
                                 L"    `-Literal <line: 1, col: 33> type=string value=1\n"
     );
     doPriorityTest(
-        L"\"4\" ! \"2\" @ \"2\"", L"FunctionDeclaration <line: 1, col: 1>\n"
+        L"\"4\" ! \"2\" @ \"2\"", L"FunctionDeclaration <line: 1, col: 1> source=<test>\n"
                                   L"`-Body:\n"
                                   L" `-FunctionCallInstruction <line: 1, col: 15>\n"
                                   L"  `-FunctionCall <line: 1, col: 15> functionName=print\n"
@@ -266,7 +266,7 @@ TEST_CASE("priority tests", "[Lexer+Parser]")
                                   L"     `-Literal <line: 1, col: 33> type=string value=2\n"
     );
     doPriorityTest(
-        L"3 === -\"-3\"", L"FunctionDeclaration <line: 1, col: 1>\n"
+        L"3 === -\"-3\"", L"FunctionDeclaration <line: 1, col: 1> source=<test>\n"
                           L"`-Body:\n"
                           L" `-FunctionCallInstruction <line: 1, col: 15>\n"
                           L"  `-FunctionCall <line: 1, col: 15> functionName=print\n"
@@ -293,7 +293,7 @@ TEST_CASE("factorial example", "[Lexer+Parser]")
                           L"    int b = factorial(4); # b === 24\n"
                           L"}\n";
     std::set<std::wstring> expectedFunctions = {
-        L"factorial(int): FunctionDeclaration <line: 1, col: 1> returnType=int\n"
+        L"factorial(int): FunctionDeclaration <line: 1, col: 1> source=<test> returnType=int\n"
         L"|-Parameters:\n"
         L"|`-VariableDeclaration <line: 1, col: 16> type=int name=n mutable=false\n"
         L"`-Body:\n"
@@ -316,7 +316,7 @@ TEST_CASE("factorial example", "[Lexer+Parser]")
         L"      `-MinusExpression <line: 6, col: 30>\n"
         L"       |-Variable <line: 6, col: 30> name=n\n"
         L"       `-Literal <line: 6, col: 34> type=int value=1\n",
-        L"main: FunctionDeclaration <line: 10, col: 1>\n"
+        L"main: FunctionDeclaration <line: 10, col: 1> source=<test>\n"
         L"`-Body:\n"
         L" |-VariableDeclStatement <line: 11, col: 5>\n"
         L" ||-VariableDeclaration <line: 11, col: 5> type=int name=a mutable=false\n"

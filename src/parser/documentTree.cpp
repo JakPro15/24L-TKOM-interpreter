@@ -124,9 +124,9 @@ VariantDeclaration::VariantDeclaration(Position position, std::vector<Field> fie
 {}
 
 FunctionDeclaration::FunctionDeclaration(
-    Position position, std::vector<VariableDeclaration> parameters, std::optional<std::wstring> returnType,
-    std::vector<std::unique_ptr<Instruction>> body
-): DocumentTreeNode(position), parameters(parameters), returnType(returnType), body(std::move(body))
+    Position position, std::wstring source, std::vector<VariableDeclaration> parameters,
+    std::optional<std::wstring> returnType, std::vector<std::unique_ptr<Instruction>> body
+): DocumentTreeNode(position), source(source), parameters(parameters), returnType(returnType), body(std::move(body))
 {}
 
 IncludeStatement::IncludeStatement(Position position, std::wstring filePath):

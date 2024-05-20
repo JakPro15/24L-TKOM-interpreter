@@ -8,7 +8,9 @@
 
 using enum TokenType;
 
-Parser::Parser(ILexer &source): source(source), current(source.getNextToken()), next(source.getNextToken()) {}
+Parser::Parser(ILexer &source, std::wstring sourceName):
+    source(source), sourceName(sourceName), current(source.getNextToken()), next(source.getNextToken())
+{}
 
 void Parser::advance()
 {
@@ -198,7 +200,7 @@ std::optional<std::pair<FunctionIdentification, FunctionDeclaration>> Parser::pa
 
     return std::pair{
         FunctionIdentification(name, parameterTypes),
-        FunctionDeclaration(begin, parameters, returnType, std::move(body))
+        FunctionDeclaration(begin, sourceName, parameters, returnType, std::move(body))
     };
 }
 

@@ -26,14 +26,14 @@ void Parser::checkAndAdvance(TokenType type)
 void Parser::checkAndAdvance(TokenType type, std::wstring errorMessage)
 {
     if(current.getType() != type)
-        throw SyntaxError(errorMessage, current.getPosition());
+        throw SyntaxError(errorMessage, sourceName, current.getPosition());
     advance();
 }
 
 std::wstring Parser::loadAndAdvance(TokenType type)
 {
     if(current.getType() != type)
-        throw SyntaxError(std::format(L"Expected {}, got '{}'", type, current), current.getPosition());
+        throw SyntaxError(std::format(L"Expected {}, got '{}'", type, current), sourceName, current.getPosition());
     std::wstring loaded = std::get<std::wstring>(current.getValue());
     advance();
     return loaded;
@@ -42,7 +42,9 @@ std::wstring Parser::loadAndAdvance(TokenType type)
 auto Parser::mustBePresent(auto built, std::wstring_view expectedMessage)
 {
     if(!built)
-        throw SyntaxError(std::format(L"Expected {}, got '{}'", expectedMessage, current), current.getPosition());
+        throw SyntaxError(
+            std::format(L"Expected {}, got '{}'", expectedMessage, current), sourceName, current.getPosition()
+        );
     return built;
 }
 
@@ -51,7 +53,7 @@ void Parser::checkForEOT()
     if(current.getType() != EOT)
         throw SyntaxError(
             std::format(L"Expected 'include', 'struct', 'variant', 'function' or end of text, got '{}'", current),
-            current.getPosition()
+            sourceName, current.getPosition()
         );
 }
 
@@ -129,7 +131,7 @@ std::pair<std::wstring, std::vector<Field>> Parser::parseDeclarationBlock()
         fields.push_back(*fieldBuilt);
 
     if(fields.empty())
-        throw SyntaxError(L"Expected at least one field in declaration block", current.getPosition());
+        throw SyntaxError(L"Expected at least one field in declaration block", sourceName, current.getPosition());
 
     checkAndAdvance(RBRACE, std::format(L"Expected field or }}, got '{}'", current));
     return {name, fields};
@@ -294,7 +296,7 @@ std::unique_ptr<Instruction> Parser::parseDeclOrAssignOrFunCall()
        !(instruction = parseFunctionCallInstruction(firstIdentifier)))
         throw SyntaxError(
             std::format(L"Expected a variable declaration, an assignment or a function call, got '{}'", current),
-            current.getPosition()
+            sourceName, current.getPosition()
         );
     checkAndAdvance(SEMICOLON);
     return instruction;
@@ -845,7 +847,7 @@ std::unique_ptr<Expression> Parser::parseStructExpression()
         advance();
         std::vector<std::unique_ptr<Expression>> arguments = parseArguments();
         if(arguments.size() < 1)
-            throw SyntaxError(L"Expected at least 1 argument in StructExpression", begin);
+            throw SyntaxError(L"Expected at least 1 argument in StructExpression", sourceName, begin);
         checkAndAdvance(RBRACE, std::format(L"Expected struct expression argument or '}}', got '{}'", current));
         return std::make_unique<StructExpression>(begin, std::move(arguments));
     }
@@ -888,7 +890,7 @@ std::unique_ptr<Expression> Parser::parseExpressionInParentheses()
     advance();
     std::unique_ptr<Expression> expression = parseExpression();
     if(!expression)
-        throw SyntaxError(std::format(L"Expected expression, got '{}'", current), current.getPosition());
+        throw SyntaxError(std::format(L"Expected expression, got '{}'", current), sourceName, current.getPosition());
     checkAndAdvance(RPAREN);
     return expression;
 }

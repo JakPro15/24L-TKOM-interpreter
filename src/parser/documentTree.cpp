@@ -162,7 +162,11 @@ void Program::add(std::pair<FunctionIdentification, FunctionDeclaration> functio
     if(functions.find(functionBuilt.first) != functions.end())
     {
         throw DuplicateFunctionError(
-            std::format(L"Duplicate function with signature {}", functionBuilt.first),
+            std::format(
+                L"Duplicate function with signature {}\n"
+                L"in file {}",
+                functionBuilt.first, functionBuilt.second.source
+            ),
             functionBuilt.second.getPosition()
         );
     }

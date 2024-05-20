@@ -4,7 +4,8 @@
 
 #include <format>
 
-StreamReader::StreamReader(std::wistream &source): source(source), current(0), currentPosition(Position(1, 0))
+StreamReader::StreamReader(std::wistream &source, std::wstring sourceName):
+    source(source), sourceName(sourceName), current(0), currentPosition(Position(1, 0))
 {
     next(); // set to the first character of input
 }
@@ -25,7 +26,7 @@ std::pair<wchar_t, Position> StreamReader::next()
     current = source.get();
     if(!std::iswspace(current) && std::iswcntrl(current))
         throw ControlCharError(
-            std::format(L"Control character encountered in input: \\x{:x}", current), currentPosition
+            std::format(L"Control character encountered in input: \\x{:x}", current), sourceName, currentPosition
         );
     if(source.eof())
     {
@@ -33,7 +34,7 @@ std::pair<wchar_t, Position> StreamReader::next()
         return get();
     }
     else if(source.bad() || source.fail())
-        throw ReaderInputError(L"Input stream returned error", currentPosition);
+        throw ReaderInputError(L"Input stream returned error", sourceName, currentPosition);
 
     if(current == L'\r')
     {

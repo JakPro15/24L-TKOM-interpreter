@@ -8,7 +8,7 @@
 class ErrorAtPosition: public std::runtime_error
 {
 public:
-    ErrorAtPosition(std::wstring message, Position position);
+    ErrorAtPosition(std::wstring sourceName, std::wstring message, Position position);
 };
 
 class ReaderException: public ErrorAtPosition

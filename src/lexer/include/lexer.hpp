@@ -12,7 +12,7 @@
 class Lexer: public ILexer
 {
 public:
-    explicit Lexer(IReader &reader);
+    explicit Lexer(IReader &reader, std::wstring sourceName);
     Token getNextToken() override;
 
     static const int MAX_IDENTIFIER_SIZE = 40;
@@ -20,6 +20,7 @@ public:
     static const int MAX_STRING_SIZE = 100;
 private:
     IReader &reader;
+    std::wstring sourceName;
     void skipWhitespace();
     // Will also build keywords and bool literals
     std::optional<Token> tryBuildIdentifier();

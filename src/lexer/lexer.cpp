@@ -39,7 +39,7 @@ const std::unordered_map<std::wstring, TokenType> keywordToTokenType = {
 };
 }
 
-Lexer::Lexer(IReader &reader): reader(reader)
+Lexer::Lexer(IReader &reader, std::wstring sourceName): reader(reader), sourceName(sourceName)
 {
     prepareOperatorMap();
 }
@@ -64,7 +64,7 @@ std::optional<Token> Lexer::tryBuildIdentifier()
     {
         tokenValue.put(current);
         if(tokenValue.tellp() > MAX_IDENTIFIER_SIZE)
-            throw IdentifierTooLongError(L"Maximum identifier size exceeded", tokenStart);
+            throw IdentifierTooLongError(L"Maximum identifier size exceeded", sourceName, tokenStart);
         current = reader.next().first;
     }
     std::wstring result = tokenValue.str();
@@ -85,7 +85,7 @@ std::optional<Token> Lexer::tryBuildComment()
     {
         tokenValue.put(current);
         if(tokenValue.tellp() > MAX_COMMENT_SIZE)
-            throw CommentTooLongError(L"Maximum comment size exceeded", tokenStart);
+            throw CommentTooLongError(L"Maximum comment size exceeded", sourceName, tokenStart);
         current = reader.next().first;
     }
     return Token(COMMENT, tokenStart, tokenValue.str());
@@ -94,16 +94,18 @@ std::optional<Token> Lexer::tryBuildComment()
 unsigned Lexer::hexToNumber(wchar_t character)
 {
     if(character == L'\n')
-        throw NewlineInStringError(L"Newline character in string literal encountered", tokenStart);
+        throw NewlineInStringError(L"Newline character in string literal encountered", sourceName, tokenStart);
     if(character == IReader::EOT)
-        throw UnterminatedStringError(L"String literal not terminated", tokenStart);
+        throw UnterminatedStringError(L"String literal not terminated", sourceName, tokenStart);
     if(character >= L'0' && character <= L'9')
         return character - L'0';
     if(character >= L'a' && character <= L'f')
         return character - L'a' + 10;
     if(character >= L'A' && character <= L'F')
         return character - L'A' + 10;
-    throw InvalidHexCharError(std::format(L"The character {} is not a valid hex digit", character), tokenStart);
+    throw InvalidHexCharError(
+        std::format(L"The character {} is not a valid hex digit", character), sourceName, tokenStart
+    );
 }
 
 wchar_t Lexer::buildHexChar()
@@ -137,12 +139,12 @@ void Lexer::buildEscapeSequence(std::wstringstream &tokenValue)
         tokenValue.put(buildHexChar());
         break;
     case L'\n':
-        throw NewlineInStringError(L"Newline character in string literal encountered", tokenStart);
+        throw NewlineInStringError(L"Newline character in string literal encountered", sourceName, tokenStart);
     case IReader::EOT:
-        throw UnterminatedStringError(L"String literal not terminated", tokenStart);
+        throw UnterminatedStringError(L"String literal not terminated", sourceName, tokenStart);
     default:
         throw UnknownEscapeSequenceError(
-            std::format(L"\\{} is not a valid escape sequence", reader.get().first), tokenStart
+            std::format(L"\\{} is not a valid escape sequence", reader.get().first), sourceName, tokenStart
         );
     }
 }
@@ -157,9 +159,9 @@ std::optional<Token> Lexer::tryBuildString()
     while(current != L'"')
     {
         if(current == L'\n')
-            throw NewlineInStringError(L"Newline character in string literal encountered", tokenStart);
+            throw NewlineInStringError(L"Newline character in string literal encountered", sourceName, tokenStart);
         else if(current == IReader::EOT)
-            throw UnterminatedStringError(L"String literal not terminated", tokenStart);
+            throw UnterminatedStringError(L"String literal not terminated", sourceName, tokenStart);
         else if(current == L'\\')
         {
             reader.next();
@@ -169,7 +171,7 @@ std::optional<Token> Lexer::tryBuildString()
         {
             tokenValue.put(current);
             if(tokenValue.tellp() > MAX_STRING_SIZE)
-                throw StringTooLongError(L"Maximum string literal size exceeded", tokenStart);
+                throw StringTooLongError(L"Maximum string literal size exceeded", sourceName, tokenStart);
         }
         current = reader.next().first;
     }
@@ -191,7 +193,7 @@ std::pair<int32_t, int> Lexer::buildIntegerWithLeadingZeros()
     {
         int nextDigit = current - L'0';
         if(value > (INT32_MAX - nextDigit) / 10)
-            throw IntTooLargeError(L"Maximum integer literal size exceeded", tokenStart);
+            throw IntTooLargeError(L"Maximum integer literal size exceeded", sourceName, tokenStart);
         value *= 10;
         value += nextDigit;
         current = reader.next().first;
@@ -225,7 +227,9 @@ std::optional<int32_t> Lexer::tryBuildExponent()
     if(reader.next().first == L'-')
     {
         if(!std::iswdigit(reader.next().first))
-            throw InvalidExponentError(L"Exponent consisting of only a minus sign is not permitted", tokenStart);
+            throw InvalidExponentError(
+                L"Exponent consisting of only a minus sign is not permitted", sourceName, tokenStart
+            );
         exponentNegative = true;
     }
     if(std::iswdigit(reader.get().first))
@@ -258,7 +262,7 @@ std::optional<Token> Lexer::tryBuildNumber()
         return std::nullopt;
     auto [integralPart, leadingZeros] = buildIntegerWithLeadingZeros();
     if((integralPart != 0 && leadingZeros > 0) || leadingZeros > 1)
-        throw IntWithLeadingZeroError(L"Leading zeros in numeric constant are not permitted", tokenStart);
+        throw IntWithLeadingZeroError(L"Leading zeros in numeric constant are not permitted", sourceName, tokenStart);
 
     std::optional<Token> tokenBuilt;
     if((tokenBuilt = tryBuildFraction(integralPart)))
@@ -347,5 +351,7 @@ Token Lexer::getNextToken()
         if((tokenBuilt = std::invoke(tryBuild, this)))
             return *tokenBuilt;
     }
-    throw UnknownTokenError(std::format(L"No known token begins with character {}", reader.get().first), tokenStart);
+    throw UnknownTokenError(
+        std::format(L"No known token begins with character {}", reader.get().first), sourceName, tokenStart
+    );
 }

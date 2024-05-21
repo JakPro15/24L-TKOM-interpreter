@@ -3,6 +3,7 @@
 
 #include "documentTreeVisitor.hpp"
 #include "position.hpp"
+#include "type.hpp"
 
 #include <algorithm>
 #include <format>
@@ -12,50 +13,6 @@
 #include <sstream>
 #include <string>
 #include <unordered_map>
-#include <variant>
-#include <vector>
-
-struct Type
-{
-    enum class Builtin
-    {
-        INT,
-        FLOAT,
-        STR,
-        BOOL
-    };
-    std::variant<Builtin, std::wstring> value;
-    bool operator==(const Type &other) const = default;
-    bool isBuiltin() const;
-};
-
-std::wstring toString(Type::Builtin type);
-std::wstring toString(const std::wstring &type);
-std::wostream &operator<<(std::wostream &out, Type type);
-
-template <>
-struct std::formatter<Type, wchar_t>: std::formatter<std::wstring, wchar_t>
-{
-    template <class FormatContext>
-    auto format(Type type, FormatContext &context) const
-    {
-        return std::formatter<std::wstring, wchar_t>::format(
-            std::visit([](auto value) { return toString(value); }, type.value), context
-        );
-    }
-};
-
-template <>
-struct std::hash<Type>
-{
-    std::size_t operator()(const Type &type) const
-    {
-        if(type.isBuiltin())
-            return static_cast<std::size_t>(std::get<Type::Builtin>(type.value));
-        else
-            return std::hash<std::wstring>()(std::get<std::wstring>(type.value));
-    }
-};
 
 class DocumentTreeNode
 {
@@ -410,10 +367,9 @@ struct std::formatter<FunctionIdentification, wchar_t>
         if(!id.parameterTypes.empty())
         {
             std::format_to(context.out(), L"({}", id.parameterTypes[0]);
-            std::transform(
-                id.parameterTypes.begin() + 1, id.parameterTypes.end(), context.out(),
-                [](const Type &parameter) { return std::format(L", {}", parameter); }
-            );
+            std::for_each(id.parameterTypes.begin() + 1, id.parameterTypes.end(), [&](const Type &parameter) {
+                std::format_to(context.out(), L", {}", parameter);
+            });
             std::format_to(context.out(), L")");
         }
         return context.out();

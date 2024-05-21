@@ -1,10 +1,12 @@
 add_library(
     Parser OBJECT
     include/documentTree.hpp
+    include/type.hpp
     include/parser.hpp
     include/documentTreeVisitor.hpp
     include/parserExceptions.hpp
     include/printingVisitor.hpp
+    type.cpp
     documentTree.cpp
     parser.cpp
     printingVisitor.cpp

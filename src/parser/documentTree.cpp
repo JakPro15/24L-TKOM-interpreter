@@ -4,41 +4,6 @@
 
 #include <iterator>
 
-bool Type::isBuiltin() const
-{
-    return std::holds_alternative<Type::Builtin>(value);
-}
-
-std::wstring toString(Type::Builtin type)
-{
-    using enum Type::Builtin;
-    switch(type)
-    {
-    case INT:
-        return L"int";
-    case FLOAT:
-        return L"float";
-    case STR:
-        return L"str";
-    case BOOL:
-        return L"bool";
-    default:
-        return L"unknown";
-    }
-}
-
-std::wstring toString(const std::wstring &type)
-{
-    return type;
-}
-
-std::wostream &operator<<(std::wostream &out, Type type)
-{
-    std::ostream_iterator<wchar_t, wchar_t> outIterator(out);
-    std::format_to(outIterator, L"{}", type);
-    return out;
-}
-
 DocumentTreeNode::DocumentTreeNode(Position position): position(position) {}
 
 Position DocumentTreeNode::getPosition() const

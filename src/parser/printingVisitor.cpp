@@ -129,8 +129,7 @@ void PrintingVisitor::visit(StructExpression &visited)
 
 void PrintingVisitor::visit(CastExpression &visited)
 {
-    out << L"CastExpression " << visited.getPosition() << L" sourceType=" << visited.sourceType << L" targetType="
-        << visited.targetType << L"\n"
+    out << L"CastExpression " << visited.getPosition() << L" targetType=" << visited.targetType << L"\n"
         << indent << L"`-";
     indent += L" ";
     visited.value->accept(*this);

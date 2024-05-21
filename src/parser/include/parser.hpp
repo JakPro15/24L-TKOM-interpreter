@@ -39,8 +39,8 @@ private:
     std::unique_ptr<VariableDeclStatement> parseBuiltinDeclStatement();
     std::tuple<bool, std::wstring, std::unique_ptr<Expression>> parseNoTypeDecl();
     std::unique_ptr<AssignmentStatement> parseAssignmentStatement(Token firstToken);
-    std::optional<FunctionCall> parseFunctionCall(std::wstring functionName, Position begin);
-    std::unique_ptr<FunctionCall> parseFunctionCallExpression(std::wstring functionName, Position begin);
+    std::optional<FunctionCall> parseFunctionCall(Token functionNameToken);
+    std::unique_ptr<FunctionCall> parseFunctionCallExpression(Token firstToken);
     std::unique_ptr<FunctionCallInstruction> parseFunctionCallInstruction(Token firstToken);
     std::vector<std::unique_ptr<Expression>> parseArguments();
     std::unique_ptr<ContinueStatement> parseContinueStatement();
@@ -67,6 +67,7 @@ private:
     std::unique_ptr<Expression> parseDotExpression();
     std::unique_ptr<Expression> parseStructExpression();
     std::unique_ptr<Expression> parseParenthExpression();
+    std::unique_ptr<CastExpression> parseExplicitCast();
     std::unique_ptr<Expression> parseVariableOrFunCall();
     std::unique_ptr<Expression> parseExpressionInParentheses();
     std::unique_ptr<Literal> parseLiteral();

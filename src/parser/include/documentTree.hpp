@@ -251,9 +251,9 @@ struct DotExpression: public Expression
 
 struct CastExpression: public Expression
 {
-    explicit CastExpression(Position position, std::unique_ptr<Expression> value, Type sourceType, Type targetType);
+    explicit CastExpression(Position position, std::unique_ptr<Expression> value, Type targetType);
     std::unique_ptr<Expression> value;
-    Type sourceType, targetType;
+    Type targetType;
     void accept(DocumentTreeVisitor &visitor) override;
 };
 

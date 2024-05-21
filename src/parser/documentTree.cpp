@@ -87,8 +87,8 @@ StructExpression::StructExpression(Position position, std::vector<std::unique_pt
     Expression(position), arguments(std::move(arguments))
 {}
 
-CastExpression::CastExpression(Position position, std::unique_ptr<Expression> value, Type sourceType, Type targetType):
-    Expression(position), value(std::move(value)), sourceType(sourceType), targetType(targetType)
+CastExpression::CastExpression(Position position, std::unique_ptr<Expression> value, Type targetType):
+    Expression(position), value(std::move(value)), targetType(targetType)
 {}
 
 VariableDeclaration::VariableDeclaration(Position position, Type type, std::wstring name, bool isMutable):

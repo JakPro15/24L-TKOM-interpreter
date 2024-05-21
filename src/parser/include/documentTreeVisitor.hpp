@@ -29,6 +29,7 @@ struct IsExpression;
 struct SubscriptExpression;
 struct DotExpression;
 struct StructExpression;
+struct CastExpression;
 struct VariableDeclaration;
 struct VariableDeclStatement;
 struct Assignable;

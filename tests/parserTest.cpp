@@ -700,14 +700,6 @@ TEST_CASE("FunctionCall as an Instruction", "[Parser]")
 TEST_CASE("FunctionCall errors", "[Parser]")
 {
     std::vector tokens = wrapInFunction({
-        Token(KW_INT, {5, 1}),
-        Token(LPAREN, {5, 4}),
-        Token(STR_LITERAL, {5, 7}, L"2"),
-        Token(RPAREN, {5, 15}),
-        Token(SEMICOLON, {5, 16}),
-    });
-    checkParseError<SyntaxError>(tokens); // explicit cast disallowed as instruction
-    tokens = wrapInFunction({
         Token(IDENTIFIER, {5, 1}, L"f3"),
         Token(INT_LITERAL, {5, 4}, 1),
         Token(COMMA, {5, 5}),
@@ -1525,7 +1517,7 @@ TEST_CASE("FunctionCall as an expression", "[Parser]")
         Token(STR_LITERAL, {5, 4}, L"1"),
         Token(RPAREN, {5, 7}),
         Token(COMMA, {5, 8}),
-        Token(KW_INT, {6, 1}), // explicit cast parsed as function
+        Token(IDENTIFIER, {6, 1}, L"f3"),
         Token(LPAREN, {6, 3}),
         Token(INT_LITERAL, {6, 4}, 1),
         Token(COMMA, {6, 5}),
@@ -1544,11 +1536,77 @@ TEST_CASE("FunctionCall as an expression", "[Parser]")
                 L"    |-FunctionCall <line: 4, col: 1> functionName=f1\n"
                 L"    |-FunctionCall <line: 5, col: 1> functionName=f2\n"
                 L"    |`-Literal <line: 5, col: 4> type=string value=1\n"
-                L"    `-FunctionCall <line: 6, col: 1> functionName=int\n"
+                L"    `-FunctionCall <line: 6, col: 1> functionName=f3\n"
                 L"     |-Literal <line: 6, col: 4> type=int value=1\n"
                 L"     |-Literal <line: 6, col: 7> type=string value=2\n"
                 L"     `-Literal <line: 6, col: 12> type=float value=1.2\n"
     );
+}
+
+TEST_CASE("explicit CastExpression", "[Parser]")
+{
+    std::vector tokens = wrapExpression({
+        Token(KW_INT, {5, 1}),
+        Token(LPAREN, {5, 3}),
+        Token(INT_LITERAL, {5, 4}, 1),
+        Token(RPAREN, {5, 5}),
+        Token(COMMA, {5, 6}),
+        Token(KW_STR, {6, 1}),
+        Token(LPAREN, {6, 3}),
+        Token(IDENTIFIER, {6, 4}, L"a"),
+        Token(RPAREN, {6, 5}),
+    });
+    checkParsing(
+        tokens, L"Program containing:\n"
+                L"Functions:\n"
+                L"`-a_function: FunctionDeclaration <line: 1, col: 1> source=<test>\n"
+                L" `-Body:\n"
+                L"  `-FunctionCallInstruction <line: 3, col: 15>\n"
+                L"   `-FunctionCall <line: 3, col: 15> functionName=print\n"
+                L"    |-CastExpression <line: 5, col: 1> targetType=int\n"
+                L"    |`-Literal <line: 5, col: 4> type=int value=1\n"
+                L"    `-CastExpression <line: 6, col: 1> targetType=str\n"
+                L"     `-Variable <line: 6, col: 4> name=a\n"
+    );
+}
+
+TEST_CASE("CastExpression errors", "[Parser]")
+{
+    std::vector tokens = wrapInFunction({
+        Token(KW_INT, {5, 1}),
+        Token(LPAREN, {5, 4}),
+        Token(STR_LITERAL, {5, 7}, L"2"),
+        Token(RPAREN, {5, 15}),
+        Token(SEMICOLON, {5, 16}),
+    });
+    checkParseError<SyntaxError>(tokens); // explicit cast disallowed as instruction
+    tokens = wrapExpression({
+        Token(KW_INT, {5, 1}),
+        Token(STR_LITERAL, {5, 7}, L"2"),
+        Token(RPAREN, {5, 15}),
+    });
+    checkParseError<SyntaxError>(tokens); // missing left parenthesis
+    tokens = wrapExpression({
+        Token(KW_INT, {5, 1}),
+        Token(LPAREN, {5, 4}),
+        Token(RPAREN, {5, 15}),
+    });
+    checkParseError<SyntaxError>(tokens); // missing argument
+    tokens = wrapExpression({
+        Token(KW_INT, {5, 1}),
+        Token(LPAREN, {5, 3}),
+        Token(INT_LITERAL, {5, 4}, 1),
+        Token(COMMA, {5, 5}),
+        Token(INT_LITERAL, {5, 4}, 1),
+        Token(RPAREN, {5, 15}),
+    });
+    checkParseError<SyntaxError>(tokens); // exactly one argument expected for explicit cast
+    tokens = wrapExpression({
+        Token(KW_INT, {5, 1}),
+        Token(LPAREN, {5, 3}),
+        Token(INT_LITERAL, {5, 4}, 1),
+    });
+    checkParseError<SyntaxError>(tokens); // missing right parenthesis
 }
 
 TEST_CASE("Expression in parentheses", "[Parser]")

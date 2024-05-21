@@ -87,6 +87,10 @@ StructExpression::StructExpression(Position position, std::vector<std::unique_pt
     Expression(position), arguments(std::move(arguments))
 {}
 
+CastExpression::CastExpression(Position position, std::unique_ptr<Expression> value, Type sourceType, Type targetType):
+    Expression(position), value(std::move(value)), sourceType(sourceType), targetType(targetType)
+{}
+
 VariableDeclaration::VariableDeclaration(Position position, Type type, std::wstring name, bool isMutable):
     DocumentTreeNode(position), type(type), name(name), isMutable(isMutable)
 {}
@@ -263,6 +267,7 @@ DEFINE_ACCEPT(NotExpression);
 DEFINE_ACCEPT(SubscriptExpression);
 DEFINE_ACCEPT(DotExpression);
 DEFINE_ACCEPT(StructExpression);
+DEFINE_ACCEPT(CastExpression);
 DEFINE_ACCEPT(VariableDeclaration);
 DEFINE_ACCEPT(VariableDeclStatement);
 DEFINE_ACCEPT(Assignable);

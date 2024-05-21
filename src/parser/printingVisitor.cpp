@@ -127,6 +127,16 @@ void PrintingVisitor::visit(StructExpression &visited)
     visitContainer(visited.arguments);
 }
 
+void PrintingVisitor::visit(CastExpression &visited)
+{
+    out << L"CastExpression " << visited.getPosition() << L" sourceType=" << visited.sourceType << L" targetType="
+        << visited.targetType << L"\n"
+        << indent << L"`-";
+    indent += L" ";
+    visited.value->accept(*this);
+    popIndent();
+}
+
 void PrintingVisitor::visit(VariableDeclaration &visited)
 {
     auto outFlags = out.flags();

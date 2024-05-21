@@ -41,6 +41,7 @@ public:
     void visit(SubscriptExpression &visited) override;
     void visit(DotExpression &visited) override;
     void visit(StructExpression &visited) override;
+    void visit(CastExpression &visited) override;
     void visit(VariableDeclaration &visited) override;
     void visit(VariableDeclStatement &visited) override;
     void visit(Assignable &visited) override;

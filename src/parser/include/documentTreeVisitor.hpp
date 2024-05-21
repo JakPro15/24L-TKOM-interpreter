@@ -82,6 +82,7 @@ public:
     virtual void visit(SubscriptExpression &visited) = 0;
     virtual void visit(DotExpression &visited) = 0;
     virtual void visit(StructExpression &visited) = 0;
+    virtual void visit(CastExpression &visited) = 0;
     virtual void visit(VariableDeclaration &visited) = 0;
     virtual void visit(VariableDeclStatement &visited) = 0;
     virtual void visit(Assignable &visited) = 0;

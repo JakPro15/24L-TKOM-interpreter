@@ -4,6 +4,11 @@
 
 #include <iterator>
 
+bool Type::isBuiltin() const
+{
+    return std::holds_alternative<Type::Builtin>(value);
+}
+
 std::wstring toString(Type::Builtin type)
 {
     using enum Type::Builtin;

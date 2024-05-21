@@ -2,6 +2,7 @@
 
 #include "interpreterExceptions.hpp"
 
+#include <iostream>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -183,6 +184,10 @@ public:
                 std::format(L"There already exists a variable with this name: {}", visited.name), currentSource,
                 visited.getPosition()
             );
+        if(!visited.type.isBuiltin() && !getStructOrVariantFields(std::get<std::wstring>(visited.type.value)))
+            throw UnknownVariableTypeError(
+                std::format(L"{} is not a type", visited.type), currentSource, visited.getPosition()
+            );
         variableTypes.insert({visited.name, visited.type});
     }
 
@@ -193,28 +198,28 @@ public:
         const std::vector<Field> &variantFields = program.variants.find(complexType)->second.fields;
         return std::find_if(variantFields.begin(), variantFields.end(), [&](const Field &field) {
                    return field.type == fieldType;
-               }) == variantFields.end();
+               }) != variantFields.end();
     }
 
     bool areTypesConvertible(Type typeFrom, Type typeTo)
     {
-        if(std::holds_alternative<std::wstring>(typeFrom.value))
+        if(!typeFrom.isBuiltin())
         {
             std::wstring typeName = std::get<std::wstring>(typeFrom.value);
-            return isFieldOfVariant(typeName, typeTo);
-        }
-        if(std::holds_alternative<std::wstring>(typeTo.value))
-        {
-            std::wstring typeName = std::get<std::wstring>(typeTo.value);
             if(castFromVariantPermitted)
-                return isFieldOfVariant(typeName, typeFrom);
+                return isFieldOfVariant(typeName, typeTo);
             else
                 return false;
+        }
+        if(!typeTo.isBuiltin())
+        {
+            std::wstring typeName = std::get<std::wstring>(typeTo.value);
+            return isFieldOfVariant(typeName, typeFrom);
         }
         return true;
     }
 
-    std::unique_ptr<Expression> insertCast(std::unique_ptr<Expression> &expression, Type typeFrom, Type typeTo)
+    std::unique_ptr<Expression> wrapInCast(std::unique_ptr<Expression> &expression, Type typeFrom, Type typeTo)
     {
         if(!areTypesConvertible(typeFrom, typeTo))
             throw InvalidCastError(
@@ -229,7 +234,7 @@ public:
         visited.declaration.accept(*this);
         visited.value->accept(*this);
         if(lastExpressionType != visited.declaration.type)
-            insertCast(visited.value, lastExpressionType, visited.declaration.type);
+            visited.value = wrapInCast(visited.value, lastExpressionType, visited.declaration.type);
     }
 
     void visit(Assignable &visited) override
@@ -324,7 +329,7 @@ public:
     // Returns whether type1 (struct or variant type) is among the subtypes of type2.
     bool isInSubtypes(const std::wstring &type1, const Type &type2)
     {
-        if(std::holds_alternative<Type::Builtin>(type2.value))
+        if(type2.isBuiltin())
             return false;
         std::wstring type2Name = std::get<std::wstring>(type2.value);
         if(type2Name == type1)
@@ -356,7 +361,7 @@ public:
     {
         for(const Field &field: fields)
         {
-            if(std::holds_alternative<Type::Builtin>(field.type.value))
+            if(field.type.isBuiltin())
                 continue;
             std::wstring typeName = std::get<std::wstring>(field.type.value);
             if(!getStructOrVariantFields(typeName).has_value())

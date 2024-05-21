@@ -26,6 +26,7 @@ struct Type
     };
     std::variant<Builtin, std::wstring> value;
     bool operator==(const Type &other) const = default;
+    bool isBuiltin() const;
 };
 
 std::wstring toString(Type::Builtin type);
@@ -49,7 +50,7 @@ struct std::hash<Type>
 {
     std::size_t operator()(const Type &type) const
     {
-        if(std::holds_alternative<Type::Builtin>(type.value))
+        if(type.isBuiltin())
             return static_cast<std::size_t>(std::get<Type::Builtin>(type.value));
         else
             return std::hash<std::wstring>()(std::get<std::wstring>(type.value));

@@ -17,6 +17,7 @@ endif()
 add_executable(
     Tests
     include/fakeLexer.hpp
+    include/checkNodeContainer.hpp
     readerTest.cpp
     lexerTest.cpp
     commentDiscarderTest.cpp

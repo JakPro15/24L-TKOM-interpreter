@@ -1,3 +1,4 @@
+#include "checkNodeContainer.hpp"
 #include "commentDiscarder.hpp"
 #include "lexer.hpp"
 #include "parser.hpp"
@@ -9,22 +10,6 @@
 #include <catch2/matchers/catch_matchers_floating_point.hpp>
 
 #include <algorithm>
-#include <set>
-#include <sstream>
-
-template <typename NodeContainer>
-void checkContainer(NodeContainer &container, const std::set<std::wstring> &expected)
-{
-    std::set<std::wstring> results;
-    for(auto &contained: container)
-    {
-        std::wstringstream result;
-        PrintingVisitor printer(result);
-        printer.visit(contained);
-        results.insert(result.str());
-    }
-    REQUIRE(results == expected);
-}
 
 Program getTree(const std::wstring &source)
 {
@@ -43,9 +28,9 @@ void checkLexingAndParsing(
 {
     Program tree = getTree(source);
 
-    checkContainer(tree.structs, expectedStructs);
-    checkContainer(tree.variants, expectedVariants);
-    checkContainer(tree.functions, expectedFunctions);
+    checkNodeContainer(tree.structs, expectedStructs);
+    checkNodeContainer(tree.variants, expectedVariants);
+    checkNodeContainer(tree.functions, expectedFunctions);
 }
 
 TEST_CASE("overloaded functions example", "[Lexer+Parser]")

@@ -34,6 +34,7 @@ class SemanticError: public ErrorAtPosition
     };
 
 DECLARE_SEMANTIC_ERROR(UnknownFieldTypeError);
+DECLARE_SEMANTIC_ERROR(UnknownVariableTypeError);
 DECLARE_SEMANTIC_ERROR(FieldTypeRecursionError);
 
 class NameCollisionError: public ErrorAtPosition

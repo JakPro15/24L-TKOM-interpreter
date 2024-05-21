@@ -237,30 +237,66 @@ public:
             insertCast(visited.value, lastExpressionType, visited.declaration.type);
     }
 
+    Type getTypeOfField(const std::vector<Field> &fields, std::wstring fieldName, Position position)
+    {
+        auto fieldFound = std::find_if(fields.begin(), fields.end(), [&](const Field &field) {
+            return field.name == fieldName;
+        });
+        if(fieldFound == fields.end())
+            throw FieldAccessError(
+                std::format(L"Attempted access to nonexistent field {} of type {}", fieldName, lastExpressionType),
+                currentSource, position
+            );
+        return fieldFound->type;
+    }
+
+    void ensureFieldAccessible(std::wstring complexTypeName, std::wstring fieldName, Position position)
+    {
+        auto structFound = program.structs.find(complexTypeName);
+        if(structFound != program.structs.end())
+        {
+            lastExpressionType = getTypeOfField(structFound->second.fields, fieldName, position);
+            return;
+        }
+        auto variantFound = program.variants.find(complexTypeName);
+        if(variantFound != program.variants.end())
+        {
+            lastExpressionType = getTypeOfField(variantFound->second.fields, fieldName, position);
+            blockFurtherDotAccess = true;
+            return;
+        }
+        throw UnknownVariableTypeError(
+            std::format(L"Internal error - {} is not a valid type", complexTypeName), currentSource, position
+        );
+    }
+
     void visit(Assignable &visited) override
     {
         if(visited.left == nullptr)
         {
-            lastExpressionType = variableTypes.at(visited.right);
+            auto variableFound = variableTypes.find(visited.right);
+            if(variableFound == variableTypes.end())
+                throw UnknownVariableError(
+                    std::format(L"{} is not a variable", visited.right), currentSource, visited.getPosition()
+                );
+            lastExpressionType = variableFound->second;
             return;
         }
+        blockFurtherDotAccess = false;
         visited.left->accept(*this);
+        if(blockFurtherDotAccess)
+            throw FieldAccessError(
+                std::format(L"Attempted access to field of field of variant type"), currentSource,
+                visited.left->getPosition()
+            );
         if(lastExpressionType.isBuiltin())
             throw FieldAccessError(
                 std::format(L"Attempted access to field of simple type {}", lastExpressionType), currentSource,
                 visited.left->getPosition()
             );
-        // there can be no invalid type here
-        auto fields = getStructOrVariantFields(std::get<std::wstring>(lastExpressionType.value))->get();
-        auto foundType = std::find_if(fields.begin(), fields.end(), [&](const Field &field) {
-            return field.name == visited.right;
-        });
-        if(foundType == fields.end())
-            throw FieldAccessError(
-                std::format(L"Attempted access to nonexistent field {} of type {}", visited.right, lastExpressionType),
-                currentSource, visited.left->getPosition()
-            );
-        lastExpressionType = foundType->type;
+        ensureFieldAccessible(
+            std::get<std::wstring>(lastExpressionType.value), visited.right, visited.left->getPosition()
+        );
     }
 
     void visit(AssignmentStatement &visited) override
@@ -449,7 +485,7 @@ public:
     {
         if(!visited.includes.empty())
             throw IncludeInSemanticAnalysisError(
-                "Program's include statements should be executed before calling doSemanticAnalysis"
+                "Internal error - program's include statements should be executed before calling doSemanticAnalysis"
             );
 
         checkNameDuplicates(visited);
@@ -466,13 +502,12 @@ private:
     std::optional<Type> expectedReturnType;
     Type lastExpressionType;
     std::unordered_map<std::wstring, Type> variableTypes;
-    bool noReturnFunctionPermitted, castFromVariantPermitted;
+    bool noReturnFunctionPermitted, castFromVariantPermitted, blockFurtherDotAccess;
 };
 
 }
 
 void doSemanticAnalysis(Program &program)
-
 {
     SemanticAnalyzer(program).visit(program);
 }

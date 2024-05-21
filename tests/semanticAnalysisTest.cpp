@@ -236,13 +236,26 @@ Program wrapInFunction(std::vector<std::unique_ptr<Instruction>> instructions)
                   )
     );
     program.functions.emplace(
-        FunctionIdentification(L"function", {{INT}}),
+        FunctionIdentification(L"function", {{INT}, {L"strt2"}, {L"vart2"}}),
         FunctionDeclaration(
-            {1, 1}, L"<test>", {VariableDeclaration({2, 1}, {INT}, L"arg", true)}, {}, std::move(instructions)
+            {1, 1}, L"<test>",
+            {
+                VariableDeclaration({2, 1}, {INT}, L"arg", true),
+                VariableDeclaration({2, 10}, {L"strt2"}, L"arg2", true),
+                VariableDeclaration({2, 20}, {L"vart2"}, L"arg3", true),
+            },
+            {}, std::move(instructions)
         )
     );
     return program;
 }
+
+const std::wstring
+    wrappedFunctionHeader = L"function(int, strt2, vart2): FunctionDeclaration <line: 1, col: 1> source=<test>\n"
+                            L"|-Parameters:\n"
+                            L"||-VariableDeclaration <line: 2, col: 1> type=int name=arg mutable=true\n"
+                            L"||-VariableDeclaration <line: 2, col: 10> type=strt2 name=arg2 mutable=true\n"
+                            L"|`-VariableDeclaration <line: 2, col: 20> type=vart2 name=arg3 mutable=true\n";
 
 std::unique_ptr<Literal> makeLiteral(Position position, std::variant<std::wstring, int32_t, double, bool> value)
 {
@@ -264,21 +277,19 @@ TEST_CASE("VariableDeclStatement cast insertion", "[doSemanticAnalysis]")
     Program program = wrapInFunction(std::move(functionBody));
     doSemanticAnalysis(program);
     checkNodeContainer(
-        program.functions, {L"function(int): FunctionDeclaration <line: 1, col: 1> source=<test>\n"
-                            L"|-Parameters:\n"
-                            L"|`-VariableDeclaration <line: 2, col: 1> type=int name=arg mutable=true\n"
-                            L"`-Body:\n"
-                            L" |-VariableDeclStatement <line: 3, col: 1>\n"
-                            L" ||-VariableDeclaration <line: 3, col: 1> type=int name=a mutable=false\n"
-                            L" |`-Literal <line: 3, col: 10> type=int value=2\n"
-                            L" |-VariableDeclStatement <line: 4, col: 1>\n"
-                            L" ||-VariableDeclaration <line: 4, col: 1> type=str name=b mutable=false\n"
-                            L" |`-CastExpression <line: 4, col: 10> targetType=str\n"
-                            L" | `-Literal <line: 4, col: 10> type=int value=2\n"
-                            L" `-VariableDeclStatement <line: 5, col: 1>\n"
-                            L"  |-VariableDeclaration <line: 5, col: 1> type=vart1 name=c mutable=false\n"
-                            L"  `-CastExpression <line: 5, col: 10> targetType=vart1\n"
-                            L"   `-Literal <line: 5, col: 10> type=int value=2\n"}
+        program.functions,
+        {wrappedFunctionHeader + L"`-Body:\n"
+                                 L" |-VariableDeclStatement <line: 3, col: 1>\n"
+                                 L" ||-VariableDeclaration <line: 3, col: 1> type=int name=a mutable=false\n"
+                                 L" |`-Literal <line: 3, col: 10> type=int value=2\n"
+                                 L" |-VariableDeclStatement <line: 4, col: 1>\n"
+                                 L" ||-VariableDeclaration <line: 4, col: 1> type=str name=b mutable=false\n"
+                                 L" |`-CastExpression <line: 4, col: 10> targetType=str\n"
+                                 L" | `-Literal <line: 4, col: 10> type=int value=2\n"
+                                 L" `-VariableDeclStatement <line: 5, col: 1>\n"
+                                 L"  |-VariableDeclaration <line: 5, col: 1> type=vart1 name=c mutable=false\n"
+                                 L"  `-CastExpression <line: 5, col: 10> targetType=vart1\n"
+                                 L"   `-Literal <line: 5, col: 10> type=int value=2\n"}
     );
 }
 
@@ -323,4 +334,96 @@ TEST_CASE("VariableDeclStatement errors", "[doSemanticAnalysis]")
         Position{4, 1}, VariableDeclaration({4, 1}, {L"vart1"}, L"a", true), makeLiteral({4, 10}, false)
     ));
     checkSemanticError<InvalidCastError>(functionBody); // vart1 does not contain bool field, so cast invalid
+}
+
+TEST_CASE("AssignmentStatement cast insertion", "[doSemanticAnalysis]")
+{
+    std::vector<std::unique_ptr<Instruction>> functionBody;
+    functionBody.push_back(
+        std::make_unique<AssignmentStatement>(Position{3, 1}, Assignable({3, 1}, L"arg"), makeLiteral({3, 10}, 2))
+    );
+    functionBody.push_back(
+        std::make_unique<AssignmentStatement>(Position{4, 1}, Assignable({4, 1}, L"arg"), makeLiteral({4, 10}, L"2"))
+    );
+    functionBody.push_back(std::make_unique<AssignmentStatement>(
+        Position{5, 1},
+        Assignable(
+            {5, 1},
+            std::make_unique<Assignable>(Position{5, 1}, std::make_unique<Assignable>(Position{5, 1}, L"arg2"), L"b"),
+            L"c"
+        ),
+        makeLiteral({5, 10}, L"2")
+    ));
+    Program program = wrapInFunction(std::move(functionBody));
+    doSemanticAnalysis(program);
+    checkNodeContainer(
+        program.functions, {wrappedFunctionHeader + L"`-Body:\n"
+                                                    L" |-AssignmentStatement <line: 3, col: 1>\n"
+                                                    L" ||-Assignable <line: 3, col: 1> right=arg\n"
+                                                    L" |`-Literal <line: 3, col: 10> type=int value=2\n"
+                                                    L" |-AssignmentStatement <line: 4, col: 1>\n"
+                                                    L" ||-Assignable <line: 4, col: 1> right=arg\n"
+                                                    L" |`-CastExpression <line: 4, col: 10> targetType=int\n"
+                                                    L" | `-Literal <line: 4, col: 10> type=string value=2\n"
+                                                    L" `-AssignmentStatement <line: 5, col: 1>\n"
+                                                    L"  |-Assignable <line: 5, col: 1> right=c\n"
+                                                    L"  |`-Assignable <line: 5, col: 1> right=b\n"
+                                                    L"  | `-Assignable <line: 5, col: 1> right=arg2\n"
+                                                    L"  `-CastExpression <line: 5, col: 10> targetType=float\n"
+                                                    L"   `-Literal <line: 5, col: 10> type=string value=2\n"}
+    );
+}
+
+TEST_CASE("AssignmentStatement errors", "[doSemanticAnalysis]")
+{
+    std::vector<std::unique_ptr<Instruction>> functionBody;
+    functionBody.push_back(
+        std::make_unique<AssignmentStatement>(Position{3, 1}, Assignable({3, 1}, L"bad"), makeLiteral({3, 10}, 2))
+    );
+    checkSemanticError<UnknownVariableError>(functionBody); // nonexistent variable
+
+    functionBody.clear();
+    functionBody.push_back(
+        std::make_unique<AssignmentStatement>(Position{3, 1}, Assignable({3, 1}, L"arg2"), makeLiteral({3, 10}, 2))
+    );
+    checkSemanticError<InvalidCastError>(functionBody); // cannot cast to struct
+
+    functionBody.clear();
+    functionBody.push_back(
+        std::make_unique<AssignmentStatement>(Position{3, 1}, Assignable({3, 1}, L"arg3"), makeLiteral({3, 10}, true))
+    );
+    checkSemanticError<InvalidCastError>(functionBody); // cannot cast to variant as bool is not a field
+
+    functionBody.clear();
+    functionBody.push_back(std::make_unique<AssignmentStatement>(
+        Position{3, 1}, Assignable({3, 1}, std::make_unique<Assignable>(Position{3, 1}, L"arg"), L"a"),
+        makeLiteral({3, 10}, true)
+    ));
+    checkSemanticError<FieldAccessError>(functionBody); // access to field of builtin type
+
+    functionBody.clear();
+    functionBody.push_back(std::make_unique<AssignmentStatement>(
+        Position{3, 1}, Assignable({3, 1}, std::make_unique<Assignable>(Position{3, 1}, L"arg2"), L"xd"),
+        makeLiteral({3, 10}, true)
+    ));
+    checkSemanticError<FieldAccessError>(functionBody); // access to nonexistent struct field
+
+    functionBody.clear();
+    functionBody.push_back(std::make_unique<AssignmentStatement>(
+        Position{3, 1}, Assignable({3, 1}, std::make_unique<Assignable>(Position{3, 1}, L"arg3"), L"xd"),
+        makeLiteral({3, 10}, true)
+    ));
+    checkSemanticError<FieldAccessError>(functionBody); // access to nonexistent variant field
+
+    functionBody.clear();
+    functionBody.push_back(std::make_unique<AssignmentStatement>(
+        Position{5, 1},
+        Assignable(
+            {5, 1},
+            std::make_unique<Assignable>(Position{5, 1}, std::make_unique<Assignable>(Position{5, 1}, L"arg3"), L"b"),
+            L"b"
+        ),
+        makeLiteral({5, 10}, L"2")
+    ));
+    checkSemanticError<FieldAccessError>(functionBody); // access to field of variant field
 }

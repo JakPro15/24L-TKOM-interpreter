@@ -2,6 +2,7 @@
 
 #include "interpreterExceptions.hpp"
 
+#include <unordered_map>
 #include <unordered_set>
 
 #define EMPTY_VISIT(type)              \
@@ -14,16 +15,23 @@ namespace {
 class SemanticAnalyzer: public DocumentTreeVisitor
 {
 public:
-    explicit SemanticAnalyzer(Program &program): program(program) {}
+    explicit SemanticAnalyzer(Program &program):
+        program(program), noReturnFunctionPermitted(false), castFromVariantPermitted(false)
+    {}
 
     void visit(Literal &visited) override
     {
-        static_cast<void>(visited);
+        lastExpressionType = visited.getType();
     }
 
     void visit(Variable &visited) override
     {
-        static_cast<void>(visited);
+        auto found = variableTypes.find(visited.name);
+        if(found == variableTypes.end())
+            throw UnknownVariableError(
+                std::format(L"Unknown variable: {}", visited.name), currentSource, visited.getPosition()
+            );
+        lastExpressionType = found->second;
     }
 
     void visit(OrExpression &visited) override
@@ -156,14 +164,72 @@ public:
         static_cast<void>(visited);
     }
 
+    void visit(CastExpression &visited) override
+    {
+        visited.value->accept(*this);
+        if(!areTypesConvertible(lastExpressionType, visited.targetType))
+            throw InvalidCastError(
+                std::format(
+                    L"Explicit conversion between types {} and {} is impossible", lastExpressionType, visited.targetType
+                ),
+                currentSource, visited.getPosition()
+            );
+    }
+
     void visit(VariableDeclaration &visited) override
     {
-        static_cast<void>(visited);
+        if(variableTypes.find(visited.name) != variableTypes.end())
+            throw VariableNameCollisionError(
+                std::format(L"There already exists a variable with this name: {}", visited.name), currentSource,
+                visited.getPosition()
+            );
+        variableTypes.insert({visited.name, visited.type});
+    }
+
+    bool isFieldOfVariant(const std::wstring &complexType, Type fieldType)
+    {
+        if(program.structs.find(complexType) != program.structs.end())
+            return false;
+        const std::vector<Field> &variantFields = program.variants.find(complexType)->second.fields;
+        return std::find_if(variantFields.begin(), variantFields.end(), [&](const Field &field) {
+                   return field.type == fieldType;
+               }) == variantFields.end();
+    }
+
+    bool areTypesConvertible(Type typeFrom, Type typeTo)
+    {
+        if(std::holds_alternative<std::wstring>(typeFrom.value))
+        {
+            std::wstring typeName = std::get<std::wstring>(typeFrom.value);
+            return isFieldOfVariant(typeName, typeTo);
+        }
+        if(std::holds_alternative<std::wstring>(typeTo.value))
+        {
+            std::wstring typeName = std::get<std::wstring>(typeTo.value);
+            if(castFromVariantPermitted)
+                return isFieldOfVariant(typeName, typeFrom);
+            else
+                return false;
+        }
+        return true;
+    }
+
+    std::unique_ptr<Expression> insertCast(std::unique_ptr<Expression> &expression, Type typeFrom, Type typeTo)
+    {
+        if(!areTypesConvertible(typeFrom, typeTo))
+            throw InvalidCastError(
+                std::format(L"Implicit conversion between types {} and {} is impossible", typeFrom, typeTo),
+                currentSource, expression->getPosition()
+            );
+        return std::make_unique<CastExpression>(expression->getPosition(), std::move(expression), typeTo);
     }
 
     void visit(VariableDeclStatement &visited) override
     {
-        static_cast<void>(visited);
+        visited.declaration.accept(*this);
+        visited.value->accept(*this);
+        if(lastExpressionType != visited.declaration.type)
+            insertCast(visited.value, lastExpressionType, visited.declaration.type);
     }
 
     void visit(Assignable &visited) override
@@ -221,31 +287,24 @@ public:
         static_cast<void>(visited);
     }
 
-    void visit(Field &visited) override
+    void parametersToVariables(std::vector<VariableDeclaration> &parameters)
     {
-        static_cast<void>(visited);
-    }
-
-    void checkParameterDuplicates(const std::vector<VariableDeclaration> &parameters)
-    {
-        std::unordered_set<std::wstring> parameterNames;
-        for(const VariableDeclaration &parameter: parameters)
-        {
-            if(parameterNames.find(parameter.name) != parameterNames.end())
-                throw ParameterNameCollisionError(
-                    std::format(L"More than one function parameter have the same name: {}", parameter.name),
-                    currentSource, parameter.getPosition()
-                );
-            parameterNames.insert(parameter.name);
-        }
+        variableTypes.clear();
+        for(VariableDeclaration &parameter: parameters)
+            parameter.accept(*this);
     }
 
     void visit(FunctionDeclaration &visited) override
     {
-        checkParameterDuplicates(visited.parameters);
+        currentSource = visited.getSource();
+        parametersToVariables(visited.parameters);
+        expectedReturnType = visited.returnType;
+        for(auto &instruction: visited.body)
+            instruction->accept(*this);
     }
 
     // these are verified via regular functions, not visitation
+    EMPTY_VISIT(Field);
     EMPTY_VISIT(StructDeclaration);
     EMPTY_VISIT(VariantDeclaration);
     EMPTY_VISIT(IncludeStatement);
@@ -368,18 +427,21 @@ public:
         for(const auto &[name, structure]: visited.structs)
             checkStructOrVariant(name, structure);
         for(auto &function: visited.functions)
-        {
-            currentSource = function.second.getSource();
             function.second.accept(*this);
-        }
     }
 private:
     Program &program;
     std::wstring currentSource;
+    std::optional<Type> expectedReturnType;
+    Type lastExpressionType;
+    std::unordered_map<std::wstring, Type> variableTypes;
+    bool noReturnFunctionPermitted, castFromVariantPermitted;
 };
+
 }
 
 void doSemanticAnalysis(Program &program)
+
 {
     SemanticAnalyzer(program).visit(program);
 }

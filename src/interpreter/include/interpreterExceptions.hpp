@@ -55,6 +55,8 @@ public:
 };
 
 DECLARE_SEMANTIC_ERROR(FieldNameCollisionError);
-DECLARE_SEMANTIC_ERROR(ParameterNameCollisionError);
+DECLARE_SEMANTIC_ERROR(VariableNameCollisionError);
+DECLARE_SEMANTIC_ERROR(UnknownVariableError);
+DECLARE_SEMANTIC_ERROR(InvalidCastError);
 
 #endif

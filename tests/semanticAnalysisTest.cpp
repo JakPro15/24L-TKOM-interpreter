@@ -182,5 +182,5 @@ TEST_CASE("function parameter name collision", "[doSemanticAnalysis]")
                                                       {}, {}
                                                   )}
     );
-    REQUIRE_THROWS_AS(doSemanticAnalysis(program), ParameterNameCollisionError);
+    REQUIRE_THROWS_AS(doSemanticAnalysis(program), VariableNameCollisionError);
 }

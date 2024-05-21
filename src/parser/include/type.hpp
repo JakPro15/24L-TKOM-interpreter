@@ -19,6 +19,7 @@ struct Type
     std::variant<Builtin, std::wstring, InitializationList> value;
     bool operator==(const Type &other) const = default;
     bool isBuiltin() const;
+    bool isInitList() const;
 };
 
 std::wostream &operator<<(std::wostream &out, Type type);

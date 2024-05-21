@@ -130,6 +130,14 @@ Poniższa tabela prezentuje wspierane operatory. Wszystkie operatory, poza `(` `
 
 Jeżeli operacja potęgowania (operator `**`) nie zwróciłaby liczby rzeczywistej, następuje błąd czasu wykonania.
 
+`==`, `!=` dla typów wbudowanych próbują skonwertować argumenty do takich samych typów. Wykonywane są następujące konwersje, w zależności od typów argumentów:
+| Argumenty | Typ docelowy |
+|-----------|--------------|
+| oba takie same | brak konwersji |
+| `int` i `float` | `float` |
+| `bool` i inny typ | ten inny typ |
+| `str` i inny typ | `str` |
+
 `===`, `!==` traktują wartości jako różne jeżeli argumenty są różnych typów.
 
 `is` dla rekordów wariantowych zwraca `true`, jeżeli typ podany jako prawy argument jest typem aktualnie przechowywanym w rekordzie.
@@ -138,7 +146,9 @@ Operator `.` jest jedynym, którego można używać po lewej stronie przypisania
 
 Wszelkie przekroczenia zakresu zmiennych typu `int` powodują błąd czasu wykonania.
 
-Operatory `==`, `===`, `!=` i `!==` dla struktur wymagają tego samego typu dla obu argumentów i wykonują porównanie każdego elementu struktury  odpowiednim operatorem.
+Operatory `==`, `!=` dla struktur wymagają tego samego typu dla obu argumentów i wykonują porównanie każdego elementu struktury  odpowiednim operatorem.
+
+Operatory `==`, `!=` dla rekordów wariantowych wymagają tego samego typu dla obu argumentów i wykonują porównanie elementów zawartych w rekordach odpowiednim operatorem. Jeżeli typy zawarte w rekordach nie pozwalają na porównanie, zwracana jest wartość `false`.
 
 Operatory przyjmujące typy `int` lub `float` zwracają typ `int` tylko, jeżeli oba ich argumenty są typu `int`; w przeciwnym razie zwracany jest typ `float`. Wyjątkiem są operatory `/` i `**`, które zawsze zwracają typ `float`.
 ```

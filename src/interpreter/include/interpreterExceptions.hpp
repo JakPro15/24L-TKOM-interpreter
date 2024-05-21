@@ -60,5 +60,7 @@ DECLARE_SEMANTIC_ERROR(VariableNameCollisionError);
 DECLARE_SEMANTIC_ERROR(UnknownVariableError);
 DECLARE_SEMANTIC_ERROR(InvalidCastError);
 DECLARE_SEMANTIC_ERROR(FieldAccessError);
+DECLARE_SEMANTIC_ERROR(InvalidOperatorArgsError);
+DECLARE_SEMANTIC_ERROR(InvalidInitListError);
 
 #endif

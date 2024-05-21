@@ -59,5 +59,6 @@ DECLARE_SEMANTIC_ERROR(FieldNameCollisionError);
 DECLARE_SEMANTIC_ERROR(VariableNameCollisionError);
 DECLARE_SEMANTIC_ERROR(UnknownVariableError);
 DECLARE_SEMANTIC_ERROR(InvalidCastError);
+DECLARE_SEMANTIC_ERROR(FieldAccessError);
 
 #endif

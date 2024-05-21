@@ -219,14 +219,14 @@ public:
         return true;
     }
 
-    std::unique_ptr<Expression> wrapInCast(std::unique_ptr<Expression> &expression, Type typeFrom, Type typeTo)
+    void insertCast(std::unique_ptr<Expression> &expression, Type typeFrom, Type typeTo)
     {
         if(!areTypesConvertible(typeFrom, typeTo))
             throw InvalidCastError(
                 std::format(L"Implicit conversion between types {} and {} is impossible", typeFrom, typeTo),
                 currentSource, expression->getPosition()
             );
-        return std::make_unique<CastExpression>(expression->getPosition(), std::move(expression), typeTo);
+        expression = std::make_unique<CastExpression>(expression->getPosition(), std::move(expression), typeTo);
     }
 
     void visit(VariableDeclStatement &visited) override
@@ -234,17 +234,43 @@ public:
         visited.declaration.accept(*this);
         visited.value->accept(*this);
         if(lastExpressionType != visited.declaration.type)
-            visited.value = wrapInCast(visited.value, lastExpressionType, visited.declaration.type);
+            insertCast(visited.value, lastExpressionType, visited.declaration.type);
     }
 
     void visit(Assignable &visited) override
     {
-        static_cast<void>(visited);
+        if(visited.left == nullptr)
+        {
+            lastExpressionType = variableTypes.at(visited.right);
+            return;
+        }
+        visited.left->accept(*this);
+        if(lastExpressionType.isBuiltin())
+            throw FieldAccessError(
+                std::format(L"Attempted access to field of simple type {}", lastExpressionType), currentSource,
+                visited.left->getPosition()
+            );
+        // there can be no invalid type here
+        auto fields = getStructOrVariantFields(std::get<std::wstring>(lastExpressionType.value))->get();
+        auto foundType = std::find_if(fields.begin(), fields.end(), [&](const Field &field) {
+            return field.name == visited.right;
+        });
+        if(foundType == fields.end())
+            throw FieldAccessError(
+                std::format(L"Attempted access to nonexistent field {} of type {}", visited.right, lastExpressionType),
+                currentSource, visited.left->getPosition()
+            );
+        lastExpressionType = foundType->type;
     }
 
     void visit(AssignmentStatement &visited) override
     {
-        static_cast<void>(visited);
+        visited.left.accept(*this);
+        Type leftType = lastExpressionType;
+        visited.right->accept(*this);
+        Type rightType = lastExpressionType;
+        if(leftType != rightType)
+            insertCast(visited.right, rightType, leftType);
     }
 
     void visit(FunctionCall &visited) override

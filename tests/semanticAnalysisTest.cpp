@@ -1027,3 +1027,39 @@ TEST_CASE("DotExpression errors", "[doSemanticAnalysis]")
     );
     checkSemanticError<FieldAccessError>(functionBody); // access to field of accessed field of variant type
 }
+
+TEST_CASE("IsExpression", "[doSemanticAnalysis]")
+{
+    std::vector<std::unique_ptr<Instruction>> functionBody;
+    functionBody.push_back(std::make_unique<VariableDeclStatement>(
+        Position{3, 1}, VariableDeclaration({3, 1}, {BOOL}, L"a", true),
+        std::make_unique<IsExpression>(Position{3, 10}, std::make_unique<Variable>(Position{3, 10}, L"s2"), Type{INT})
+    ));
+
+    Program program = wrapInFunction(std::move(functionBody));
+    doSemanticAnalysis(program);
+    checkNodeContainer(
+        program.functions,
+        {wrappedFunctionHeader + L"`-Body:\n"
+                                 L" `-VariableDeclStatement <line: 3, col: 1>\n"
+                                 L"  |-VariableDeclaration <line: 3, col: 1> type=bool name=a mutable=true\n"
+                                 L"  `-IsExpression <line: 3, col: 10> right=int\n"
+                                 L"   `-Variable <line: 3, col: 10> name=s2\n"}
+    );
+}
+
+TEST_CASE("IsExpression error", "[doSemanticAnalysis]")
+{
+    std::vector<std::unique_ptr<Instruction>> functionBody;
+    std::vector<std::unique_ptr<Expression>> structArguments;
+    structArguments.push_back(makeLiteral({3, 11}, 2));
+    structArguments.push_back(makeLiteral({3, 13}, L"2"));
+    structArguments.push_back(makeLiteral({3, 17}, 2.0));
+    functionBody.push_back(std::make_unique<VariableDeclStatement>(
+        Position{3, 1}, VariableDeclaration({3, 1}, {BOOL}, L"a", true),
+        std::make_unique<IsExpression>(
+            Position{3, 10}, std::make_unique<StructExpression>(Position{3, 10}, std::move(structArguments)), Type{INT}
+        )
+    ));
+    checkSemanticError<InvalidInitListError>(functionBody); // cannot use is operator on initialization list
+}

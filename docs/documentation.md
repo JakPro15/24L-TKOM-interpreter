@@ -576,11 +576,6 @@ func main() {
     # f(1, 2.5);       # błąd - niejednoznaczne wywołanie funkcji
 }
 ```
-Przeciążone funkcje muszą zwracać ten sam typ.
-```
-func f(int a, str b) -> int { return 1; }
-func f(int a, int b) -> str { return "2"; } # błąd - przeciążone funkcje zwracające różne typy
-```
 
 
 ### Widoczność zmiennych

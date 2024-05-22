@@ -19,7 +19,7 @@ namespace {
         (void) value;                            \
         return string;                           \
     }
-LITERAL_TYPE(std::wstring, L"string")
+LITERAL_TYPE(std::wstring, L"str")
 LITERAL_TYPE(double, L"float")
 LITERAL_TYPE(int32_t, L"int")
 LITERAL_TYPE(bool, L"bool")

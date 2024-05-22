@@ -42,18 +42,21 @@ public:
     {
         ensureExpressionHasType(visited.left, Type{BOOL});
         ensureExpressionHasType(visited.right, Type{BOOL});
+        lastExpressionType = Type{BOOL};
     }
 
     void visit(XorExpression &visited) override
     {
         ensureExpressionHasType(visited.left, Type{BOOL});
         ensureExpressionHasType(visited.right, Type{BOOL});
+        lastExpressionType = Type{BOOL};
     }
 
     void visit(AndExpression &visited) override
     {
         ensureExpressionHasType(visited.left, Type{BOOL});
         ensureExpressionHasType(visited.right, Type{BOOL});
+        lastExpressionType = Type{BOOL};
     }
 
     void visit(EqualExpression &visited) override
@@ -80,70 +83,79 @@ public:
     {
         ensureExpressionHasType(visited.left, Type{STR});
         ensureExpressionHasType(visited.right, Type{STR});
+        lastExpressionType = Type{STR};
     }
 
     void visit(StringMultiplyExpression &visited) override
     {
         ensureExpressionHasType(visited.left, Type{STR});
         ensureExpressionHasType(visited.right, Type{INT});
+        lastExpressionType = Type{STR};
     }
 
     void visit(GreaterExpression &visited) override
     {
         visitIntOrFloatExpression(visited);
+        lastExpressionType = Type{BOOL};
     }
 
     void visit(LesserExpression &visited) override
     {
         visitIntOrFloatExpression(visited);
+        lastExpressionType = Type{BOOL};
     }
 
     void visit(GreaterEqualExpression &visited) override
     {
         visitIntOrFloatExpression(visited);
+        lastExpressionType = Type{BOOL};
     }
 
     void visit(LesserEqualExpression &visited) override
     {
         visitIntOrFloatExpression(visited);
+        lastExpressionType = Type{BOOL};
     }
 
     void visit(PlusExpression &visited) override
     {
-        visitIntOrFloatExpression(visited);
+        lastExpressionType = visitIntOrFloatExpression(visited);
     }
 
     void visit(MinusExpression &visited) override
     {
-        visitIntOrFloatExpression(visited);
+        lastExpressionType = visitIntOrFloatExpression(visited);
     }
 
     void visit(MultiplyExpression &visited) override
     {
-        visitIntOrFloatExpression(visited);
+        lastExpressionType = visitIntOrFloatExpression(visited);
     }
 
     void visit(DivideExpression &visited) override
     {
         ensureExpressionHasType(visited.left, Type{FLOAT});
         ensureExpressionHasType(visited.right, Type{FLOAT});
+        lastExpressionType = Type{FLOAT};
     }
 
     void visit(FloorDivideExpression &visited) override
     {
         ensureExpressionHasType(visited.left, Type{INT});
         ensureExpressionHasType(visited.right, Type{INT});
+        lastExpressionType = Type{INT};
     }
 
     void visit(ModuloExpression &visited) override
     {
         ensureExpressionHasType(visited.left, Type{INT});
         ensureExpressionHasType(visited.right, Type{INT});
+        lastExpressionType = Type{INT};
     }
 
     void visit(ExponentExpression &visited) override
     {
-        visitIntOrFloatExpression(visited);
+        lastExpressionType = visitIntOrFloatExpression(visited);
     }
 
     void visit(UnaryMinusExpression &visited) override
@@ -151,11 +163,13 @@ public:
         visitExpression(visited.value);
         if(lastExpressionType != Type{INT} && lastExpressionType != Type{FLOAT})
             insertCast(visited.value, lastExpressionType, Type{FLOAT});
+        lastExpressionType = (lastExpressionType == Type{INT}) ? Type{INT} : Type{FLOAT};
     }
 
     void visit(NotExpression &visited) override
     {
         ensureExpressionHasType(visited.value, Type{BOOL});
+        lastExpressionType = Type{BOOL};
     }
 
     void visit(IsExpression &visited) override
@@ -166,15 +180,14 @@ public:
                 L"Structure initialization list is not allowed with 'is' operator", currentSource,
                 visited.left->getPosition()
             );
-        if(lastExpressionType.isBuiltin() ||
-           !isFieldOfVariant(std::get<std::wstring>(lastExpressionType.value), visited.right))
-            return replaceWithBoolLiteral(lastExpressionType == visited.right);
+        lastExpressionType = Type{BOOL};
     }
 
     void visit(SubscriptExpression &visited) override
     {
         ensureExpressionHasType(visited.left, Type{STR});
         ensureExpressionHasType(visited.right, Type{INT});
+        lastExpressionType = Type{STR};
     }
 
     void visit(DotExpression &visited) override
@@ -220,6 +233,7 @@ public:
                 ),
                 currentSource, visited.getPosition()
             );
+        lastExpressionType = visited.targetType;
     }
 
     void visit(VariableDeclaration &visited) override
@@ -391,6 +405,7 @@ private:
         Type leftType = lastExpressionType;
         visitExpression(visited.right);
         Type rightType = lastExpressionType;
+        lastExpressionType = Type{BOOL};
 
         if(leftType.isInitList())
             return insertCast(visited.left, leftType, rightType);
@@ -410,12 +425,6 @@ private:
             return insertCast(visited.right, rightType, targetType);
     }
 
-    void replaceWithBoolLiteral(bool value)
-    {
-        auto literal = std::make_unique<Literal>((*replaceableExpression)->getPosition(), value);
-        *replaceableExpression = std::move(literal);
-    }
-
     template <typename TypedEqualityExpression>
     void visitTypedEqualityExpression(TypedEqualityExpression &visited)
     {
@@ -423,13 +432,16 @@ private:
         Type leftType = lastExpressionType;
         visitExpression(visited.right);
         Type rightType = lastExpressionType;
+        lastExpressionType = Type{BOOL};
 
-        if(leftType != rightType)
-            replaceWithBoolLiteral(false);
+        if(leftType.isInitList())
+            return insertCast(visited.left, leftType, rightType);
+        if(rightType.isInitList())
+            return insertCast(visited.right, rightType, leftType);
     }
 
     template <typename IntOrFloatExpression>
-    void visitIntOrFloatExpression(IntOrFloatExpression &expression)
+    Type visitIntOrFloatExpression(IntOrFloatExpression &expression)
     {
         visitExpression(expression.left);
         Type leftType = lastExpressionType;
@@ -437,11 +449,12 @@ private:
         Type rightType = lastExpressionType;
 
         if(leftType == Type{INT} && rightType == Type{INT})
-            return;
+            return Type{INT};
         if(leftType != Type{FLOAT})
             insertCast(expression.left, leftType, Type{FLOAT});
         if(rightType != Type{FLOAT})
             insertCast(expression.right, rightType, Type{FLOAT});
+        return Type{FLOAT};
     }
 
     std::wstring getTypeNameForDotExpression(Type leftType, Position position)
@@ -516,11 +529,28 @@ private:
                }) != variantFields.end();
     }
 
+    bool isStructInitListValid(Type::InitializationList typeFrom, Type typeTo)
+    {
+        if(typeTo.isBuiltin())
+            return false;
+        auto structFound = findIn(program.structs, std::get<std::wstring>(typeTo.value));
+        if(!structFound)
+            return false;
+        std::vector<Field> &structFields = (*structFound)->second.fields;
+        if(typeFrom.size() != structFields.size())
+            return false;
+        for(unsigned i = 0; i < typeFrom.size(); i++)
+            if(!areTypesConvertible(typeFrom[i], structFields[i].type))
+                return false;
+        return true;
+    }
+
     bool areTypesConvertible(Type typeFrom, Type typeTo)
     {
         if(typeTo.isInitList())
             return false;
-        // TODO: check for init list to struct conversion
+        if(typeFrom.isInitList())
+            return isStructInitListValid(std::get<Type::InitializationList>(typeFrom.value), typeTo);
         if(!typeFrom.isBuiltin())
         {
             std::wstring typeName = std::get<std::wstring>(typeFrom.value);

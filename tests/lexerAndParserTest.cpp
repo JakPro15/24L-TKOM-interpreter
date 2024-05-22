@@ -76,7 +76,7 @@ TEST_CASE("overloaded functions example", "[Lexer+Parser]")
         L" |`-Literal <line: 7, col: 15> type=int value=2\n"
         L" |-VariableDeclStatement <line: 8, col: 5>\n"
         L" ||-VariableDeclaration <line: 8, col: 5> type=V name=vart2 mutable=false\n"
-        L" |`-Literal <line: 8, col: 15> type=string value=string\n"
+        L" |`-Literal <line: 8, col: 15> type=str value=string\n"
         L" |-FunctionCallInstruction <line: 9, col: 5>\n"
         L" |`-FunctionCall <line: 9, col: 5> functionName=print\n"
         L" | `-FunctionCall <line: 9, col: 11> functionName=f\n"
@@ -235,9 +235,9 @@ TEST_CASE("priority tests", "[Lexer+Parser]")
                                 L"  `-FunctionCall <line: 1, col: 15> functionName=print\n"
                                 L"   `-ExponentExpression <line: 1, col: 21>\n"
                                 L"    |-ExponentExpression <line: 1, col: 21>\n"
-                                L"    ||-Literal <line: 1, col: 21> type=string value=4\n"
+                                L"    ||-Literal <line: 1, col: 21> type=str value=4\n"
                                 L"    |`-Literal <line: 1, col: 28> type=int value=2\n"
-                                L"    `-Literal <line: 1, col: 33> type=string value=1\n"
+                                L"    `-Literal <line: 1, col: 33> type=str value=1\n"
     );
     doPriorityTest(
         L"\"4\" ! \"2\" @ \"2\"", L"FunctionDeclaration <line: 1, col: 1> source=<test>\n"
@@ -245,10 +245,10 @@ TEST_CASE("priority tests", "[Lexer+Parser]")
                                   L" `-FunctionCallInstruction <line: 1, col: 15>\n"
                                   L"  `-FunctionCall <line: 1, col: 15> functionName=print\n"
                                   L"   `-ConcatExpression <line: 1, col: 21>\n"
-                                  L"    |-Literal <line: 1, col: 21> type=string value=4\n"
+                                  L"    |-Literal <line: 1, col: 21> type=str value=4\n"
                                   L"    `-StringMultiplyExpression <line: 1, col: 27>\n"
-                                  L"     |-Literal <line: 1, col: 27> type=string value=2\n"
-                                  L"     `-Literal <line: 1, col: 33> type=string value=2\n"
+                                  L"     |-Literal <line: 1, col: 27> type=str value=2\n"
+                                  L"     `-Literal <line: 1, col: 33> type=str value=2\n"
     );
     doPriorityTest(
         L"3 === -\"-3\"", L"FunctionDeclaration <line: 1, col: 1> source=<test>\n"
@@ -258,7 +258,7 @@ TEST_CASE("priority tests", "[Lexer+Parser]")
                           L"   `-IdenticalExpression <line: 1, col: 21>\n"
                           L"    |-Literal <line: 1, col: 21> type=int value=3\n"
                           L"    `-UnaryMinusExpression <line: 1, col: 27>\n"
-                          L"     `-Literal <line: 1, col: 28> type=string value=-3\n"
+                          L"     `-Literal <line: 1, col: 28> type=str value=-3\n"
     );
 }
 

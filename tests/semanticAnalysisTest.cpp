@@ -236,13 +236,15 @@ Program wrapInFunction(std::vector<std::unique_ptr<Instruction>> instructions)
                   )
     );
     program.functions.emplace(
-        FunctionIdentification(L"function", {{INT}, {L"strt2"}, {L"vart2"}}),
+        FunctionIdentification(L"function", {{INT}, {L"strt1"}, {L"vart1"}, {L"strt2"}, {L"vart2"}}),
         FunctionDeclaration(
             {1, 1}, L"<test>",
             {
                 VariableDeclaration({2, 1}, {INT}, L"arg", true),
-                VariableDeclaration({2, 10}, {L"strt2"}, L"arg2", true),
-                VariableDeclaration({2, 20}, {L"vart2"}, L"arg3", true),
+                VariableDeclaration({2, 10}, {L"strt1"}, L"s1", true),
+                VariableDeclaration({2, 20}, {L"vart1"}, L"v1", true),
+                VariableDeclaration({2, 30}, {L"strt2"}, L"s2", true),
+                VariableDeclaration({2, 40}, {L"vart2"}, L"v2", true),
             },
             {}, std::move(instructions)
         )
@@ -250,12 +252,14 @@ Program wrapInFunction(std::vector<std::unique_ptr<Instruction>> instructions)
     return program;
 }
 
-const std::wstring
-    wrappedFunctionHeader = L"function(int, strt2, vart2): FunctionDeclaration <line: 1, col: 1> source=<test>\n"
-                            L"|-Parameters:\n"
-                            L"||-VariableDeclaration <line: 2, col: 1> type=int name=arg mutable=true\n"
-                            L"||-VariableDeclaration <line: 2, col: 10> type=strt2 name=arg2 mutable=true\n"
-                            L"|`-VariableDeclaration <line: 2, col: 20> type=vart2 name=arg3 mutable=true\n";
+const std::wstring wrappedFunctionHeader =
+    L"function(int, strt1, vart1, strt2, vart2): FunctionDeclaration <line: 1, col: 1> source=<test>\n"
+    L"|-Parameters:\n"
+    L"||-VariableDeclaration <line: 2, col: 1> type=int name=arg mutable=true\n"
+    L"||-VariableDeclaration <line: 2, col: 10> type=strt1 name=s1 mutable=true\n"
+    L"||-VariableDeclaration <line: 2, col: 20> type=vart1 name=v1 mutable=true\n"
+    L"||-VariableDeclaration <line: 2, col: 30> type=strt2 name=s2 mutable=true\n"
+    L"|`-VariableDeclaration <line: 2, col: 40> type=vart2 name=v2 mutable=true\n";
 
 std::unique_ptr<Literal> makeLiteral(Position position, std::variant<std::wstring, int32_t, double, bool> value)
 {
@@ -349,7 +353,7 @@ TEST_CASE("AssignmentStatement cast insertion", "[doSemanticAnalysis]")
         Position{5, 1},
         Assignable(
             {5, 1},
-            std::make_unique<Assignable>(Position{5, 1}, std::make_unique<Assignable>(Position{5, 1}, L"arg2"), L"b"),
+            std::make_unique<Assignable>(Position{5, 1}, std::make_unique<Assignable>(Position{5, 1}, L"s2"), L"b"),
             L"c"
         ),
         makeLiteral({5, 10}, L"2")
@@ -364,13 +368,13 @@ TEST_CASE("AssignmentStatement cast insertion", "[doSemanticAnalysis]")
                                                     L" |-AssignmentStatement <line: 4, col: 1>\n"
                                                     L" ||-Assignable <line: 4, col: 1> right=arg\n"
                                                     L" |`-CastExpression <line: 4, col: 10> targetType=int\n"
-                                                    L" | `-Literal <line: 4, col: 10> type=string value=2\n"
+                                                    L" | `-Literal <line: 4, col: 10> type=str value=2\n"
                                                     L" `-AssignmentStatement <line: 5, col: 1>\n"
                                                     L"  |-Assignable <line: 5, col: 1> right=c\n"
                                                     L"  |`-Assignable <line: 5, col: 1> right=b\n"
-                                                    L"  | `-Assignable <line: 5, col: 1> right=arg2\n"
+                                                    L"  | `-Assignable <line: 5, col: 1> right=s2\n"
                                                     L"  `-CastExpression <line: 5, col: 10> targetType=float\n"
-                                                    L"   `-Literal <line: 5, col: 10> type=string value=2\n"}
+                                                    L"   `-Literal <line: 5, col: 10> type=str value=2\n"}
     );
 }
 
@@ -384,13 +388,13 @@ TEST_CASE("AssignmentStatement errors", "[doSemanticAnalysis]")
 
     functionBody.clear();
     functionBody.push_back(
-        std::make_unique<AssignmentStatement>(Position{3, 1}, Assignable({3, 1}, L"arg2"), makeLiteral({3, 10}, 2))
+        std::make_unique<AssignmentStatement>(Position{3, 1}, Assignable({3, 1}, L"s2"), makeLiteral({3, 10}, 2))
     );
     checkSemanticError<InvalidCastError>(functionBody); // cannot cast to struct
 
     functionBody.clear();
     functionBody.push_back(
-        std::make_unique<AssignmentStatement>(Position{3, 1}, Assignable({3, 1}, L"arg3"), makeLiteral({3, 10}, true))
+        std::make_unique<AssignmentStatement>(Position{3, 1}, Assignable({3, 1}, L"v2"), makeLiteral({3, 10}, true))
     );
     checkSemanticError<InvalidCastError>(functionBody); // cannot cast to variant as bool is not a field
 
@@ -403,14 +407,14 @@ TEST_CASE("AssignmentStatement errors", "[doSemanticAnalysis]")
 
     functionBody.clear();
     functionBody.push_back(std::make_unique<AssignmentStatement>(
-        Position{3, 1}, Assignable({3, 1}, std::make_unique<Assignable>(Position{3, 1}, L"arg2"), L"xd"),
+        Position{3, 1}, Assignable({3, 1}, std::make_unique<Assignable>(Position{3, 1}, L"s2"), L"xd"),
         makeLiteral({3, 10}, true)
     ));
     checkSemanticError<FieldAccessError>(functionBody); // access to nonexistent struct field
 
     functionBody.clear();
     functionBody.push_back(std::make_unique<AssignmentStatement>(
-        Position{3, 1}, Assignable({3, 1}, std::make_unique<Assignable>(Position{3, 1}, L"arg3"), L"xd"),
+        Position{3, 1}, Assignable({3, 1}, std::make_unique<Assignable>(Position{3, 1}, L"v2"), L"xd"),
         makeLiteral({3, 10}, true)
     ));
     checkSemanticError<FieldAccessError>(functionBody); // access to nonexistent variant field
@@ -420,10 +424,368 @@ TEST_CASE("AssignmentStatement errors", "[doSemanticAnalysis]")
         Position{5, 1},
         Assignable(
             {5, 1},
-            std::make_unique<Assignable>(Position{5, 1}, std::make_unique<Assignable>(Position{5, 1}, L"arg3"), L"b"),
+            std::make_unique<Assignable>(Position{5, 1}, std::make_unique<Assignable>(Position{5, 1}, L"v2"), L"b"),
             L"b"
         ),
         makeLiteral({5, 10}, L"2")
     ));
     checkSemanticError<FieldAccessError>(functionBody); // access to field of variant field
+}
+
+Program wrapExpression(std::unique_ptr<Expression> &expression)
+{
+    std::vector<std::unique_ptr<Instruction>> functionBody;
+    functionBody.push_back(std::make_unique<VariableDeclStatement>(
+        Position{3, 1}, VariableDeclaration({3, 1}, {STR}, L"a", false), std::move(expression)
+    ));
+    return wrapInFunction(std::move(functionBody));
+}
+
+template <typename BinaryExpression>
+void pushBackBinaryExpr(
+    std::vector<std::unique_ptr<Instruction>> &instructions, unsigned int line, const std::wstring &assignmentTarget,
+    std::variant<std::wstring, int32_t, double, bool> leftLiteral,
+    std::variant<std::wstring, int32_t, double, bool> rightLiteral
+)
+{
+    instructions.push_back(std::make_unique<AssignmentStatement>(
+        Position{line, 1}, Assignable({line, 1}, assignmentTarget),
+        std::make_unique<BinaryExpression>(
+            Position{line, 10}, makeLiteral({line, 10}, leftLiteral), makeLiteral({line, 20}, rightLiteral)
+        )
+    ));
+}
+
+std::wstring binaryExprNoCasts(const std::wstring &type, unsigned int line, Type leftSourceType, Type rightSourceType)
+{
+    return std::format(
+        L" |-AssignmentStatement <line: {}, col: 1>\n"
+        L" ||-Assignable <line: {}, col: 1> right=a\n"
+        L" |`-{} <line: {}, col: 10>\n"
+        L" | |-Literal <line: {}, col: 10> type={} value=2\n"
+        L" | `-Literal <line: {}, col: 20> type={} value=2\n",
+        line, line, type, line, line, leftSourceType, line, rightSourceType
+    );
+}
+
+std::wstring binaryExprCasts(
+    const std::wstring &type, unsigned int line, Type leftTargetType, Type rightTargetType, Type leftSourceType,
+    Type rightSourceType
+)
+{
+    return std::format(
+        L" |-AssignmentStatement <line: {}, col: 1>\n"
+        L" ||-Assignable <line: {}, col: 1> right=a\n"
+        L" |`-{} <line: {}, col: 10>\n"
+        L" | |-CastExpression <line: {}, col: 10> targetType={}\n"
+        L" | |`-Literal <line: {}, col: 10> type={} value=2\n"
+        L" | `-CastExpression <line: {}, col: 20> targetType={}\n"
+        L" |  `-Literal <line: {}, col: 20> type={} value=2\n",
+        line, line, type, line, line, leftTargetType, line, leftSourceType, line, rightTargetType, line, rightSourceType
+    );
+}
+
+TEST_CASE("boolean Expressions cast insertions", "[doSemanticAnalysis]")
+{
+    std::vector<std::unique_ptr<Instruction>> functionBody;
+    functionBody.push_back(std::make_unique<VariableDeclStatement>(
+        Position{3, 1}, VariableDeclaration({3, 1}, {BOOL}, L"a", false),
+        std::make_unique<Variable>(Position{3, 10}, L"arg")
+    ));
+    pushBackBinaryExpr<OrExpression>(functionBody, 4, L"a", 2, L"2");
+    pushBackBinaryExpr<XorExpression>(functionBody, 5, L"a", 2, L"2");
+    pushBackBinaryExpr<AndExpression>(functionBody, 6, L"a", 2, L"2");
+    functionBody.push_back(std::make_unique<ReturnStatement>(Position{7, 1}, nullptr));
+
+    Program program = wrapInFunction(std::move(functionBody));
+    doSemanticAnalysis(program);
+    checkNodeContainer(
+        program.functions, {wrappedFunctionHeader +
+                            L"`-Body:\n"
+                            L" |-VariableDeclStatement <line: 3, col: 1>\n"
+                            L" ||-VariableDeclaration <line: 3, col: 1> type=bool name=a mutable=false\n"
+                            L" |`-CastExpression <line: 3, col: 10> targetType=bool\n"
+                            L" | `-Variable <line: 3, col: 10> name=arg\n" +
+                            binaryExprCasts(L"OrExpression", 4, Type{BOOL}, Type{BOOL}, Type{INT}, Type{STR}) +
+                            binaryExprCasts(L"XorExpression", 5, Type{BOOL}, Type{BOOL}, Type{INT}, Type{STR}) +
+                            binaryExprCasts(L"AndExpression", 6, Type{BOOL}, Type{BOOL}, Type{INT}, Type{STR}) +
+                            L" `-ReturnStatement <line: 7, col: 1>\n"}
+    );
+}
+
+TEST_CASE("equality Expressions - no cast for same types", "[doSemanticAnalysis]")
+{
+    std::vector<std::unique_ptr<Instruction>> functionBody;
+    functionBody.push_back(std::make_unique<VariableDeclStatement>(
+        Position{3, 1}, VariableDeclaration({3, 1}, {BOOL}, L"a", false),
+        std::make_unique<Variable>(Position{3, 10}, L"arg")
+    ));
+    pushBackBinaryExpr<EqualExpression>(functionBody, 4, L"a", 2, 2);
+    pushBackBinaryExpr<NotEqualExpression>(functionBody, 5, L"a", 2, 2);
+    pushBackBinaryExpr<IdenticalExpression>(functionBody, 6, L"a", 2, 2);
+    pushBackBinaryExpr<NotIdenticalExpression>(functionBody, 7, L"a", 2, 2);
+    pushBackBinaryExpr<EqualExpression>(functionBody, 8, L"a", L"2", L"2");
+    pushBackBinaryExpr<NotEqualExpression>(functionBody, 9, L"a", L"2", L"2");
+    pushBackBinaryExpr<IdenticalExpression>(functionBody, 10, L"a", L"2", L"2");
+    pushBackBinaryExpr<NotIdenticalExpression>(functionBody, 11, L"a", L"2", L"2");
+    functionBody.push_back(std::make_unique<ReturnStatement>(Position{12, 1}, nullptr));
+
+    Program program = wrapInFunction(std::move(functionBody));
+    doSemanticAnalysis(program);
+    checkNodeContainer(
+        program.functions, {wrappedFunctionHeader +
+                            L"`-Body:\n"
+                            L" |-VariableDeclStatement <line: 3, col: 1>\n"
+                            L" ||-VariableDeclaration <line: 3, col: 1> type=bool name=a mutable=false\n"
+                            L" |`-CastExpression <line: 3, col: 10> targetType=bool\n"
+                            L" | `-Variable <line: 3, col: 10> name=arg\n" +
+                            binaryExprNoCasts(L"EqualExpression", 4, Type{INT}, Type{INT}) +
+                            binaryExprNoCasts(L"NotEqualExpression", 5, Type{INT}, Type{INT}) +
+                            binaryExprNoCasts(L"IdenticalExpression", 6, Type{INT}, Type{INT}) +
+                            binaryExprNoCasts(L"NotIdenticalExpression", 7, Type{INT}, Type{INT}) +
+                            binaryExprNoCasts(L"EqualExpression", 8, Type{STR}, Type{STR}) +
+                            binaryExprNoCasts(L"NotEqualExpression", 9, Type{STR}, Type{STR}) +
+                            binaryExprNoCasts(L"IdenticalExpression", 10, Type{STR}, Type{STR}) +
+                            binaryExprNoCasts(L"NotIdenticalExpression", 11, Type{STR}, Type{STR}) +
+                            L" `-ReturnStatement <line: 12, col: 1>\n"}
+    );
+}
+
+TEST_CASE("equality Expressions - builtin types casts", "[doSemanticAnalysis]")
+{
+    std::vector<std::unique_ptr<Instruction>> functionBody;
+    functionBody.push_back(std::make_unique<VariableDeclStatement>(
+        Position{3, 1}, VariableDeclaration({3, 1}, {BOOL}, L"a", false),
+        std::make_unique<Variable>(Position{3, 10}, L"arg")
+    ));
+    pushBackBinaryExpr<EqualExpression>(functionBody, 4, L"a", 2, L"2");
+    pushBackBinaryExpr<NotEqualExpression>(functionBody, 5, L"a", 2.0, 2);
+    pushBackBinaryExpr<IdenticalExpression>(functionBody, 6, L"a", L"2", 2);
+    pushBackBinaryExpr<NotIdenticalExpression>(functionBody, 7, L"a", 2, 2.0);
+    pushBackBinaryExpr<EqualExpression>(functionBody, 8, L"a", true, L"2");
+    pushBackBinaryExpr<NotEqualExpression>(functionBody, 9, L"a", 2, false);
+    pushBackBinaryExpr<IdenticalExpression>(functionBody, 10, L"a", 2.0, L"2");
+    pushBackBinaryExpr<NotIdenticalExpression>(functionBody, 11, L"a", 2, 2.0);
+    functionBody.push_back(std::make_unique<ReturnStatement>(Position{12, 1}, nullptr));
+
+    Program program = wrapInFunction(std::move(functionBody));
+    doSemanticAnalysis(program);
+    checkNodeContainer(
+        program.functions, {wrappedFunctionHeader +
+                            L"`-Body:\n"
+                            L" |-VariableDeclStatement <line: 3, col: 1>\n"
+                            L" ||-VariableDeclaration <line: 3, col: 1> type=bool name=a mutable=false\n"
+                            L" |`-CastExpression <line: 3, col: 10> targetType=bool\n"
+                            L" | `-Variable <line: 3, col: 10> name=arg\n" +
+                            L" |-AssignmentStatement <line: 4, col: 1>\n"
+                            L" ||-Assignable <line: 4, col: 1> right=a\n"
+                            L" |`-EqualExpression <line: 4, col: 10>\n"
+                            L" | |-CastExpression <line: 4, col: 10> targetType=str\n"
+                            L" | |`-Literal <line: 4, col: 10> type=int value=2\n"
+                            L" | `-Literal <line: 4, col: 20> type=str value=2\n"
+                            L" |-AssignmentStatement <line: 5, col: 1>\n"
+                            L" ||-Assignable <line: 5, col: 1> right=a\n"
+                            L" |`-NotEqualExpression <line: 5, col: 10>\n"
+                            L" | |-Literal <line: 5, col: 10> type=float value=2\n"
+                            L" | `-CastExpression <line: 5, col: 20> targetType=float\n"
+                            L" |  `-Literal <line: 5, col: 20> type=int value=2\n" +
+                            binaryExprNoCasts(L"IdenticalExpression", 6, Type{STR}, Type{INT}) +
+                            binaryExprNoCasts(L"NotIdenticalExpression", 7, Type{INT}, Type{FLOAT}) +
+                            L" |-AssignmentStatement <line: 8, col: 1>\n"
+                            L" ||-Assignable <line: 8, col: 1> right=a\n"
+                            L" |`-EqualExpression <line: 8, col: 10>\n"
+                            L" | |-CastExpression <line: 8, col: 10> targetType=str\n"
+                            L" | |`-Literal <line: 8, col: 10> type=bool value=true\n"
+                            L" | `-Literal <line: 8, col: 20> type=str value=2\n"
+                            L" |-AssignmentStatement <line: 9, col: 1>\n"
+                            L" ||-Assignable <line: 9, col: 1> right=a\n"
+                            L" |`-NotEqualExpression <line: 9, col: 10>\n"
+                            L" | |-Literal <line: 9, col: 10> type=int value=2\n"
+                            L" | `-CastExpression <line: 9, col: 20> targetType=int\n"
+                            L" |  `-Literal <line: 9, col: 20> type=bool value=false\n" +
+                            binaryExprNoCasts(L"IdenticalExpression", 10, Type{FLOAT}, Type{STR}) +
+                            binaryExprNoCasts(L"NotIdenticalExpression", 11, Type{INT}, Type{FLOAT}) +
+                            L" `-ReturnStatement <line: 12, col: 1>\n"}
+    );
+}
+
+std::vector<std::unique_ptr<Expression>> prepareStrt1Arguments(unsigned line, unsigned column)
+{
+    std::vector<std::unique_ptr<Expression>> structArguments;
+    structArguments.push_back(makeLiteral(Position{line, column + 1}, 2));
+    structArguments.push_back(makeLiteral(Position{line, column + 3}, L"2"));
+    structArguments.push_back(makeLiteral(Position{line, column + 7}, 2.0));
+    return structArguments;
+}
+
+TEST_CASE("equality Expressions - struct init list casts", "[doSemanticAnalysis]")
+{
+    std::vector<std::unique_ptr<Instruction>> functionBody;
+    functionBody.push_back(std::make_unique<VariableDeclStatement>(
+        Position{3, 1}, VariableDeclaration({3, 1}, {BOOL}, L"a", false),
+        std::make_unique<Variable>(Position{3, 10}, L"arg")
+    ));
+    functionBody.push_back(std::make_unique<AssignmentStatement>(
+        Position{4, 1}, Assignable({4, 1}, L"a"),
+        std::make_unique<EqualExpression>(
+            Position{4, 10}, std::make_unique<Variable>(Position{4, 10}, L"s1"),
+            std::make_unique<StructExpression>(Position{4, 20}, prepareStrt1Arguments(4, 20))
+        )
+    ));
+    functionBody.push_back(std::make_unique<AssignmentStatement>(
+        Position{5, 1}, Assignable({5, 1}, L"a"),
+        std::make_unique<NotEqualExpression>(
+            Position{5, 10}, std::make_unique<StructExpression>(Position{5, 10}, prepareStrt1Arguments(5, 10)),
+            std::make_unique<Variable>(Position{5, 20}, L"s1")
+        )
+    ));
+    functionBody.push_back(std::make_unique<AssignmentStatement>(
+        Position{6, 1}, Assignable({6, 1}, L"a"),
+        std::make_unique<IdenticalExpression>(
+            Position{6, 10}, std::make_unique<Variable>(Position{6, 10}, L"s1"),
+            std::make_unique<StructExpression>(Position{6, 20}, prepareStrt1Arguments(6, 20))
+        )
+    ));
+    functionBody.push_back(std::make_unique<AssignmentStatement>(
+        Position{7, 1}, Assignable({7, 1}, L"a"),
+        std::make_unique<NotIdenticalExpression>(
+            Position{7, 10}, std::make_unique<StructExpression>(Position{7, 10}, prepareStrt1Arguments(7, 10)),
+            std::make_unique<Variable>(Position{7, 20}, L"s1")
+        )
+    ));
+    functionBody.push_back(std::make_unique<ReturnStatement>(Position{8, 1}, nullptr));
+
+    Program program = wrapInFunction(std::move(functionBody));
+    doSemanticAnalysis(program);
+    checkNodeContainer(
+        program.functions,
+        {wrappedFunctionHeader + L"`-Body:\n"
+                                 L" |-VariableDeclStatement <line: 3, col: 1>\n"
+                                 L" ||-VariableDeclaration <line: 3, col: 1> type=bool name=a mutable=false\n"
+                                 L" |`-CastExpression <line: 3, col: 10> targetType=bool\n"
+                                 L" | `-Variable <line: 3, col: 10> name=arg\n"
+                                 L" |-AssignmentStatement <line: 4, col: 1>\n"
+                                 L" ||-Assignable <line: 4, col: 1> right=a\n"
+                                 L" |`-EqualExpression <line: 4, col: 10>\n"
+                                 L" | |-Variable <line: 4, col: 10> name=s1\n"
+                                 L" | `-CastExpression <line: 4, col: 20> targetType=strt1\n"
+                                 L" |  `-StructExpression <line: 4, col: 20>\n"
+                                 L" |   |-Literal <line: 4, col: 21> type=int value=2\n"
+                                 L" |   |-Literal <line: 4, col: 23> type=str value=2\n"
+                                 L" |   `-Literal <line: 4, col: 27> type=float value=2\n"
+                                 L" |-AssignmentStatement <line: 5, col: 1>\n"
+                                 L" ||-Assignable <line: 5, col: 1> right=a\n"
+                                 L" |`-NotEqualExpression <line: 5, col: 10>\n"
+                                 L" | |-CastExpression <line: 5, col: 10> targetType=strt1\n"
+                                 L" | |`-StructExpression <line: 5, col: 10>\n"
+                                 L" | | |-Literal <line: 5, col: 11> type=int value=2\n"
+                                 L" | | |-Literal <line: 5, col: 13> type=str value=2\n"
+                                 L" | | `-Literal <line: 5, col: 17> type=float value=2\n"
+                                 L" | `-Variable <line: 5, col: 20> name=s1\n"
+                                 L" |-AssignmentStatement <line: 6, col: 1>\n"
+                                 L" ||-Assignable <line: 6, col: 1> right=a\n"
+                                 L" |`-IdenticalExpression <line: 6, col: 10>\n"
+                                 L" | |-Variable <line: 6, col: 10> name=s1\n"
+                                 L" | `-CastExpression <line: 6, col: 20> targetType=strt1\n"
+                                 L" |  `-StructExpression <line: 6, col: 20>\n"
+                                 L" |   |-Literal <line: 6, col: 21> type=int value=2\n"
+                                 L" |   |-Literal <line: 6, col: 23> type=str value=2\n"
+                                 L" |   `-Literal <line: 6, col: 27> type=float value=2\n"
+                                 L" |-AssignmentStatement <line: 7, col: 1>\n"
+                                 L" ||-Assignable <line: 7, col: 1> right=a\n"
+                                 L" |`-NotIdenticalExpression <line: 7, col: 10>\n"
+                                 L" | |-CastExpression <line: 7, col: 10> targetType=strt1\n"
+                                 L" | |`-StructExpression <line: 7, col: 10>\n"
+                                 L" | | |-Literal <line: 7, col: 11> type=int value=2\n"
+                                 L" | | |-Literal <line: 7, col: 13> type=str value=2\n"
+                                 L" | | `-Literal <line: 7, col: 17> type=float value=2\n"
+                                 L" | `-Variable <line: 7, col: 20> name=s1\n"
+                                 L" `-ReturnStatement <line: 8, col: 1>\n"}
+    );
+}
+
+template <typename EqualityExpression>
+void checkTypeEqualityExpressionErrors()
+{
+    std::vector<std::unique_ptr<Instruction>> functionBody;
+    functionBody.push_back(std::make_unique<AssignmentStatement>(
+        Position{4, 1}, Assignable({4, 1}, L"arg"),
+        std::make_unique<EqualExpression>(
+            Position{4, 10}, std::make_unique<Variable>(Position{4, 10}, L"s2"),
+            std::make_unique<StructExpression>(Position{4, 20}, prepareStrt1Arguments(4, 20))
+        )
+    ));
+    checkSemanticError<InvalidCastError>(functionBody); // init list to struct conversion not possible
+
+    functionBody.clear();
+    functionBody.push_back(std::make_unique<AssignmentStatement>(
+        Position{4, 1}, Assignable({4, 1}, L"arg"),
+        std::make_unique<EqualExpression>(
+            Position{4, 10}, std::make_unique<Variable>(Position{4, 10}, L"v1"),
+            std::make_unique<StructExpression>(Position{4, 20}, prepareStrt1Arguments(4, 20))
+        )
+    ));
+    checkSemanticError<InvalidCastError>(functionBody); // init list to variant conversion not possible
+}
+
+template <typename EqualityExpression>
+void checkEqualityExpressionErrors()
+{
+    checkTypeEqualityExpressionErrors<EqualityExpression>();
+    std::vector<std::unique_ptr<Instruction>> functionBody;
+    functionBody.push_back(std::make_unique<AssignmentStatement>(
+        Position{4, 1}, Assignable({4, 1}, L"arg"),
+        std::make_unique<EqualityExpression>(
+            Position{4, 10}, std::make_unique<Variable>(Position{4, 10}, L"s2"),
+            std::make_unique<Variable>(Position{4, 10}, L"s1")
+        )
+    ));
+    checkSemanticError<InvalidOperatorArgsError>(functionBody); // cannot compare two different struct types
+}
+
+TEST_CASE("equality Expressions errors", "[doSemanticAnalysis]")
+{
+    checkEqualityExpressionErrors<EqualExpression>();
+    checkEqualityExpressionErrors<NotEqualExpression>();
+    checkTypeEqualityExpressionErrors<IdenticalExpression>();
+    checkTypeEqualityExpressionErrors<NotIdenticalExpression>();
+}
+
+TEST_CASE("comparison Expressions cast insertions", "[doSemanticAnalysis]")
+{
+    std::vector<std::unique_ptr<Instruction>> functionBody;
+    functionBody.push_back(std::make_unique<VariableDeclStatement>(
+        Position{3, 1}, VariableDeclaration({3, 1}, {BOOL}, L"a", false),
+        std::make_unique<Variable>(Position{3, 10}, L"arg")
+    ));
+    pushBackBinaryExpr<GreaterExpression>(functionBody, 4, L"a", 2, 2);
+    pushBackBinaryExpr<LesserExpression>(functionBody, 5, L"a", 2, 2);
+    pushBackBinaryExpr<GreaterEqualExpression>(functionBody, 6, L"a", 2, 2);
+    pushBackBinaryExpr<LesserEqualExpression>(functionBody, 7, L"a", 2, 2);
+    pushBackBinaryExpr<GreaterExpression>(functionBody, 8, L"a", 2, L"2");
+    pushBackBinaryExpr<LesserExpression>(functionBody, 9, L"a", 2, L"2");
+    pushBackBinaryExpr<GreaterEqualExpression>(functionBody, 10, L"a", 2, L"2");
+    pushBackBinaryExpr<LesserEqualExpression>(functionBody, 11, L"a", 2, L"2");
+    functionBody.push_back(std::make_unique<ReturnStatement>(Position{12, 1}, nullptr));
+
+    Program program = wrapInFunction(std::move(functionBody));
+    doSemanticAnalysis(program);
+    checkNodeContainer(
+        program.functions,
+        {wrappedFunctionHeader +
+         L"`-Body:\n"
+         L" |-VariableDeclStatement <line: 3, col: 1>\n"
+         L" ||-VariableDeclaration <line: 3, col: 1> type=bool name=a mutable=false\n"
+         L" |`-CastExpression <line: 3, col: 10> targetType=bool\n"
+         L" | `-Variable <line: 3, col: 10> name=arg\n" +
+         binaryExprNoCasts(L"GreaterExpression", 4, Type{INT}, Type{INT}) +
+         binaryExprNoCasts(L"LesserExpression", 5, Type{INT}, Type{INT}) +
+         binaryExprNoCasts(L"GreaterEqualExpression", 6, Type{INT}, Type{INT}) +
+         binaryExprNoCasts(L"LesserEqualExpression", 7, Type{INT}, Type{INT}) +
+         binaryExprCasts(L"GreaterExpression", 8, Type{FLOAT}, Type{FLOAT}, Type{INT}, Type{STR}) +
+         binaryExprCasts(L"LesserExpression", 9, Type{FLOAT}, Type{FLOAT}, Type{INT}, Type{STR}) +
+         binaryExprCasts(L"GreaterEqualExpression", 10, Type{FLOAT}, Type{FLOAT}, Type{INT}, Type{STR}) +
+         binaryExprCasts(L"LesserEqualExpression", 11, Type{FLOAT}, Type{FLOAT}, Type{INT}, Type{STR}) +
+         L" `-ReturnStatement <line: 12, col: 1>\n"}
+    );
 }

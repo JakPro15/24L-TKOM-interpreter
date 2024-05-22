@@ -688,11 +688,11 @@ TEST_CASE("FunctionCall as an Instruction", "[Parser]")
                 L"  |`-FunctionCall <line: 3, col: 1> functionName=f1\n"
                 L"  |-FunctionCallInstruction <line: 4, col: 1>\n"
                 L"  |`-FunctionCall <line: 4, col: 1> functionName=f2\n"
-                L"  | `-Literal <line: 4, col: 4> type=string value=1\n"
+                L"  | `-Literal <line: 4, col: 4> type=str value=1\n"
                 L"  `-FunctionCallInstruction <line: 5, col: 1>\n"
                 L"   `-FunctionCall <line: 5, col: 1> functionName=f3\n"
                 L"    |-Literal <line: 5, col: 4> type=int value=1\n"
-                L"    |-Literal <line: 5, col: 7> type=string value=2\n"
+                L"    |-Literal <line: 5, col: 7> type=str value=2\n"
                 L"    `-Literal <line: 5, col: 12> type=float value=1.2\n"
     );
 }
@@ -901,7 +901,7 @@ TEST_CASE("IfStatement - many cases", "[Parser]")
                 L"   |-SingleIfCase <line: 8, col: 1>\n"
                 L"   ||-VariableDeclStatement <line: 8, col: 6>\n"
                 L"   |||-VariableDeclaration <line: 8, col: 6> type=type2 name=name2 mutable=true\n"
-                L"   ||`-Literal <line: 8, col: 22> type=string value=\n"
+                L"   ||`-Literal <line: 8, col: 22> type=str value=\n"
                 L"   ||-FunctionCallInstruction <line: 9, col: 5>\n"
                 L"   ||`-FunctionCall <line: 9, col: 5> functionName=called1\n"
                 L"   |`-FunctionCallInstruction <line: 10, col: 5>\n"
@@ -909,7 +909,7 @@ TEST_CASE("IfStatement - many cases", "[Parser]")
                 L"   `-ElseCase:\n"
                 L"    `-FunctionCallInstruction <line: 14, col: 5>\n"
                 L"     `-FunctionCall <line: 14, col: 5> functionName=print\n"
-                L"      `-Literal <line: 14, col: 16> type=string value=else case\n"
+                L"      `-Literal <line: 14, col: 16> type=str value=else case\n"
     );
 }
 
@@ -1535,10 +1535,10 @@ TEST_CASE("FunctionCall as an expression", "[Parser]")
                 L"   `-FunctionCall <line: 3, col: 15> functionName=print\n"
                 L"    |-FunctionCall <line: 4, col: 1> functionName=f1\n"
                 L"    |-FunctionCall <line: 5, col: 1> functionName=f2\n"
-                L"    |`-Literal <line: 5, col: 4> type=string value=1\n"
+                L"    |`-Literal <line: 5, col: 4> type=str value=1\n"
                 L"    `-FunctionCall <line: 6, col: 1> functionName=f3\n"
                 L"     |-Literal <line: 6, col: 4> type=int value=1\n"
-                L"     |-Literal <line: 6, col: 7> type=string value=2\n"
+                L"     |-Literal <line: 6, col: 7> type=str value=2\n"
                 L"     `-Literal <line: 6, col: 12> type=float value=1.2\n"
     );
 }
@@ -1662,7 +1662,7 @@ TEST_CASE("Literal", "[Parser]")
                 L"  `-FunctionCallInstruction <line: 3, col: 15>\n"
                 L"   `-FunctionCall <line: 3, col: 15> functionName=print\n"
                 L"    |-Literal <line: 4, col: 1> type=int value=2\n"
-                L"    |-Literal <line: 4, col: 3> type=string value=2\n"
+                L"    |-Literal <line: 4, col: 3> type=str value=2\n"
                 L"    |-Literal <line: 4, col: 7> type=float value=2\n"
                 L"    |-Literal <line: 4, col: 11> type=bool value=true\n"
                 L"    `-Literal <line: 4, col: 17> type=bool value=false\n"

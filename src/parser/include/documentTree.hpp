@@ -217,8 +217,12 @@ struct CastExpression: public Expression
 
 struct StructExpression: public Expression
 {
-    explicit StructExpression(Position position, std::vector<std::unique_ptr<Expression>> arguments);
+    explicit StructExpression(
+        Position position, std::vector<std::unique_ptr<Expression>> arguments,
+        std::optional<std::wstring> structType = std::nullopt
+    );
     std::vector<std::unique_ptr<Expression>> arguments;
+    std::optional<std::wstring> structType;
     void accept(DocumentTreeVisitor &visitor) override;
 };
 

@@ -123,7 +123,10 @@ void PrintingVisitor::visit(DotExpression &visited)
 
 void PrintingVisitor::visit(StructExpression &visited)
 {
-    out << L"StructExpression " << visited.getPosition() << L"\n";
+    out << L"StructExpression " << visited.getPosition();
+    if(visited.structType)
+        out << L" structType=" << *visited.structType;
+    out << L"\n";
     visitContainer(visited.arguments);
 }
 

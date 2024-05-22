@@ -214,6 +214,8 @@ public:
 
     void visit(StructExpression &visited) override
     {
+        if(structType)
+            return setStructExpressionType(visited);
         std::vector<Type> types;
         for(auto &argument: visited.arguments)
         {
@@ -368,6 +370,8 @@ private:
     Program &program;
     std::wstring currentSource;
     std::optional<Type> expectedReturnType;
+    std::optional<std::wstring> structType;
+    Type::InitializationList structInitListType;
     Type lastExpressionType;
     std::unordered_map<std::wstring, std::pair<Type, bool>> variableTypes;
     bool noReturnFunctionPermitted, variantReadAccessPermitted, blockFurtherDotAccess;
@@ -466,6 +470,22 @@ private:
         if(lastExpressionType.isBuiltin())
             throw FieldAccessError(L"Attempted access to field of simple type {}", currentSource, position);
         return std::get<std::wstring>(leftType.value);
+    }
+
+    // Expects the struct expression's initialization list type in lastExpressionType
+    void setStructExpressionType(StructExpression &visited)
+    {
+        visited.structType = structType;
+        for(auto &argument: visited.arguments)
+        {
+            std::vector<Field> &structFields = *getStructOrVariantFields(*structType);
+            for(unsigned i = 0; i < structFields.size(); i++)
+            {
+                if(structInitListType[i] != structFields[i].type)
+                    insertCast(argument, structInitListType[i], structFields[i].type);
+            }
+        }
+        structType = std::nullopt;
     }
 
     void visitLeafAssignable(Assignable &visited)
@@ -579,7 +599,14 @@ private:
                 std::format(L"Implicit conversion between types {} and {} is impossible", typeFrom, typeTo),
                 currentSource, expression->getPosition()
             );
-        expression = std::make_unique<CastExpression>(expression->getPosition(), std::move(expression), typeTo);
+        if(typeFrom.isInitList())
+        {
+            structType = std::get<std::wstring>(typeTo.value);
+            structInitListType = std::get<Type::InitializationList>(typeFrom.value);
+            expression->accept(*this);
+        }
+        else
+            expression = std::make_unique<CastExpression>(expression->getPosition(), std::move(expression), typeTo);
     }
 
     bool isValidType(Type type)

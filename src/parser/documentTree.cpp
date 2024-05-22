@@ -53,8 +53,9 @@ DotExpression::DotExpression(Position position, std::unique_ptr<Expression> valu
     Expression(position), value(std::move(value)), field(field)
 {}
 
-StructExpression::StructExpression(Position position, std::vector<std::unique_ptr<Expression>> arguments):
-    Expression(position), arguments(std::move(arguments))
+StructExpression::StructExpression(
+    Position position, std::vector<std::unique_ptr<Expression>> arguments, std::optional<std::wstring> structType
+): Expression(position), arguments(std::move(arguments)), structType(structType)
 {}
 
 CastExpression::CastExpression(Position position, std::unique_ptr<Expression> value, Type targetType):

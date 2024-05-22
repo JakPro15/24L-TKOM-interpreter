@@ -430,13 +430,22 @@ TEST_CASE("AssignmentStatement errors", "[doSemanticAnalysis]")
         makeLiteral({5, 10}, L"2")
     ));
     checkSemanticError<FieldAccessError>(functionBody); // access to field of variant field
+
+    functionBody.clear();
+    functionBody.push_back(std::make_unique<VariableDeclStatement>(
+        Position{3, 1}, VariableDeclaration({3, 1}, {STR}, L"a", false), makeLiteral(Position{3, 10}, L"2")
+    ));
+    functionBody.push_back(
+        std::make_unique<AssignmentStatement>(Position{4, 1}, Assignable({4, 1}, L"a"), makeLiteral({4, 10}, L"3"))
+    );
+    checkSemanticError<ImmutableError>(functionBody); // modification of immutable variable
 }
 
 Program wrapExpression(std::unique_ptr<Expression> &expression)
 {
     std::vector<std::unique_ptr<Instruction>> functionBody;
     functionBody.push_back(std::make_unique<VariableDeclStatement>(
-        Position{3, 1}, VariableDeclaration({3, 1}, {STR}, L"a", false), std::move(expression)
+        Position{3, 1}, VariableDeclaration({3, 1}, {STR}, L"a", true), std::move(expression)
     ));
     return wrapInFunction(std::move(functionBody));
 }
@@ -489,7 +498,7 @@ TEST_CASE("boolean Expressions cast insertions", "[doSemanticAnalysis]")
 {
     std::vector<std::unique_ptr<Instruction>> functionBody;
     functionBody.push_back(std::make_unique<VariableDeclStatement>(
-        Position{3, 1}, VariableDeclaration({3, 1}, {BOOL}, L"a", false),
+        Position{3, 1}, VariableDeclaration({3, 1}, {BOOL}, L"a", true),
         std::make_unique<Variable>(Position{3, 10}, L"arg")
     ));
     pushBackBinaryExpr<OrExpression>(functionBody, 4, L"a", 2, L"2");
@@ -503,7 +512,7 @@ TEST_CASE("boolean Expressions cast insertions", "[doSemanticAnalysis]")
         program.functions, {wrappedFunctionHeader +
                             L"`-Body:\n"
                             L" |-VariableDeclStatement <line: 3, col: 1>\n"
-                            L" ||-VariableDeclaration <line: 3, col: 1> type=bool name=a mutable=false\n"
+                            L" ||-VariableDeclaration <line: 3, col: 1> type=bool name=a mutable=true\n"
                             L" |`-CastExpression <line: 3, col: 10> targetType=bool\n"
                             L" | `-Variable <line: 3, col: 10> name=arg\n" +
                             binaryExprCasts(L"OrExpression", 4, Type{BOOL}, Type{BOOL}, Type{INT}, Type{STR}) +
@@ -517,7 +526,7 @@ TEST_CASE("equality Expressions - no cast for same types", "[doSemanticAnalysis]
 {
     std::vector<std::unique_ptr<Instruction>> functionBody;
     functionBody.push_back(std::make_unique<VariableDeclStatement>(
-        Position{3, 1}, VariableDeclaration({3, 1}, {BOOL}, L"a", false),
+        Position{3, 1}, VariableDeclaration({3, 1}, {BOOL}, L"a", true),
         std::make_unique<Variable>(Position{3, 10}, L"arg")
     ));
     pushBackBinaryExpr<EqualExpression>(functionBody, 4, L"a", 2, 2);
@@ -536,7 +545,7 @@ TEST_CASE("equality Expressions - no cast for same types", "[doSemanticAnalysis]
         program.functions, {wrappedFunctionHeader +
                             L"`-Body:\n"
                             L" |-VariableDeclStatement <line: 3, col: 1>\n"
-                            L" ||-VariableDeclaration <line: 3, col: 1> type=bool name=a mutable=false\n"
+                            L" ||-VariableDeclaration <line: 3, col: 1> type=bool name=a mutable=true\n"
                             L" |`-CastExpression <line: 3, col: 10> targetType=bool\n"
                             L" | `-Variable <line: 3, col: 10> name=arg\n" +
                             binaryExprNoCasts(L"EqualExpression", 4, Type{INT}, Type{INT}) +
@@ -555,7 +564,7 @@ TEST_CASE("equality Expressions - builtin types casts", "[doSemanticAnalysis]")
 {
     std::vector<std::unique_ptr<Instruction>> functionBody;
     functionBody.push_back(std::make_unique<VariableDeclStatement>(
-        Position{3, 1}, VariableDeclaration({3, 1}, {BOOL}, L"a", false),
+        Position{3, 1}, VariableDeclaration({3, 1}, {BOOL}, L"a", true),
         std::make_unique<Variable>(Position{3, 10}, L"arg")
     ));
     pushBackBinaryExpr<EqualExpression>(functionBody, 4, L"a", 2, L"2");
@@ -574,7 +583,7 @@ TEST_CASE("equality Expressions - builtin types casts", "[doSemanticAnalysis]")
         program.functions, {wrappedFunctionHeader +
                             L"`-Body:\n"
                             L" |-VariableDeclStatement <line: 3, col: 1>\n"
-                            L" ||-VariableDeclaration <line: 3, col: 1> type=bool name=a mutable=false\n"
+                            L" ||-VariableDeclaration <line: 3, col: 1> type=bool name=a mutable=true\n"
                             L" |`-CastExpression <line: 3, col: 10> targetType=bool\n"
                             L" | `-Variable <line: 3, col: 10> name=arg\n" +
                             L" |-AssignmentStatement <line: 4, col: 1>\n"
@@ -622,7 +631,7 @@ TEST_CASE("equality Expressions - struct init list casts", "[doSemanticAnalysis]
 {
     std::vector<std::unique_ptr<Instruction>> functionBody;
     functionBody.push_back(std::make_unique<VariableDeclStatement>(
-        Position{3, 1}, VariableDeclaration({3, 1}, {BOOL}, L"a", false),
+        Position{3, 1}, VariableDeclaration({3, 1}, {BOOL}, L"a", true),
         std::make_unique<Variable>(Position{3, 10}, L"arg")
     ));
     functionBody.push_back(std::make_unique<AssignmentStatement>(
@@ -661,7 +670,7 @@ TEST_CASE("equality Expressions - struct init list casts", "[doSemanticAnalysis]
         program.functions,
         {wrappedFunctionHeader + L"`-Body:\n"
                                  L" |-VariableDeclStatement <line: 3, col: 1>\n"
-                                 L" ||-VariableDeclaration <line: 3, col: 1> type=bool name=a mutable=false\n"
+                                 L" ||-VariableDeclaration <line: 3, col: 1> type=bool name=a mutable=true\n"
                                  L" |`-CastExpression <line: 3, col: 10> targetType=bool\n"
                                  L" | `-Variable <line: 3, col: 10> name=arg\n"
                                  L" |-AssignmentStatement <line: 4, col: 1>\n"
@@ -755,7 +764,7 @@ TEST_CASE("comparison Expressions cast insertions", "[doSemanticAnalysis]")
 {
     std::vector<std::unique_ptr<Instruction>> functionBody;
     functionBody.push_back(std::make_unique<VariableDeclStatement>(
-        Position{3, 1}, VariableDeclaration({3, 1}, {BOOL}, L"a", false),
+        Position{3, 1}, VariableDeclaration({3, 1}, {BOOL}, L"a", true),
         std::make_unique<Variable>(Position{3, 10}, L"arg")
     ));
     pushBackBinaryExpr<GreaterExpression>(functionBody, 4, L"a", 2, 2);
@@ -775,7 +784,7 @@ TEST_CASE("comparison Expressions cast insertions", "[doSemanticAnalysis]")
         {wrappedFunctionHeader +
          L"`-Body:\n"
          L" |-VariableDeclStatement <line: 3, col: 1>\n"
-         L" ||-VariableDeclaration <line: 3, col: 1> type=bool name=a mutable=false\n"
+         L" ||-VariableDeclaration <line: 3, col: 1> type=bool name=a mutable=true\n"
          L" |`-CastExpression <line: 3, col: 10> targetType=bool\n"
          L" | `-Variable <line: 3, col: 10> name=arg\n" +
          binaryExprNoCasts(L"GreaterExpression", 4, Type{INT}, Type{INT}) +
@@ -789,3 +798,31 @@ TEST_CASE("comparison Expressions cast insertions", "[doSemanticAnalysis]")
          L" `-ReturnStatement <line: 12, col: 1>\n"}
     );
 }
+
+// TEST_CASE("binary arithmetic Expressions cast insertions", "[doSemanticAnalysis]")
+// {
+//     std::vector<std::unique_ptr<Instruction>> functionBody;
+//     functionBody.push_back(std::make_unique<VariableDeclStatement>(
+//         Position{3, 1}, VariableDeclaration({3, 1}, {BOOL}, L"a", true),
+//         std::make_unique<Variable>(Position{3, 10}, L"arg")
+//     ));
+//     pushBackBinaryExpr<PlusExpression>(functionBody, 4, L"a", 2, L"2");
+//     pushBackBinaryExpr<XorExpression>(functionBody, 5, L"a", 2, L"2");
+//     pushBackBinaryExpr<AndExpression>(functionBody, 6, L"a", 2, L"2");
+//     functionBody.push_back(std::make_unique<ReturnStatement>(Position{7, 1}, nullptr));
+
+// Program program = wrapInFunction(std::move(functionBody));
+// doSemanticAnalysis(program);
+// checkNodeContainer(
+//     program.functions, {wrappedFunctionHeader +
+//                         L"`-Body:\n"
+//                         L" |-VariableDeclStatement <line: 3, col: 1>\n"
+//                         L" ||-VariableDeclaration <line: 3, col: 1> type=bool name=a mutable=true\n"
+//                         L" |`-CastExpression <line: 3, col: 10> targetType=bool\n"
+//                         L" | `-Variable <line: 3, col: 10> name=arg\n" +
+//                         binaryExprCasts(L"OrExpression", 4, Type{BOOL}, Type{BOOL}, Type{INT}, Type{STR}) +
+//                         binaryExprCasts(L"XorExpression", 5, Type{BOOL}, Type{BOOL}, Type{INT}, Type{STR}) +
+//                         binaryExprCasts(L"AndExpression", 6, Type{BOOL}, Type{BOOL}, Type{INT}, Type{STR}) +
+//                         L" `-ReturnStatement <line: 7, col: 1>\n"}
+// );
+// }

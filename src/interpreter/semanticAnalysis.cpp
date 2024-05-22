@@ -35,7 +35,7 @@ public:
             throw UnknownVariableError(
                 std::format(L"Unknown variable: {}", visited.name), currentSource, visited.getPosition()
             );
-        lastExpressionType = found->second;
+        lastExpressionType = found->second.first;
     }
 
     void visit(OrExpression &visited) override
@@ -247,7 +247,7 @@ public:
             throw UnknownVariableTypeError(
                 std::format(L"{} is not a type", visited.type), currentSource, visited.getPosition()
             );
-        variableTypes.insert({visited.name, visited.type});
+        variableTypes.insert({visited.name, {visited.type, visited.isMutable}});
     }
 
     void visit(VariableDeclStatement &visited) override
@@ -369,7 +369,7 @@ private:
     std::wstring currentSource;
     std::optional<Type> expectedReturnType;
     Type lastExpressionType;
-    std::unordered_map<std::wstring, Type> variableTypes;
+    std::unordered_map<std::wstring, std::pair<Type, bool>> variableTypes;
     bool noReturnFunctionPermitted, variantReadAccessPermitted, blockFurtherDotAccess;
     std::unique_ptr<Expression> *replaceableExpression;
 
@@ -475,7 +475,12 @@ private:
             throw UnknownVariableError(
                 std::format(L"{} is not a variable", visited.right), currentSource, visited.getPosition()
             );
-        lastExpressionType = variableFound->second;
+        if(!variableFound->second.second)
+            throw ImmutableError(
+                std::format(L"Attempted to modify immutable variable {}", visited.right), currentSource,
+                visited.getPosition()
+            );
+        lastExpressionType = variableFound->second.first;
     }
 
     Type getTypeOfField(const std::vector<Field> &fields, std::wstring fieldName, Position position)

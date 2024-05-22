@@ -62,5 +62,6 @@ DECLARE_SEMANTIC_ERROR(InvalidCastError);
 DECLARE_SEMANTIC_ERROR(FieldAccessError);
 DECLARE_SEMANTIC_ERROR(InvalidOperatorArgsError);
 DECLARE_SEMANTIC_ERROR(InvalidInitListError);
+DECLARE_SEMANTIC_ERROR(ImmutableError);
 
 #endif

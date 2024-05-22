@@ -1063,3 +1063,37 @@ TEST_CASE("IsExpression error", "[doSemanticAnalysis]")
     ));
     checkSemanticError<InvalidInitListError>(functionBody); // cannot use is operator on initialization list
 }
+
+TEST_CASE("explicit CastExpression", "[doSemanticAnalysis]")
+{
+    std::vector<std::unique_ptr<Instruction>> functionBody;
+    functionBody.push_back(std::make_unique<VariableDeclStatement>(
+        Position{3, 1}, VariableDeclaration({3, 1}, {BOOL}, L"a", true),
+        std::make_unique<CastExpression>(
+            Position{3, 10}, std::make_unique<Variable>(Position{3, 10}, L"arg"), Type{BOOL}
+        )
+    ));
+
+    Program program = wrapInFunction(std::move(functionBody));
+    doSemanticAnalysis(program);
+    checkNodeContainer(
+        program.functions,
+        {wrappedFunctionHeader + L"`-Body:\n"
+                                 L" `-VariableDeclStatement <line: 3, col: 1>\n"
+                                 L"  |-VariableDeclaration <line: 3, col: 1> type=bool name=a mutable=true\n"
+                                 L"  `-CastExpression <line: 3, col: 10> targetType=bool\n"
+                                 L"   `-Variable <line: 3, col: 10> name=arg\n"}
+    );
+}
+
+TEST_CASE("CastExpression error", "[doSemanticAnalysis]")
+{
+    std::vector<std::unique_ptr<Instruction>> functionBody;
+    functionBody.push_back(std::make_unique<VariableDeclStatement>(
+        Position{3, 1}, VariableDeclaration({3, 1}, {BOOL}, L"a", true),
+        std::make_unique<CastExpression>(
+            Position{3, 10}, std::make_unique<Variable>(Position{3, 10}, L"s1"), Type{BOOL}
+        )
+    ));
+    checkSemanticError<InvalidCastError>(functionBody); // cannot do such cast
+}

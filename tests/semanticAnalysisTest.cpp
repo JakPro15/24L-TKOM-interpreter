@@ -923,49 +923,107 @@ TEST_CASE("unary Expressions cast insertions", "[doSemanticAnalysis]")
 TEST_CASE("DotExpression valid access", "[doSemanticAnalysis]")
 {
     std::vector<std::unique_ptr<Instruction>> functionBody;
-    functionBody.push_back(std::make_unique<VariableDeclStatement>(
-        Position{3, 1}, VariableDeclaration({3, 1}, {FLOAT}, L"a", true), makeLiteral(Position{3, 10}, 2.0)
-    ));
-    functionBody.push_back(std::make_unique<VariableDeclStatement>(
-        Position{4, 1}, VariableDeclaration({4, 1}, {BOOL}, L"b", true), makeLiteral(Position{4, 10}, false)
-    ));
     functionBody.push_back(std::make_unique<AssignmentStatement>(
-        Position{5, 1}, Assignable({5, 1}, L"arg"),
-        std::make_unique<UnaryMinusExpression>(Position{5, 10}, makeLiteral(Position{5, 11}, 2))
+        Position{3, 1}, Assignable({3, 1}, L"arg"),
+        std::make_unique<DotExpression>(
+            Position{3, 10},
+            std::make_unique<DotExpression>(Position{3, 10}, std::make_unique<Variable>(Position{3, 10}, L"s2"), L"a"),
+            L"a"
+        )
     ));
-    functionBody.push_back(std::make_unique<AssignmentStatement>(
-        Position{6, 1}, Assignable({6, 1}, L"a"),
-        std::make_unique<UnaryMinusExpression>(Position{6, 10}, makeLiteral(Position{6, 11}, L"2"))
+    std::vector<SingleIfCase> cases;
+    cases.push_back(SingleIfCase(
+        {4, 1},
+        VariableDeclStatement(
+            {4, 10}, VariableDeclaration({4, 10}, {INT}, L"a", false),
+            std::make_unique<DotExpression>(
+                Position{4, 10},
+                std::make_unique<DotExpression>(
+                    Position{4, 10}, std::make_unique<Variable>(Position{4, 10}, L"s2"), L"b"
+                ),
+                L"a"
+            )
+        ),
+        {}
     ));
-    functionBody.push_back(std::make_unique<AssignmentStatement>(
-        Position{7, 1}, Assignable({7, 1}, L"b"),
-        std::make_unique<NotExpression>(Position{7, 10}, makeLiteral(Position{7, 11}, L"2"))
-    ));
+    functionBody.push_back(
+        std::make_unique<IfStatement>(Position{4, 1}, std::move(cases), std::vector<std::unique_ptr<Instruction>>{})
+    );
 
     Program program = wrapInFunction(std::move(functionBody));
     doSemanticAnalysis(program);
     checkNodeContainer(
         program.functions,
         {wrappedFunctionHeader + L"`-Body:\n"
-                                 L" |-VariableDeclStatement <line: 3, col: 1>\n"
-                                 L" ||-VariableDeclaration <line: 3, col: 1> type=float name=a mutable=true\n"
-                                 L" |`-Literal <line: 3, col: 10> type=float value=2\n"
-                                 L" |-VariableDeclStatement <line: 4, col: 1>\n"
-                                 L" ||-VariableDeclaration <line: 4, col: 1> type=bool name=b mutable=true\n"
-                                 L" |`-Literal <line: 4, col: 10> type=bool value=false\n"
-                                 L" |-AssignmentStatement <line: 5, col: 1>\n"
-                                 L" ||-Assignable <line: 5, col: 1> right=arg\n"
-                                 L" |`-UnaryMinusExpression <line: 5, col: 10>\n"
-                                 L" | `-Literal <line: 5, col: 11> type=int value=2\n"
-                                 L" |-AssignmentStatement <line: 6, col: 1>\n"
-                                 L" ||-Assignable <line: 6, col: 1> right=a\n"
-                                 L" |`-UnaryMinusExpression <line: 6, col: 10>\n"
-                                 L" | `-CastExpression <line: 6, col: 11> targetType=float\n"
-                                 L" |  `-Literal <line: 6, col: 11> type=str value=2\n"
-                                 L" `-AssignmentStatement <line: 7, col: 1>\n"
-                                 L"  |-Assignable <line: 7, col: 1> right=b\n"
-                                 L"  `-NotExpression <line: 7, col: 10>\n"
-                                 L"   `-CastExpression <line: 7, col: 11> targetType=bool\n"
-                                 L"    `-Literal <line: 7, col: 11> type=str value=2\n"}
+                                 L" |-AssignmentStatement <line: 3, col: 1>\n"
+                                 L" ||-Assignable <line: 3, col: 1> right=arg\n"
+                                 L" |`-DotExpression <line: 3, col: 10> field=a\n"
+                                 L" | `-DotExpression <line: 3, col: 10> field=a\n"
+                                 L" |  `-Variable <line: 3, col: 10> name=s2\n"
+                                 L" `-IfStatement <line: 4, col: 1>\n"
+                                 L"  `-SingleIfCase <line: 4, col: 1>\n"
+                                 L"   `-VariableDeclStatement <line: 4, col: 10>\n"
+                                 L"    |-VariableDeclaration <line: 4, col: 10> type=int name=a mutable=false\n"
+                                 L"    `-DotExpression <line: 4, col: 10> field=a\n"
+                                 L"     `-DotExpression <line: 4, col: 10> field=b\n"
+                                 L"      `-Variable <line: 4, col: 10> name=s2\n"}
     );
+}
+
+TEST_CASE("DotExpression errors", "[doSemanticAnalysis]")
+{
+    std::vector<std::unique_ptr<Instruction>> functionBody;
+    functionBody.push_back(std::make_unique<AssignmentStatement>(
+        Position{3, 1}, Assignable({3, 1}, L"arg"),
+        std::make_unique<DotExpression>(Position{3, 10}, std::make_unique<Variable>(Position{3, 10}, L"s1"), L"d")
+    ));
+    checkSemanticError<FieldAccessError>(functionBody); // access to nonexistent field
+
+    functionBody.clear();
+    functionBody.push_back(std::make_unique<AssignmentStatement>(
+        Position{3, 1}, Assignable({3, 1}, L"arg"),
+        std::make_unique<DotExpression>(Position{3, 10}, std::make_unique<Variable>(Position{3, 10}, L"v1"), L"a")
+    ));
+    checkSemanticError<FieldAccessError>(functionBody); // variant field access not permitted here
+
+    functionBody.clear();
+    std::vector<std::unique_ptr<Expression>> structArguments;
+    structArguments.push_back(makeLiteral({3, 11}, 2));
+    structArguments.push_back(makeLiteral({3, 13}, L"2"));
+    structArguments.push_back(makeLiteral({3, 17}, 2.0));
+    functionBody.push_back(std::make_unique<AssignmentStatement>(
+        Position{3, 1}, Assignable({3, 1}, L"arg"),
+        std::make_unique<DotExpression>(
+            Position{3, 10}, std::make_unique<StructExpression>(Position{3, 10}, std::move(structArguments)), L"a"
+        )
+    ));
+    checkSemanticError<InvalidInitListError>(functionBody); // access to field of raw initialization list
+
+    functionBody.clear();
+    functionBody.push_back(std::make_unique<AssignmentStatement>(
+        Position{3, 1}, Assignable({3, 1}, L"arg"),
+        std::make_unique<DotExpression>(Position{3, 10}, std::make_unique<Variable>(Position{3, 10}, L"arg"), L"a")
+    ));
+    checkSemanticError<FieldAccessError>(functionBody); // access to field of simple type
+
+    functionBody.clear();
+    std::vector<SingleIfCase> cases;
+    cases.push_back(SingleIfCase(
+        {3, 1},
+        VariableDeclStatement(
+            {3, 10}, VariableDeclaration({3, 10}, {INT}, L"a", false),
+            std::make_unique<DotExpression>(
+                Position{3, 10},
+                std::make_unique<DotExpression>(
+                    Position{3, 10}, std::make_unique<Variable>(Position{3, 10}, L"v2"), L"b"
+                ),
+                L"a"
+            )
+        ),
+        {}
+    ));
+    functionBody.push_back(
+        std::make_unique<IfStatement>(Position{4, 1}, std::move(cases), std::vector<std::unique_ptr<Instruction>>{})
+    );
+    checkSemanticError<FieldAccessError>(functionBody); // access to field of accessed field of variant type
 }

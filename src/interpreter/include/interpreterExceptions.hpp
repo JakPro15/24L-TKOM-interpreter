@@ -68,5 +68,6 @@ DECLARE_SEMANTIC_ERROR(AmbiguousFunctionCallError);
 DECLARE_SEMANTIC_ERROR(InvalidReturnError);
 DECLARE_SEMANTIC_ERROR(InvalidBreakError);
 DECLARE_SEMANTIC_ERROR(InvalidContinueError);
+DECLARE_SEMANTIC_ERROR(InvalidIfConditionError);
 
 #endif

@@ -22,7 +22,7 @@ class SemanticAnalyzer: public DocumentTreeVisitor
 {
 public:
     explicit SemanticAnalyzer(Program &program):
-        program(program), noReturnFunctionPermitted(false), variantReadAccessPermitted(false),
+        program(program), noReturnFunctionPermitted(false), variantReadAccessPermitted(false), accessedVariant(false),
         blockFurtherDotAccess(false), loopCounter(0)
     {}
 
@@ -206,6 +206,7 @@ public:
         std::optional<std::unordered_map<std::wstring, VariantDeclaration>::iterator> variantFound;
         if(canAccessVariant && (variantFound = findIn(program.variants, typeName)))
         {
+            accessedVariant = true;
             lastExpressionType = getTypeOfField((*variantFound)->second.fields, visited.field, visited.getPosition());
             return;
         }
@@ -262,8 +263,14 @@ public:
     void visit(VariableDeclStatement &visited) override
     {
         visited.declaration.accept(*this);
+        bool shouldAccessVariant = variantReadAccessPermitted;
         replaceableExpression = &visited.value;
         visited.value->accept(*this);
+        if(shouldAccessVariant && !accessedVariant && !isVariantType(lastExpressionType))
+            throw InvalidIfConditionError(
+                L"If with declaration must access a variant type", currentSource, visited.getPosition()
+            );
+        accessedVariant = false;
         if(lastExpressionType != visited.declaration.type)
             insertCast(visited.value, lastExpressionType, visited.declaration.type);
     }
@@ -321,6 +328,7 @@ public:
         return argumentTypes;
     }
 
+    // in case the function call is an explicit cast of initialization list to a struct type, parsed as FunctionCall
     void visitStructFunctionCall(FunctionCall &visited, const std::vector<Type> &argumentTypes)
     {
         if(!isStructInitListValid(argumentTypes, {visited.functionName}))
@@ -333,6 +341,7 @@ public:
         *replaceableExpression = std::move(structExpression);
     }
 
+    // in case the function call is an explicit cast to a variant type, parsed as FunctionCall
     void visitVariantFunctionCall(
         FunctionCall &visited, const std::vector<Type> &argumentTypes, const std::vector<Field> &variantFields
     )
@@ -543,7 +552,7 @@ private:
     Type::InitializationList structInitListType;
     Type lastExpressionType;
     std::unordered_map<std::wstring, std::pair<Type, bool>> variableTypes;
-    bool noReturnFunctionPermitted, variantReadAccessPermitted, blockFurtherDotAccess;
+    bool noReturnFunctionPermitted, variantReadAccessPermitted, accessedVariant, blockFurtherDotAccess;
     std::unique_ptr<Expression> *replaceableExpression;
     unsigned loopCounter;
 
@@ -789,6 +798,14 @@ private:
         }
         else
             expression = std::make_unique<CastExpression>(expression->getPosition(), std::move(expression), typeTo);
+    }
+
+    bool isVariantType(Type type)
+    {
+        if(type.isInitList() || type.isBuiltin())
+            return false;
+        std::wstring typeName = std::get<std::wstring>(type.value);
+        return program.variants.find(typeName) != program.variants.end();
     }
 
     bool isValidType(Type type)

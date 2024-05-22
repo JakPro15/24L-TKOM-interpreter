@@ -63,5 +63,10 @@ DECLARE_SEMANTIC_ERROR(FieldAccessError);
 DECLARE_SEMANTIC_ERROR(InvalidOperatorArgsError);
 DECLARE_SEMANTIC_ERROR(InvalidInitListError);
 DECLARE_SEMANTIC_ERROR(ImmutableError);
+DECLARE_SEMANTIC_ERROR(InvalidFunctionError);
+DECLARE_SEMANTIC_ERROR(AmbiguousFunctionCallError);
+DECLARE_SEMANTIC_ERROR(InvalidReturnError);
+DECLARE_SEMANTIC_ERROR(InvalidBreakError);
+DECLARE_SEMANTIC_ERROR(InvalidContinueError);
 
 #endif

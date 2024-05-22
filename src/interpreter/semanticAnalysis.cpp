@@ -2,7 +2,10 @@
 
 #include "interpreterExceptions.hpp"
 
+#include <algorithm>
+#include <functional>
 #include <iostream>
+#include <limits>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -20,7 +23,7 @@ class SemanticAnalyzer: public DocumentTreeVisitor
 public:
     explicit SemanticAnalyzer(Program &program):
         program(program), noReturnFunctionPermitted(false), variantReadAccessPermitted(false),
-        blockFurtherDotAccess(false)
+        blockFurtherDotAccess(false), loopCounter(0)
     {}
 
     void visit(Literal &visited) override
@@ -215,7 +218,11 @@ public:
     void visit(StructExpression &visited) override
     {
         if(structType)
-            return setStructExpressionType(visited);
+        {
+            setStructExpressionType(visited, *structType, structInitListType);
+            structType = std::nullopt;
+            return;
+        }
         std::vector<Type> types;
         for(auto &argument: visited.arguments)
         {
@@ -255,6 +262,7 @@ public:
     void visit(VariableDeclStatement &visited) override
     {
         visited.declaration.accept(*this);
+        replaceableExpression = &visited.value;
         visited.value->accept(*this);
         if(lastExpressionType != visited.declaration.type)
             insertCast(visited.value, lastExpressionType, visited.declaration.type);
@@ -291,49 +299,210 @@ public:
             insertCast(visited.right, rightType, leftType);
     }
 
+    std::vector<FunctionIdentification> getFunctionIdsWithName(const std::wstring &functionName)
+    {
+        std::vector<FunctionIdentification> result;
+        for(auto &[id, declaration]: program.functions)
+        {
+            if(id.name == functionName)
+                result.push_back(id);
+        }
+        return result;
+    }
+
+    std::vector<Type> visitArguments(std::vector<std::unique_ptr<Expression>> &arguments)
+    {
+        std::vector<Type> argumentTypes;
+        for(auto &argument: arguments)
+        {
+            visitExpression(argument);
+            argumentTypes.push_back(lastExpressionType);
+        }
+        return argumentTypes;
+    }
+
+    void visitStructFunctionCall(FunctionCall &visited, const std::vector<Type> &argumentTypes)
+    {
+        if(!isStructInitListValid(argumentTypes, {visited.functionName}))
+            throw InvalidInitListError(
+                std::format(L"Structure initialization list cannot be converted to type {}", visited.functionName),
+                currentSource, visited.getPosition()
+            );
+        auto structExpression = std::make_unique<StructExpression>(visited.getPosition(), std::move(visited.arguments));
+        setStructExpressionType(*structExpression, visited.functionName, argumentTypes);
+        *replaceableExpression = std::move(structExpression);
+    }
+
+    void visitVariantFunctionCall(
+        FunctionCall &visited, const std::vector<Type> &argumentTypes, const std::vector<Field> &variantFields
+    )
+    {
+        if(argumentTypes.size() != 1)
+            throw InvalidCastError(
+                L"Explicit cast to variant type must have only one argument", currentSource, visited.getPosition()
+            );
+        if(!getField(variantFields, argumentTypes[0]))
+            throw InvalidCastError(
+                std::format(L"Cannot cast value of type {} to variant type {}", argumentTypes[0], visited.functionName),
+                currentSource, visited.getPosition()
+            );
+        *replaceableExpression = std::make_unique<CastExpression>(
+            visited.getPosition(), std::move(visited.arguments[0]), Type{visited.functionName}
+        );
+    }
+
+    unsigned countNeededConversions(const std::vector<Type> &parameterTypes, const std::vector<Type> &argumentTypes)
+    {
+        if(parameterTypes.size() != argumentTypes.size())
+            return std::numeric_limits<unsigned>::max();
+
+        unsigned conversions = 0;
+        for(unsigned i = 0; i < parameterTypes.size(); i++)
+        {
+            if(parameterTypes[i] != argumentTypes[i])
+            {
+                if(!areTypesConvertible(argumentTypes[i], parameterTypes[i]))
+                    return std::numeric_limits<unsigned>::max();
+                conversions += 1;
+            }
+        }
+        return conversions;
+    }
+
+    std::pair<unsigned, bool> getMinimumIndex(const std::vector<unsigned> &conversionsNeeded)
+    {
+        unsigned bestIndex = 0;
+        unsigned leastConversions = conversionsNeeded[0];
+        bool multipleBests = false;
+        for(unsigned i = 1; i < conversionsNeeded.size(); i++)
+        {
+            if(conversionsNeeded[i] < leastConversions)
+            {
+                leastConversions = conversionsNeeded[i];
+                bestIndex = i;
+                multipleBests = false;
+            }
+            else if(conversionsNeeded[i] == leastConversions)
+                multipleBests = true;
+        }
+        return {bestIndex, multipleBests};
+    }
+
+    const FunctionIdentification &getBestOverload(FunctionCall &visited, const std::vector<Type> &argumentTypes)
+    {
+        std::vector<FunctionIdentification> overloads = getFunctionIdsWithName(visited.functionName);
+        std::vector<unsigned> conversionsNeeded;
+        for(const FunctionIdentification &id: overloads)
+            conversionsNeeded.push_back(countNeededConversions(id.parameterTypes, argumentTypes));
+        auto [bestIndex, multipleBests] = getMinimumIndex(conversionsNeeded);
+        if(multipleBests)
+            throw AmbiguousFunctionCallError(
+                std::format(
+                    L"Call of overloaded function {} with arguments {} is ambiguous", visited.functionName,
+                    argumentTypes
+                ),
+                currentSource, visited.getPosition()
+            );
+        return overloads[bestIndex];
+    }
+
     void visit(FunctionCall &visited) override
     {
-        static_cast<void>(visited);
+        std::vector<Type> argumentTypes = visitArguments(visited.arguments);
+        if(auto structFound = findIn(program.structs, visited.functionName))
+            return visitStructFunctionCall(visited, argumentTypes);
+        if(auto variantFound = findIn(program.variants, visited.functionName))
+            return visitVariantFunctionCall(visited, argumentTypes, (*variantFound)->second.fields);
+
+        const FunctionIdentification &bestId = getBestOverload(visited, argumentTypes);
+        for(unsigned i = 0; i < bestId.parameterTypes.size(); i++)
+        {
+            if(argumentTypes[i] != bestId.parameterTypes[i])
+                insertCast(visited.arguments[i], argumentTypes[i], bestId.parameterTypes[i]);
+        }
     }
 
     void visit(FunctionCallInstruction &visited) override
     {
-        static_cast<void>(visited);
+        variantReadAccessPermitted = false;
+        visited.functionCall.accept(*this);
     }
 
     void visit(ReturnStatement &visited) override
     {
-        static_cast<void>(visited);
+        if(!expectedReturnType || !visited.returnValue)
+        {
+            if(expectedReturnType || visited.returnValue)
+                throw InvalidReturnError(
+                    L"Return with value is required if and only if function returns a type", currentSource,
+                    visited.getPosition()
+                );
+            return;
+        }
+        visitExpression(visited.returnValue);
+        if(lastExpressionType != expectedReturnType)
+            insertCast(visited.returnValue, lastExpressionType, *expectedReturnType);
     }
 
     void visit(ContinueStatement &visited) override
     {
-        static_cast<void>(visited);
+        if(loopCounter < 1)
+            throw InvalidContinueError(
+                L"Continue statement is permitted only within a loop", currentSource, visited.getPosition()
+            );
     }
 
     void visit(BreakStatement &visited) override
     {
-        static_cast<void>(visited);
+        if(loopCounter < 1)
+            throw InvalidBreakError(
+                L"Break statement is permitted only within a loop", currentSource, visited.getPosition()
+            );
+    }
+
+    void visitInstructions(std::vector<std::unique_ptr<Instruction>> &instructions)
+    {
+        for(auto &instruction: instructions)
+            instruction->accept(*this);
+    }
+
+    void visitCondition(VariableDeclStatement &condition)
+    {
+        variantReadAccessPermitted = true;
+        visit(condition);
+        variantReadAccessPermitted = false;
+    }
+
+    void visitCondition(std::unique_ptr<Expression> &condition)
+    {
+        visitExpression(condition);
+        if(lastExpressionType != Type{BOOL})
+            insertCast(condition, lastExpressionType, Type{BOOL});
     }
 
     void visit(SingleIfCase &visited) override
     {
-        static_cast<void>(visited);
+        std::visit([&](auto &condition) { visitCondition(condition); }, visited.condition);
+        visitInstructions(visited.body);
     }
 
     void visit(IfStatement &visited) override
     {
-        static_cast<void>(visited);
+        for(SingleIfCase &ifCase: visited.cases)
+            ifCase.accept(*this);
+        visitInstructions(visited.elseCaseBody);
     }
 
     void visit(WhileStatement &visited) override
     {
-        static_cast<void>(visited);
+        visitCondition(visited.condition);
+        visitInstructions(visited.body);
     }
 
     void visit(DoWhileStatement &visited) override
     {
-        static_cast<void>(visited);
+        visitCondition(visited.condition);
+        visitInstructions(visited.body);
     }
 
     void visit(FunctionDeclaration &visited) override
@@ -376,6 +545,7 @@ private:
     std::unordered_map<std::wstring, std::pair<Type, bool>> variableTypes;
     bool noReturnFunctionPermitted, variantReadAccessPermitted, blockFurtherDotAccess;
     std::unique_ptr<Expression> *replaceableExpression;
+    unsigned loopCounter;
 
     void visitExpression(std::unique_ptr<Expression> &expression)
     {
@@ -473,19 +643,20 @@ private:
     }
 
     // Expects the struct expression's initialization list type in lastExpressionType
-    void setStructExpressionType(StructExpression &visited)
+    void setStructExpressionType(
+        StructExpression &visited, const std::wstring &structType, const Type::InitializationList &structInitListType
+    )
     {
         visited.structType = structType;
         for(auto &argument: visited.arguments)
         {
-            std::vector<Field> &structFields = *getStructOrVariantFields(*structType);
+            std::vector<Field> &structFields = *getStructOrVariantFields(structType);
             for(unsigned i = 0; i < structFields.size(); i++)
             {
                 if(structInitListType[i] != structFields[i].type)
                     insertCast(argument, structInitListType[i], structFields[i].type);
             }
         }
-        structType = std::nullopt;
     }
 
     void visitLeafAssignable(Assignable &visited)
@@ -514,6 +685,17 @@ private:
                 currentSource, position
             );
         return fieldFound->type;
+    }
+
+    const Field *getField(const std::vector<Field> &fields, Type type)
+    {
+        auto fieldFound = std::find_if(fields.begin(), fields.end(), [&](const Field &field) {
+            return field.type == type;
+        });
+        if(fieldFound != fields.end())
+            return &*fieldFound;
+        else
+            return nullptr;
     }
 
     template <typename Container, typename Content>
@@ -620,16 +802,15 @@ private:
                program.variants.find(typeName) != program.variants.end();
     }
 
-    // Returns std::nullopt if no type of the given name exists.
-    std::optional<std::reference_wrapper<std::vector<Field>>> getStructOrVariantFields(const std::wstring &name)
+    std::vector<Field> *getStructOrVariantFields(const std::wstring &name)
     {
         auto foundStruct = program.structs.find(name);
         if(foundStruct != program.structs.end())
-            return foundStruct->second.fields;
+            return &foundStruct->second.fields;
         auto foundVariant = program.variants.find(name);
         if(foundVariant != program.variants.end())
-            return foundVariant->second.fields;
-        return std::nullopt;
+            return &foundVariant->second.fields;
+        return nullptr;
     }
 
     void checkNameDuplicates(Program &visited)
@@ -691,7 +872,7 @@ private:
         if(type2Name == type1)
             return true;
 
-        for(const Field &field: getStructOrVariantFields(type2Name)->get())
+        for(const Field &field: *getStructOrVariantFields(type2Name))
         {
             if(isInSubtypes(type1, field.type))
                 return true;

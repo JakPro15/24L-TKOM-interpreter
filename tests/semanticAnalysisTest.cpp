@@ -384,7 +384,13 @@ TEST_CASE("AssignmentStatement errors", "[doSemanticAnalysis]")
     functionBody.push_back(
         std::make_unique<AssignmentStatement>(Position{3, 1}, Assignable({3, 1}, L"bad"), makeLiteral({3, 10}, 2))
     );
-    checkSemanticError<UnknownVariableError>(functionBody); // nonexistent variable
+    checkSemanticError<UnknownVariableError>(functionBody); // nonexistent variable to assign to
+
+    functionBody.clear();
+    functionBody.push_back(std::make_unique<AssignmentStatement>(
+        Position{3, 1}, Assignable({3, 1}, L"arg"), std::make_unique<Variable>(Position{3, 10}, L"xd")
+    ));
+    checkSemanticError<UnknownVariableError>(functionBody); // nonexistent variable to read from
 
     functionBody.clear();
     functionBody.push_back(
@@ -1096,4 +1102,131 @@ TEST_CASE("CastExpression error", "[doSemanticAnalysis]")
         )
     ));
     checkSemanticError<InvalidCastError>(functionBody); // cannot do such cast
+}
+
+TEST_CASE("FunctionCall - explicit casts", "[doSemanticAnalysis]")
+{
+    std::vector<std::unique_ptr<Instruction>> functionBody;
+    std::vector<std::unique_ptr<Expression>> struct1Arguments;
+    struct1Arguments.push_back(makeLiteral({3, 22}, 2));
+    struct1Arguments.push_back(makeLiteral({3, 24}, L"2"));
+    struct1Arguments.push_back(makeLiteral({3, 28}, 2.0));
+    std::vector<std::unique_ptr<Expression>> struct2Arguments;
+    struct2Arguments.push_back(std::make_unique<StructExpression>(Position{3, 21}, std::move(struct1Arguments)));
+    struct2Arguments.push_back(makeLiteral({3, 31}, 2));
+    std::vector<std::unique_ptr<Expression>> functionArguments;
+    functionArguments.push_back(std::make_unique<StructExpression>(Position{3, 20}, std::move(struct2Arguments)));
+    functionBody.push_back(std::make_unique<AssignmentStatement>(
+        Position{3, 1}, Assignable({3, 1}, L"arg"),
+        std::make_unique<DotExpression>(
+            Position{3, 10},
+            std::make_unique<DotExpression>(
+                Position{3, 10},
+                std::make_unique<FunctionCall>(Position{3, 10}, L"strt2", std::move(functionArguments)), L"a"
+            ),
+            L"a"
+        )
+    ));
+    functionArguments.clear();
+    functionArguments.push_back(makeLiteral(Position{4, 20}, 2));
+    functionBody.push_back(std::make_unique<AssignmentStatement>(
+        Position{4, 1}, Assignable({4, 1}, L"v1"),
+        std::make_unique<FunctionCall>(Position{4, 10}, L"vart1", std::move(functionArguments))
+    ));
+
+    Program program = wrapInFunction(std::move(functionBody));
+    doSemanticAnalysis(program);
+    checkNodeContainer(
+        program.functions, {wrappedFunctionHeader + L"`-Body:\n"
+                                                    L" |-AssignmentStatement <line: 3, col: 1>\n"
+                                                    L" ||-Assignable <line: 3, col: 1> right=arg\n"
+                                                    L" |`-DotExpression <line: 3, col: 10> field=a\n"
+                                                    L" | `-DotExpression <line: 3, col: 10> field=a\n"
+                                                    L" |  `-StructExpression <line: 3, col: 20> structType=strt2\n"
+                                                    L" |   |-StructExpression <line: 3, col: 21> structType=strt1\n"
+                                                    L" |   ||-Literal <line: 3, col: 22> type=int value=2\n"
+                                                    L" |   ||-Literal <line: 3, col: 24> type=str value=2\n"
+                                                    L" |   |`-Literal <line: 3, col: 28> type=float value=2\n"
+                                                    L" |   `-CastExpression <line: 3, col: 31> targetType=vart1\n"
+                                                    L" |    `-Literal <line: 3, col: 31> type=int value=2\n"
+                                                    L" `-AssignmentStatement <line: 4, col: 1>\n"
+                                                    L"  |-Assignable <line: 4, col: 1> right=v1\n"
+                                                    L"  `-CastExpression <line: 4, col: 10> targetType=vart1\n"
+                                                    L"   `-Literal <line: 4, col: 20> type=int value=2\n"}
+    );
+}
+
+TEST_CASE("FunctionCall - explicit cast to struct errors", "[doSemanticAnalysis]")
+{
+    std::vector<std::unique_ptr<Instruction>> functionBody;
+    std::vector<std::unique_ptr<Expression>> functionArguments;
+    functionArguments.push_back(makeLiteral(Position{3, 20}, 2));
+    functionBody.push_back(std::make_unique<AssignmentStatement>(
+        Position{3, 1}, Assignable({3, 1}, L"s1"),
+        std::make_unique<FunctionCall>(Position{3, 10}, L"strt1", std::move(functionArguments))
+    ));
+    checkSemanticError<InvalidCastError>(functionBody); // attempt to cast non-init-list into a struct
+
+    functionBody.clear();
+    std::vector<std::unique_ptr<Expression>> structArguments;
+    structArguments.push_back(makeLiteral({3, 21}, 2));
+    structArguments.push_back(makeLiteral({3, 23}, L"2"));
+    structArguments.push_back(makeLiteral({3, 27}, 2.0));
+    functionArguments.clear();
+    functionArguments.push_back(std::make_unique<StructExpression>(Position{3, 20}, std::move(structArguments)));
+    functionArguments.push_back(makeLiteral(Position{3, 30}, 2));
+    functionBody.push_back(std::make_unique<AssignmentStatement>(
+        Position{3, 1}, Assignable({3, 1}, L"s1"),
+        std::make_unique<FunctionCall>(Position{3, 10}, L"strt1", std::move(functionArguments))
+    ));
+    checkSemanticError<InvalidCastError>(functionBody); // attempt to cast multiple arguments into a struct
+
+    functionBody.clear();
+    structArguments.clear();
+    structArguments.push_back(std::make_unique<Variable>(Position{3, 20}, L"s1"));
+    structArguments.push_back(makeLiteral({3, 23}, L"2"));
+    structArguments.push_back(makeLiteral({3, 27}, 2.0));
+    functionArguments.clear();
+    functionArguments.push_back(std::make_unique<StructExpression>(Position{3, 20}, std::move(structArguments)));
+    functionBody.push_back(std::make_unique<AssignmentStatement>(
+        Position{3, 1}, Assignable({3, 1}, L"s1"),
+        std::make_unique<FunctionCall>(Position{3, 10}, L"strt1", std::move(functionArguments))
+    ));
+    checkSemanticError<InvalidInitListError>(functionBody); // intialization list argument not castable
+
+    functionBody.clear();
+    structArguments.clear();
+    structArguments.push_back(makeLiteral({3, 21}, 2));
+    structArguments.push_back(makeLiteral({3, 23}, L"2"));
+    structArguments.push_back(makeLiteral({3, 27}, 2.0));
+    structArguments.push_back(makeLiteral({3, 31}, 2));
+    functionArguments.clear();
+    functionArguments.push_back(std::make_unique<StructExpression>(Position{3, 20}, std::move(structArguments)));
+    functionBody.push_back(std::make_unique<AssignmentStatement>(
+        Position{3, 1}, Assignable({3, 1}, L"s1"),
+        std::make_unique<FunctionCall>(Position{3, 10}, L"strt1", std::move(functionArguments))
+    ));
+    checkSemanticError<InvalidInitListError>(functionBody); // intialization list has wrong number of arguments
+}
+
+TEST_CASE("FunctionCall - explicit cast to variant errors", "[doSemanticAnalysis]")
+{
+    std::vector<std::unique_ptr<Instruction>> functionBody;
+    std::vector<std::unique_ptr<Expression>> functionArguments;
+    functionArguments.push_back(makeLiteral(Position{3, 20}, 2));
+    functionArguments.push_back(makeLiteral(Position{3, 30}, 2));
+    functionBody.push_back(std::make_unique<AssignmentStatement>(
+        Position{3, 1}, Assignable({3, 1}, L"v1"),
+        std::make_unique<FunctionCall>(Position{3, 10}, L"vart1", std::move(functionArguments))
+    ));
+    checkSemanticError<InvalidCastError>(functionBody); // attempt to cast multiple arguments into a variant
+
+    functionBody.clear();
+    functionArguments.clear();
+    functionArguments.push_back(std::make_unique<Variable>(Position{3, 20}, L"s1"));
+    functionBody.push_back(std::make_unique<AssignmentStatement>(
+        Position{3, 1}, Assignable({3, 1}, L"v1"),
+        std::make_unique<FunctionCall>(Position{3, 10}, L"vart1", std::move(functionArguments))
+    ));
+    checkSemanticError<InvalidCastError>(functionBody); // variant cast argument not castable
 }

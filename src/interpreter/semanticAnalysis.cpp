@@ -235,7 +235,7 @@ public:
 
     void visit(CastExpression &visited) override
     {
-        visited.value->accept(*this);
+        visitExpression(visited.value);
         if(!areTypesConvertible(lastExpressionType, visited.targetType))
             throw InvalidCastError(
                 std::format(
@@ -264,8 +264,8 @@ public:
     {
         visited.declaration.accept(*this);
         bool shouldAccessVariant = variantReadAccessPermitted;
-        replaceableExpression = &visited.value;
         visited.value->accept(*this);
+        doReplacement(visited.value);
         if(shouldAccessVariant && !accessedVariant && !isVariantType(lastExpressionType))
             throw InvalidIfConditionError(
                 L"If with declaration must access a variant type", currentSource, visited.getPosition()
@@ -300,7 +300,7 @@ public:
     {
         visited.left.accept(*this);
         Type leftType = lastExpressionType;
-        visited.right->accept(*this);
+        visitExpression(visited.right);
         Type rightType = lastExpressionType;
         if(leftType != rightType)
             insertCast(visited.right, rightType, leftType);
@@ -328,20 +328,42 @@ public:
         return argumentTypes;
     }
 
-    // in case the function call is an explicit cast of initialization list to a struct type, parsed as FunctionCall
-    void visitStructFunctionCall(FunctionCall &visited, const std::vector<Type> &argumentTypes)
+    Type::InitializationList getInitListType(FunctionCall &visited, const std::vector<Type> &argumentTypes)
     {
-        if(!isStructInitListValid(argumentTypes, {visited.functionName}))
-            throw InvalidInitListError(
-                std::format(L"Structure initialization list cannot be converted to type {}", visited.functionName),
-                currentSource, visited.getPosition()
+        if(argumentTypes.size() != 1)
+            throw InvalidCastError(
+                L"Explicit cast to struct type must have only one argument", currentSource, visited.getPosition()
             );
-        auto structExpression = std::make_unique<StructExpression>(visited.getPosition(), std::move(visited.arguments));
-        setStructExpressionType(*structExpression, visited.functionName, argumentTypes);
-        *replaceableExpression = std::move(structExpression);
+        if(!argumentTypes[0].isInitList())
+            throw InvalidCastError(
+                L"Explicit cast to struct type can only be done on initalization lists", currentSource,
+                visited.getPosition()
+            );
+        return std::get<Type::InitializationList>(argumentTypes[0].value);
     }
 
-    // in case the function call is an explicit cast to a variant type, parsed as FunctionCall
+    // case when the function call is an explicit cast of initialization list to a struct type, parsed as FunctionCall
+    void visitStructFunctionCall(FunctionCall &visited, const std::vector<Type> &argumentTypes)
+    {
+        Type::InitializationList initListType = getInitListType(visited, argumentTypes);
+        if(!isStructInitListValid(initListType, {visited.functionName}))
+            throw InvalidInitListError(
+                std::format(
+                    L"Structure initialization list type {} cannot be converted to type {}", initListType,
+                    visited.functionName
+                ),
+                currentSource, visited.getPosition()
+            );
+        auto structExpression = std::make_unique<StructExpression>(
+            visited.arguments[0]->getPosition(),
+            std::move(static_cast<StructExpression *>(visited.arguments[0].get())->arguments)
+        );
+        setStructExpressionType(*structExpression, visited.functionName, initListType);
+        toReplace = std::move(structExpression);
+        lastExpressionType = {visited.functionName};
+    }
+
+    // case when the function call is an explicit cast to a variant type, parsed as FunctionCall
     void visitVariantFunctionCall(
         FunctionCall &visited, const std::vector<Type> &argumentTypes, const std::vector<Field> &variantFields
     )
@@ -355,9 +377,10 @@ public:
                 std::format(L"Cannot cast value of type {} to variant type {}", argumentTypes[0], visited.functionName),
                 currentSource, visited.getPosition()
             );
-        *replaceableExpression = std::make_unique<CastExpression>(
+        toReplace = std::make_unique<CastExpression>(
             visited.getPosition(), std::move(visited.arguments[0]), Type{visited.functionName}
         );
+        lastExpressionType = {visited.functionName};
     }
 
     unsigned countNeededConversions(const std::vector<Type> &parameterTypes, const std::vector<Type> &argumentTypes)
@@ -553,14 +576,23 @@ private:
     Type lastExpressionType;
     std::unordered_map<std::wstring, std::pair<Type, bool>> variableTypes;
     bool noReturnFunctionPermitted, variantReadAccessPermitted, accessedVariant, blockFurtherDotAccess;
-    std::unique_ptr<Expression> *replaceableExpression;
+    std::unique_ptr<Expression> toReplace;
     unsigned loopCounter;
+
+    void doReplacement(std::unique_ptr<Expression> &expression)
+    {
+        if(toReplace)
+        {
+            expression = std::move(toReplace);
+            toReplace = nullptr;
+        }
+    }
 
     void visitExpression(std::unique_ptr<Expression> &expression)
     {
         variantReadAccessPermitted = false;
-        replaceableExpression = &expression;
         expression->accept(*this);
+        doReplacement(expression);
     }
 
     void ensureExpressionHasType(std::unique_ptr<Expression> &expression, Type desiredType)
@@ -657,14 +689,11 @@ private:
     )
     {
         visited.structType = structType;
-        for(auto &argument: visited.arguments)
+        std::vector<Field> &structFields = *getStructOrVariantFields(structType);
+        for(unsigned i = 0; i < structFields.size(); i++)
         {
-            std::vector<Field> &structFields = *getStructOrVariantFields(structType);
-            for(unsigned i = 0; i < structFields.size(); i++)
-            {
-                if(structInitListType[i] != structFields[i].type)
-                    insertCast(argument, structInitListType[i], structFields[i].type);
-            }
+            if(structInitListType[i] != structFields[i].type)
+                insertCast(visited.arguments[i], structInitListType[i], structFields[i].type);
         }
     }
 

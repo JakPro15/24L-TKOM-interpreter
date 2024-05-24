@@ -6,6 +6,8 @@
 
 #include <catch2/catch_test_macros.hpp>
 
+#include <iostream>
+
 using enum Type::Builtin;
 
 TEST_CASE("valid single top level statement Programs", "[doSemanticAnalysis]")
@@ -144,7 +146,7 @@ TEST_CASE("struct, variant, function name collisions", "[doSemanticAnalysis]")
     );
     REQUIRE_THROWS_AS(doSemanticAnalysis(program), NameCollisionError);
 
-    program = Program({1, 1}); // struct-function collision
+    program = Program({1, 1}); // variant-function collision
     program.variants.emplace(L"structure", VariantDeclaration({1, 1}, L"<test>", {Field({2, 2}, {INT}, L"b")}));
     program.functions.emplace(
         FunctionIdentification(L"structure", {}), FunctionDeclaration({1, 1}, L"<test>", {}, {}, {})
@@ -1229,4 +1231,116 @@ TEST_CASE("FunctionCall - explicit cast to variant errors", "[doSemanticAnalysis
         std::make_unique<FunctionCall>(Position{3, 10}, L"vart1", std::move(functionArguments))
     ));
     checkSemanticError<InvalidCastError>(functionBody); // variant cast argument not castable
+}
+
+std::vector<VariableDeclaration> createParameters(const FunctionIdentification &id)
+{
+    std::vector<VariableDeclaration> parameters;
+    for(unsigned i = 0; const Type &type: id.parameterTypes)
+        parameters.emplace_back(Position{1, 1}, type, std::format(L"a{}", i++), false);
+    return parameters;
+}
+
+std::wstring addOverload(Program &program, const FunctionIdentification &id)
+{
+    FunctionDeclaration function(Position{1, 1}, L"<test>", createParameters(id), std::nullopt, {});
+    std::wstringstream printed;
+    std::pair<const FunctionIdentification, FunctionDeclaration> toPrint{id, std::move(function)};
+    PrintingVisitor(printed).visit(toPrint);
+    program.add({id, std::move(toPrint.second)});
+    return printed.str();
+}
+
+TEST_CASE("FunctionCall - overload resolution", "[doSemanticAnalysis]")
+{
+    std::vector<std::unique_ptr<Instruction>> functionBody;
+    std::vector<std::unique_ptr<Expression>> functionArguments;
+    functionArguments.push_back(makeLiteral(Position{4, 20}, 2));
+    functionArguments.push_back(makeLiteral(Position{4, 30}, 2.0));
+    functionBody.push_back(std::make_unique<FunctionCallInstruction>(
+        Position{4, 1}, FunctionCall(Position{4, 1}, L"f", std::move(functionArguments))
+    ));
+    functionArguments.clear();
+    functionArguments.push_back(makeLiteral(Position{5, 20}, 2.0));
+    functionArguments.push_back(makeLiteral(Position{5, 30}, 2));
+    functionBody.push_back(std::make_unique<FunctionCallInstruction>(
+        Position{5, 1}, FunctionCall(Position{5, 1}, L"f", std::move(functionArguments))
+    ));
+    Program program = wrapInFunction(std::move(functionBody));
+    std::set<std::wstring> printedFunctions;
+    printedFunctions.insert(addOverload(program, FunctionIdentification(L"f", {{INT}, {STR}})));
+    printedFunctions.insert(addOverload(program, FunctionIdentification(L"f", {{STR}, {INT}})));
+    printedFunctions.insert(addOverload(program, FunctionIdentification(L"f", {{INT}, {FLOAT}, {INT}})));
+    printedFunctions.insert(
+        wrappedFunctionHeader + L"`-Body:\n"
+                                L" |-FunctionCallInstruction <line: 4, col: 1>\n"
+                                L" |`-FunctionCall <line: 4, col: 1> functionName=f\n"
+                                L" | |-Literal <line: 4, col: 20> type=int value=2\n"
+                                L" | `-CastExpression <line: 4, col: 30> targetType=str\n"
+                                L" |  `-Literal <line: 4, col: 30> type=float value=2\n"
+                                L" `-FunctionCallInstruction <line: 5, col: 1>\n"
+                                L"  `-FunctionCall <line: 5, col: 1> functionName=f\n"
+                                L"   |-CastExpression <line: 5, col: 20> targetType=str\n"
+                                L"   |`-Literal <line: 5, col: 20> type=float value=2\n"
+                                L"   `-Literal <line: 5, col: 30> type=int value=2\n"
+    );
+    doSemanticAnalysis(program);
+    checkNodeContainer(program.functions, printedFunctions);
+}
+
+TEST_CASE("FunctionCall - overload resolution with initialization list", "[doSemanticAnalysis]")
+{
+    std::vector<std::unique_ptr<Instruction>> functionBody;
+    std::vector<std::unique_ptr<Expression>> structArguments;
+    structArguments.push_back(makeLiteral({3, 21}, 2));
+    structArguments.push_back(makeLiteral({3, 23}, 2));
+    structArguments.push_back(makeLiteral({3, 27}, 2));
+    std::vector<std::unique_ptr<Expression>> functionArguments;
+    functionArguments.push_back(std::make_unique<StructExpression>(Position{3, 20}, std::move(structArguments)));
+    functionBody.push_back(std::make_unique<FunctionCallInstruction>(
+        Position{3, 1}, FunctionCall(Position{3, 1}, L"f", std::move(functionArguments))
+    ));
+    Program program = wrapInFunction(std::move(functionBody));
+    std::set<std::wstring> printedFunctions;
+    printedFunctions.insert(addOverload(program, FunctionIdentification(L"f", {{L"strt1"}})));
+    printedFunctions.insert(addOverload(program, FunctionIdentification(L"f", {{L"strt2"}})));
+    printedFunctions.insert(
+        wrappedFunctionHeader + L"`-Body:\n"
+                                L" `-FunctionCallInstruction <line: 3, col: 1>\n"
+                                L"  `-FunctionCall <line: 3, col: 1> functionName=f\n"
+                                L"   `-StructExpression <line: 3, col: 20> structType=strt1\n"
+                                L"    |-Literal <line: 3, col: 21> type=int value=2\n"
+                                L"    |-CastExpression <line: 3, col: 23> targetType=str\n"
+                                L"    |`-Literal <line: 3, col: 23> type=int value=2\n"
+                                L"    `-CastExpression <line: 3, col: 27> targetType=float\n"
+                                L"     `-Literal <line: 3, col: 27> type=int value=2\n"
+    );
+    doSemanticAnalysis(program);
+    checkNodeContainer(program.functions, printedFunctions);
+}
+
+TEST_CASE("FunctionCall - overload resolution errors", "[doSemanticAnalysis]")
+{
+    std::vector<std::unique_ptr<Instruction>> functionBody;
+    std::vector<std::unique_ptr<Expression>> functionArguments;
+    functionArguments.push_back(makeLiteral(Position{4, 20}, 2));
+    functionBody.push_back(std::make_unique<FunctionCallInstruction>(
+        Position{4, 1}, FunctionCall(Position{4, 1}, L"f", std::move(functionArguments))
+    ));
+    Program program = wrapInFunction(std::move(functionBody));
+    addOverload(program, FunctionIdentification(L"f", {{INT}, {STR}}));
+    addOverload(program, FunctionIdentification(L"f", {{STR}, {INT}}));
+    REQUIRE_THROWS_AS(doSemanticAnalysis(program), InvalidFunctionCallError);
+
+    functionBody.clear();
+    functionArguments.clear();
+    functionArguments.push_back(makeLiteral(Position{4, 20}, 2));
+    functionArguments.push_back(makeLiteral(Position{4, 30}, 2));
+    functionBody.push_back(std::make_unique<FunctionCallInstruction>(
+        Position{4, 1}, FunctionCall(Position{4, 1}, L"f", std::move(functionArguments))
+    ));
+    program = wrapInFunction(std::move(functionBody));
+    addOverload(program, FunctionIdentification(L"f", {{INT}, {STR}}));
+    addOverload(program, FunctionIdentification(L"f", {{STR}, {INT}}));
+    REQUIRE_THROWS_AS(doSemanticAnalysis(program), AmbiguousFunctionCallError);
 }

@@ -306,6 +306,266 @@ public:
             insertCast(visited.right, rightType, leftType);
     }
 
+    void visit(FunctionCall &visited) override
+    {
+        std::vector<Type> argumentTypes = visitArguments(visited.arguments);
+        if(auto structFound = findIn(program.structs, visited.functionName))
+            return visitStructFunctionCall(visited, argumentTypes);
+        if(auto variantFound = findIn(program.variants, visited.functionName))
+            return visitVariantFunctionCall(visited, argumentTypes, (*variantFound)->second.fields);
+
+        const FunctionIdentification &bestId = getBestOverload(visited, argumentTypes);
+        for(unsigned i = 0; i < bestId.parameterTypes.size(); i++)
+        {
+            if(argumentTypes[i] != bestId.parameterTypes[i])
+                insertCast(visited.arguments[i], argumentTypes[i], bestId.parameterTypes[i]);
+        }
+    }
+
+    void visit(FunctionCallInstruction &visited) override
+    {
+        variantReadAccessPermitted = false;
+        visited.functionCall.accept(*this);
+    }
+
+    void visit(ReturnStatement &visited) override
+    {
+        if(!expectedReturnType || !visited.returnValue)
+        {
+            if(expectedReturnType || visited.returnValue)
+                throw InvalidReturnError(
+                    L"Return with value is required if and only if function returns a type", currentSource,
+                    visited.getPosition()
+                );
+            return;
+        }
+        visitExpression(visited.returnValue);
+        if(lastExpressionType != expectedReturnType)
+            insertCast(visited.returnValue, lastExpressionType, *expectedReturnType);
+    }
+
+    void visit(ContinueStatement &visited) override
+    {
+        if(loopCounter < 1)
+            throw InvalidContinueError(
+                L"Continue statement is permitted only within a loop", currentSource, visited.getPosition()
+            );
+    }
+
+    void visit(BreakStatement &visited) override
+    {
+        if(loopCounter < 1)
+            throw InvalidBreakError(
+                L"Break statement is permitted only within a loop", currentSource, visited.getPosition()
+            );
+    }
+
+    void visitInstructions(std::vector<std::unique_ptr<Instruction>> &instructions)
+    {
+        for(auto &instruction: instructions)
+            instruction->accept(*this);
+    }
+
+    void visitCondition(VariableDeclStatement &condition)
+    {
+        variantReadAccessPermitted = true;
+        visit(condition);
+        variantReadAccessPermitted = false;
+    }
+
+    void visitCondition(std::unique_ptr<Expression> &condition)
+    {
+        visitExpression(condition);
+        if(lastExpressionType != Type{BOOL})
+            insertCast(condition, lastExpressionType, Type{BOOL});
+    }
+
+    void visit(SingleIfCase &visited) override
+    {
+        std::visit([&](auto &condition) { visitCondition(condition); }, visited.condition);
+        visitInstructions(visited.body);
+    }
+
+    void visit(IfStatement &visited) override
+    {
+        for(SingleIfCase &ifCase: visited.cases)
+            ifCase.accept(*this);
+        visitInstructions(visited.elseCaseBody);
+    }
+
+    void visit(WhileStatement &visited) override
+    {
+        visitCondition(visited.condition);
+        visitInstructions(visited.body);
+    }
+
+    void visit(DoWhileStatement &visited) override
+    {
+        visitCondition(visited.condition);
+        visitInstructions(visited.body);
+    }
+
+    void visit(FunctionDeclaration &visited) override
+    {
+        currentSource = visited.getSource();
+        parametersToVariables(visited.parameters);
+        expectedReturnType = visited.returnType;
+        visitInstructions(visited.body);
+    }
+
+    // these are verified via regular functions, not visitation
+    EMPTY_VISIT(Field);
+    EMPTY_VISIT(StructDeclaration);
+    EMPTY_VISIT(VariantDeclaration);
+    EMPTY_VISIT(IncludeStatement);
+
+    void visit(Program &visited) override
+    {
+        if(!visited.includes.empty())
+            throw IncludeInSemanticAnalysisError(
+                "Internal error - program's include statements should be executed before calling doSemanticAnalysis"
+            );
+
+        checkNameDuplicates(visited);
+        for(const auto &[name, variant]: visited.variants)
+            checkStructOrVariant(name, variant);
+        for(const auto &[name, structure]: visited.structs)
+            checkStructOrVariant(name, structure);
+        for(auto &function: visited.functions)
+            function.second.accept(*this);
+    }
+private:
+    Program &program;
+    std::wstring currentSource;
+    std::optional<Type> expectedReturnType;
+    std::optional<std::wstring> structType;
+    Type::InitializationList structInitListType;
+    Type lastExpressionType;
+    std::unordered_map<std::wstring, std::pair<Type, bool>> variableTypes;
+    bool noReturnFunctionPermitted, variantReadAccessPermitted, accessedVariant, blockFurtherDotAccess;
+    std::unique_ptr<Expression> toReplace;
+    unsigned loopCounter;
+
+    void doReplacement(std::unique_ptr<Expression> &expression)
+    {
+        if(toReplace)
+        {
+            expression = std::move(toReplace);
+            toReplace = nullptr;
+        }
+    }
+
+    void visitExpression(std::unique_ptr<Expression> &expression)
+    {
+        variantReadAccessPermitted = false;
+        expression->accept(*this);
+        doReplacement(expression);
+    }
+
+    void ensureExpressionHasType(std::unique_ptr<Expression> &expression, Type desiredType)
+    {
+        visitExpression(expression);
+        if(lastExpressionType != desiredType)
+            insertCast(expression, lastExpressionType, desiredType);
+    }
+
+    Type getTargetTypeForEquality(Type::Builtin leftType, Type::Builtin rightType)
+    {
+        if(leftType == STR || rightType == STR)
+            return {STR};
+        if(leftType == FLOAT || rightType == FLOAT)
+            return {FLOAT};
+        if(leftType == INT || rightType == INT)
+            return {INT};
+        return {BOOL};
+    }
+
+    template <typename EqualityExpression>
+    void visitEqualityExpression(EqualityExpression &visited)
+    {
+        visitExpression(visited.left);
+        Type leftType = lastExpressionType;
+        visitExpression(visited.right);
+        Type rightType = lastExpressionType;
+        lastExpressionType = Type{BOOL};
+
+        if(leftType.isInitList())
+            return insertCast(visited.left, leftType, rightType);
+        if(rightType.isInitList())
+            return insertCast(visited.right, rightType, leftType);
+        if(leftType == rightType)
+            return;
+        if(!leftType.isBuiltin() || !rightType.isBuiltin())
+            throw InvalidOperatorArgsError(
+                std::format(L"{} and {} are not valid types for equality operator", leftType, rightType), currentSource,
+                visited.getPosition()
+            );
+        Type targetType = getTargetTypeForEquality(
+            std::get<Type::Builtin>(leftType.value), std::get<Type::Builtin>(rightType.value)
+        );
+        if(leftType != targetType)
+            return insertCast(visited.left, leftType, targetType);
+        if(rightType != targetType)
+            return insertCast(visited.right, rightType, targetType);
+    }
+
+    template <typename TypedEqualityExpression>
+    void visitTypedEqualityExpression(TypedEqualityExpression &visited)
+    {
+        visitExpression(visited.left);
+        Type leftType = lastExpressionType;
+        visitExpression(visited.right);
+        Type rightType = lastExpressionType;
+        lastExpressionType = Type{BOOL};
+
+        if(leftType.isInitList())
+            return insertCast(visited.left, leftType, rightType);
+        if(rightType.isInitList())
+            return insertCast(visited.right, rightType, leftType);
+    }
+
+    template <typename IntOrFloatExpression>
+    Type visitIntOrFloatExpression(IntOrFloatExpression &expression)
+    {
+        visitExpression(expression.left);
+        Type leftType = lastExpressionType;
+        visitExpression(expression.right);
+        Type rightType = lastExpressionType;
+
+        if(leftType == Type{INT} && rightType == Type{INT})
+            return Type{INT};
+        if(leftType != Type{FLOAT})
+            insertCast(expression.left, leftType, Type{FLOAT});
+        if(rightType != Type{FLOAT})
+            insertCast(expression.right, rightType, Type{FLOAT});
+        return Type{FLOAT};
+    }
+
+    std::wstring getTypeNameForDotExpression(Type leftType, Position position)
+    {
+        if(lastExpressionType.isInitList())
+            throw InvalidInitListError(
+                L"Structure initialization list is not allowed with '.' operator", currentSource, position
+            );
+        if(lastExpressionType.isBuiltin())
+            throw FieldAccessError(L"Attempted access to field of simple type {}", currentSource, position);
+        return std::get<std::wstring>(leftType.value);
+    }
+
+    // Expects the struct expression's initialization list type in lastExpressionType
+    void setStructExpressionType(
+        StructExpression &visited, const std::wstring &structType, const Type::InitializationList &structInitListType
+    )
+    {
+        visited.structType = structType;
+        std::vector<Field> &structFields = *getStructOrVariantFields(structType);
+        for(unsigned i = 0; i < structFields.size(); i++)
+        {
+            if(structInitListType[i] != structFields[i].type)
+                insertCast(visited.arguments[i], structInitListType[i], structFields[i].type);
+        }
+    }
+
     std::vector<FunctionIdentification> getFunctionIdsWithName(const std::wstring &functionName)
     {
         std::vector<FunctionIdentification> result;
@@ -420,13 +680,21 @@ public:
         return {bestIndex, multipleBests};
     }
 
-    const FunctionIdentification &getBestOverload(FunctionCall &visited, const std::vector<Type> &argumentTypes)
+    FunctionIdentification getBestOverload(FunctionCall &visited, const std::vector<Type> &argumentTypes)
     {
         std::vector<FunctionIdentification> overloads = getFunctionIdsWithName(visited.functionName);
         std::vector<unsigned> conversionsNeeded;
         for(const FunctionIdentification &id: overloads)
             conversionsNeeded.push_back(countNeededConversions(id.parameterTypes, argumentTypes));
         auto [bestIndex, multipleBests] = getMinimumIndex(conversionsNeeded);
+        if(conversionsNeeded[bestIndex] == std::numeric_limits<unsigned>::max())
+            throw InvalidFunctionCallError(
+                std::format(
+                    L"No matching function to call with name {} for argument types {}", visited.functionName,
+                    argumentTypes
+                ),
+                currentSource, visited.getPosition()
+            );
         if(multipleBests)
             throw AmbiguousFunctionCallError(
                 std::format(
@@ -436,265 +704,6 @@ public:
                 currentSource, visited.getPosition()
             );
         return overloads[bestIndex];
-    }
-
-    void visit(FunctionCall &visited) override
-    {
-        std::vector<Type> argumentTypes = visitArguments(visited.arguments);
-        if(auto structFound = findIn(program.structs, visited.functionName))
-            return visitStructFunctionCall(visited, argumentTypes);
-        if(auto variantFound = findIn(program.variants, visited.functionName))
-            return visitVariantFunctionCall(visited, argumentTypes, (*variantFound)->second.fields);
-
-        const FunctionIdentification &bestId = getBestOverload(visited, argumentTypes);
-        for(unsigned i = 0; i < bestId.parameterTypes.size(); i++)
-        {
-            if(argumentTypes[i] != bestId.parameterTypes[i])
-                insertCast(visited.arguments[i], argumentTypes[i], bestId.parameterTypes[i]);
-        }
-    }
-
-    void visit(FunctionCallInstruction &visited) override
-    {
-        variantReadAccessPermitted = false;
-        visited.functionCall.accept(*this);
-    }
-
-    void visit(ReturnStatement &visited) override
-    {
-        if(!expectedReturnType || !visited.returnValue)
-        {
-            if(expectedReturnType || visited.returnValue)
-                throw InvalidReturnError(
-                    L"Return with value is required if and only if function returns a type", currentSource,
-                    visited.getPosition()
-                );
-            return;
-        }
-        visitExpression(visited.returnValue);
-        if(lastExpressionType != expectedReturnType)
-            insertCast(visited.returnValue, lastExpressionType, *expectedReturnType);
-    }
-
-    void visit(ContinueStatement &visited) override
-    {
-        if(loopCounter < 1)
-            throw InvalidContinueError(
-                L"Continue statement is permitted only within a loop", currentSource, visited.getPosition()
-            );
-    }
-
-    void visit(BreakStatement &visited) override
-    {
-        if(loopCounter < 1)
-            throw InvalidBreakError(
-                L"Break statement is permitted only within a loop", currentSource, visited.getPosition()
-            );
-    }
-
-    void visitInstructions(std::vector<std::unique_ptr<Instruction>> &instructions)
-    {
-        for(auto &instruction: instructions)
-            instruction->accept(*this);
-    }
-
-    void visitCondition(VariableDeclStatement &condition)
-    {
-        variantReadAccessPermitted = true;
-        visit(condition);
-        variantReadAccessPermitted = false;
-    }
-
-    void visitCondition(std::unique_ptr<Expression> &condition)
-    {
-        visitExpression(condition);
-        if(lastExpressionType != Type{BOOL})
-            insertCast(condition, lastExpressionType, Type{BOOL});
-    }
-
-    void visit(SingleIfCase &visited) override
-    {
-        std::visit([&](auto &condition) { visitCondition(condition); }, visited.condition);
-        visitInstructions(visited.body);
-    }
-
-    void visit(IfStatement &visited) override
-    {
-        for(SingleIfCase &ifCase: visited.cases)
-            ifCase.accept(*this);
-        visitInstructions(visited.elseCaseBody);
-    }
-
-    void visit(WhileStatement &visited) override
-    {
-        visitCondition(visited.condition);
-        visitInstructions(visited.body);
-    }
-
-    void visit(DoWhileStatement &visited) override
-    {
-        visitCondition(visited.condition);
-        visitInstructions(visited.body);
-    }
-
-    void visit(FunctionDeclaration &visited) override
-    {
-        currentSource = visited.getSource();
-        parametersToVariables(visited.parameters);
-        expectedReturnType = visited.returnType;
-        for(auto &instruction: visited.body)
-            instruction->accept(*this);
-    }
-
-    // these are verified via regular functions, not visitation
-    EMPTY_VISIT(Field);
-    EMPTY_VISIT(StructDeclaration);
-    EMPTY_VISIT(VariantDeclaration);
-    EMPTY_VISIT(IncludeStatement);
-
-    void visit(Program &visited) override
-    {
-        if(!visited.includes.empty())
-            throw IncludeInSemanticAnalysisError(
-                "Internal error - program's include statements should be executed before calling doSemanticAnalysis"
-            );
-
-        checkNameDuplicates(visited);
-        for(const auto &[name, variant]: visited.variants)
-            checkStructOrVariant(name, variant);
-        for(const auto &[name, structure]: visited.structs)
-            checkStructOrVariant(name, structure);
-        for(auto &function: visited.functions)
-            function.second.accept(*this);
-    }
-private:
-    Program &program;
-    std::wstring currentSource;
-    std::optional<Type> expectedReturnType;
-    std::optional<std::wstring> structType;
-    Type::InitializationList structInitListType;
-    Type lastExpressionType;
-    std::unordered_map<std::wstring, std::pair<Type, bool>> variableTypes;
-    bool noReturnFunctionPermitted, variantReadAccessPermitted, accessedVariant, blockFurtherDotAccess;
-    std::unique_ptr<Expression> toReplace;
-    unsigned loopCounter;
-
-    void doReplacement(std::unique_ptr<Expression> &expression)
-    {
-        if(toReplace)
-        {
-            expression = std::move(toReplace);
-            toReplace = nullptr;
-        }
-    }
-
-    void visitExpression(std::unique_ptr<Expression> &expression)
-    {
-        variantReadAccessPermitted = false;
-        expression->accept(*this);
-        doReplacement(expression);
-    }
-
-    void ensureExpressionHasType(std::unique_ptr<Expression> &expression, Type desiredType)
-    {
-        visitExpression(expression);
-        if(lastExpressionType != desiredType)
-            insertCast(expression, lastExpressionType, desiredType);
-    }
-
-    Type getTargetTypeForEquality(Type leftType, Type rightType)
-    {
-        if(leftType == Type{STR} || rightType == Type{STR})
-            return Type{STR};
-        if(leftType == Type{FLOAT} || rightType == Type{FLOAT})
-            return Type{FLOAT};
-        if(leftType == Type{INT} || rightType == Type{INT})
-            return Type{INT};
-        return Type{BOOL};
-    }
-
-    template <typename EqualityExpression>
-    void visitEqualityExpression(EqualityExpression &visited)
-    {
-        visitExpression(visited.left);
-        Type leftType = lastExpressionType;
-        visitExpression(visited.right);
-        Type rightType = lastExpressionType;
-        lastExpressionType = Type{BOOL};
-
-        if(leftType.isInitList())
-            return insertCast(visited.left, leftType, rightType);
-        if(rightType.isInitList())
-            return insertCast(visited.right, rightType, leftType);
-        if(leftType == rightType)
-            return;
-        if(!leftType.isBuiltin() || !rightType.isBuiltin())
-            throw InvalidOperatorArgsError(
-                std::format(L"{} and {} are not valid types for equality operator", leftType, rightType), currentSource,
-                visited.getPosition()
-            );
-        Type targetType = getTargetTypeForEquality(leftType, rightType);
-        if(leftType != targetType)
-            return insertCast(visited.left, leftType, targetType);
-        if(rightType != targetType)
-            return insertCast(visited.right, rightType, targetType);
-    }
-
-    template <typename TypedEqualityExpression>
-    void visitTypedEqualityExpression(TypedEqualityExpression &visited)
-    {
-        visitExpression(visited.left);
-        Type leftType = lastExpressionType;
-        visitExpression(visited.right);
-        Type rightType = lastExpressionType;
-        lastExpressionType = Type{BOOL};
-
-        if(leftType.isInitList())
-            return insertCast(visited.left, leftType, rightType);
-        if(rightType.isInitList())
-            return insertCast(visited.right, rightType, leftType);
-    }
-
-    template <typename IntOrFloatExpression>
-    Type visitIntOrFloatExpression(IntOrFloatExpression &expression)
-    {
-        visitExpression(expression.left);
-        Type leftType = lastExpressionType;
-        visitExpression(expression.right);
-        Type rightType = lastExpressionType;
-
-        if(leftType == Type{INT} && rightType == Type{INT})
-            return Type{INT};
-        if(leftType != Type{FLOAT})
-            insertCast(expression.left, leftType, Type{FLOAT});
-        if(rightType != Type{FLOAT})
-            insertCast(expression.right, rightType, Type{FLOAT});
-        return Type{FLOAT};
-    }
-
-    std::wstring getTypeNameForDotExpression(Type leftType, Position position)
-    {
-        if(lastExpressionType.isInitList())
-            throw InvalidInitListError(
-                L"Structure initialization list is not allowed with '.' operator", currentSource, position
-            );
-        if(lastExpressionType.isBuiltin())
-            throw FieldAccessError(L"Attempted access to field of simple type {}", currentSource, position);
-        return std::get<std::wstring>(leftType.value);
-    }
-
-    // Expects the struct expression's initialization list type in lastExpressionType
-    void setStructExpressionType(
-        StructExpression &visited, const std::wstring &structType, const Type::InitializationList &structInitListType
-    )
-    {
-        visited.structType = structType;
-        std::vector<Field> &structFields = *getStructOrVariantFields(structType);
-        for(unsigned i = 0; i < structFields.size(); i++)
-        {
-            if(structInitListType[i] != structFields[i].type)
-                insertCast(visited.arguments[i], structInitListType[i], structFields[i].type);
-        }
     }
 
     void visitLeafAssignable(Assignable &visited)

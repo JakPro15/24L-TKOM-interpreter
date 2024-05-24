@@ -33,12 +33,12 @@ public:
 
     void visit(Variable &visited) override
     {
-        auto found = variableTypes.find(visited.name);
-        if(found == variableTypes.end())
+        auto found = getVariableType(visited.name);
+        if(!found)
             throw UnknownVariableError(
                 std::format(L"Unknown variable: {}", visited.name), currentSource, visited.getPosition()
             );
-        lastExpressionType = found->second.first;
+        lastExpressionType = found->first;
     }
 
     void visit(OrExpression &visited) override
@@ -243,7 +243,7 @@ public:
 
     void visit(VariableDeclaration &visited) override
     {
-        if(variableTypes.find(visited.name) != variableTypes.end())
+        if(getVariableType(visited.name))
             throw VariableNameCollisionError(
                 std::format(L"There already exists a variable with this name: {}", visited.name), currentSource,
                 visited.getPosition()
@@ -252,35 +252,12 @@ public:
             throw UnknownVariableTypeError(
                 std::format(L"{} is not a type", visited.type), currentSource, visited.getPosition()
             );
-        variableTypes.insert({visited.name, {visited.type, visited.isMutable}});
-    }
-
-    bool validateConditionVariantAccess(VariableDeclStatement &visited, Type valueType, bool shouldAccessVariant)
-    {
-        std::vector<Field> *variantFields = getVariantFields(valueType);
-        if(shouldAccessVariant && !accessedVariant && !variantFields)
-            throw InvalidIfConditionError(
-                L"If with declaration must access a variant type", currentSource, visited.getPosition()
-            );
-        if(valueType != visited.declaration.type)
-        {
-            if(accessedVariant)
-                throw InvalidCastError(
-                    L"The type in if condition declaration must match the type of the variant's accessed field",
-                    currentSource, visited.getPosition()
-                );
-            if(variantFields && !getField(*variantFields, visited.declaration.type))
-                throw InvalidCastError(
-                    L"The type in if condition declaration must match one of the variant's types", currentSource,
-                    visited.getPosition()
-                );
-        }
-        return variantFields;
+        addVariableType(visited.name, {visited.type, visited.isMutable});
     }
 
     void visit(VariableDeclStatement &visited) override
     {
-        visited.declaration.accept(*this);
+        visit(visited.declaration);
         bool shouldAccessVariant = variantReadAccessPermitted;
         visited.value->accept(*this);
         doReplacement(visited.value);
@@ -374,49 +351,31 @@ public:
             );
     }
 
-    void visitInstructions(std::vector<std::unique_ptr<Instruction>> &instructions)
-    {
-        for(auto &instruction: instructions)
-            instruction->accept(*this);
-    }
-
-    void visitCondition(VariableDeclStatement &condition)
-    {
-        variantReadAccessPermitted = true;
-        visit(condition);
-        variantReadAccessPermitted = false;
-    }
-
-    void visitCondition(std::unique_ptr<Expression> &condition)
-    {
-        visitExpression(condition);
-        if(lastExpressionType != Type{BOOL})
-            insertCast(condition, lastExpressionType, Type{BOOL});
-    }
-
     void visit(SingleIfCase &visited) override
     {
+        variableTypeScopes.push_back({});
         std::visit([&](auto &condition) { visitCondition(condition); }, visited.condition);
         visitInstructions(visited.body);
+        variableTypeScopes.pop_back();
     }
 
     void visit(IfStatement &visited) override
     {
         for(SingleIfCase &ifCase: visited.cases)
             ifCase.accept(*this);
-        visitInstructions(visited.elseCaseBody);
+        visitNewScope(visited.elseCaseBody);
     }
 
     void visit(WhileStatement &visited) override
     {
         visitCondition(visited.condition);
-        visitInstructions(visited.body);
+        visitNewScope(visited.body);
     }
 
     void visit(DoWhileStatement &visited) override
     {
         visitCondition(visited.condition);
-        visitInstructions(visited.body);
+        visitNewScope(visited.body);
     }
 
     void visit(FunctionDeclaration &visited) override
@@ -453,10 +412,25 @@ private:
     std::wstring currentSource;
     std::optional<Type> expectedReturnType;
     Type lastExpressionType;
-    std::unordered_map<std::wstring, std::pair<Type, bool>> variableTypes;
+    std::vector<std::unordered_map<std::wstring, std::pair<Type, bool>>> variableTypeScopes;
     bool noReturnFunctionPermitted, variantReadAccessPermitted, accessedVariant, blockFurtherDotAccess;
     std::unique_ptr<Expression> toReplace;
     unsigned loopCounter;
+
+    std::optional<std::pair<Type, bool>> getVariableType(const std::wstring &name)
+    {
+        for(auto scope: variableTypeScopes)
+        {
+            if(auto found = findIn(scope, name))
+                return (*found)->second;
+        }
+        return std::nullopt;
+    }
+
+    void addVariableType(const std::wstring &name, const std::pair<Type, bool> &type)
+    {
+        variableTypeScopes[variableTypeScopes.size() - 1].insert({name, type});
+    }
 
     void doReplacement(std::unique_ptr<Expression> &expression)
     {
@@ -719,17 +693,44 @@ private:
 
     void visitLeafAssignable(Assignable &visited)
     {
-        auto variableFound = variableTypes.find(visited.right);
-        if(variableFound == variableTypes.end())
+        auto variableFound = getVariableType(visited.right);
+        if(!variableFound)
             throw UnknownVariableError(
                 std::format(L"{} is not a variable", visited.right), currentSource, visited.getPosition()
             );
-        if(!variableFound->second.second)
+        if(!variableFound->second)
             throw ImmutableError(
                 std::format(L"Attempted to modify immutable variable {}", visited.right), currentSource,
                 visited.getPosition()
             );
-        lastExpressionType = variableFound->second.first;
+        lastExpressionType = variableFound->first;
+    }
+
+    void visitInstructions(std::vector<std::unique_ptr<Instruction>> &instructions)
+    {
+        for(auto &instruction: instructions)
+            instruction->accept(*this);
+    }
+
+    void visitNewScope(std::vector<std::unique_ptr<Instruction>> &instructions)
+    {
+        variableTypeScopes.push_back({});
+        visitInstructions(instructions);
+        variableTypeScopes.pop_back();
+    }
+
+    void visitCondition(VariableDeclStatement &condition)
+    {
+        variantReadAccessPermitted = true;
+        visit(condition);
+        variantReadAccessPermitted = false;
+    }
+
+    void visitCondition(std::unique_ptr<Expression> &condition)
+    {
+        visitExpression(condition);
+        if(lastExpressionType != Type{BOOL})
+            insertCast(condition, lastExpressionType, Type{BOOL});
     }
 
     Type getTypeOfField(const std::vector<Field> &fields, std::wstring fieldName, Position position)
@@ -790,6 +791,29 @@ private:
             return false;
         const std::vector<Field> &variantFields = program.variants.find(complexType)->second.fields;
         return getField(variantFields, fieldType);
+    }
+
+    bool validateConditionVariantAccess(VariableDeclStatement &visited, Type valueType, bool shouldAccessVariant)
+    {
+        std::vector<Field> *variantFields = getVariantFields(valueType);
+        if(shouldAccessVariant && !accessedVariant && !variantFields)
+            throw InvalidIfConditionError(
+                L"If with declaration must access a variant type", currentSource, visited.getPosition()
+            );
+        if(valueType != visited.declaration.type)
+        {
+            if(accessedVariant)
+                throw InvalidCastError(
+                    L"The type in if condition declaration must match the type of the variant's accessed field",
+                    currentSource, visited.getPosition()
+                );
+            if(variantFields && !getField(*variantFields, visited.declaration.type))
+                throw InvalidCastError(
+                    L"The type in if condition declaration must match one of the variant's types", currentSource,
+                    visited.getPosition()
+                );
+        }
+        return variantFields;
     }
 
     bool isStructInitListValid(Type::InitializationList typeFrom, Type typeTo)
@@ -965,7 +989,7 @@ private:
 
     void parametersToVariables(std::vector<VariableDeclaration> &parameters)
     {
-        variableTypes.clear();
+        variableTypeScopes = {{}};
         for(VariableDeclaration &parameter: parameters)
             parameter.accept(*this);
     }

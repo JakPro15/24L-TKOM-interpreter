@@ -1346,31 +1346,60 @@ TEST_CASE("FunctionCall - overload resolution errors", "[doSemanticAnalysis]")
 
 TEST_CASE("conditional statements", "[doSemanticAnalysis]")
 {
-    std::vector<std::unique_ptr<Instruction>> functionBody;
+    std::vector<std::unique_ptr<Instruction>> functionBody, instructions;
+    instructions.push_back(std::make_unique<VariableDeclStatement>(
+        Position{3, 50}, VariableDeclaration({3, 50}, {INT}, L"a", true), makeLiteral(Position{3, 60}, 0)
+    ));
     std::vector<SingleIfCase> ifCases;
     ifCases.push_back(SingleIfCase(Position{3, 1}, makeLiteral(Position{3, 10}, 2), {}));
-    functionBody.push_back(
-        std::make_unique<IfStatement>(Position{3, 1}, std::move(ifCases), std::vector<std::unique_ptr<Instruction>>{})
-    );
-    functionBody.push_back(std::make_unique<WhileStatement>(
-        Position{4, 1}, makeLiteral(Position{4, 10}, 2), std::vector<std::unique_ptr<Instruction>>{}
+    functionBody.push_back(std::make_unique<IfStatement>(Position{3, 1}, std::move(ifCases), std::move(instructions)));
+
+    instructions.clear();
+    instructions.push_back(std::make_unique<VariableDeclStatement>(
+        Position{4, 50}, VariableDeclaration({4, 50}, {INT}, L"a", true), makeLiteral(Position{4, 60}, 0)
     ));
-    functionBody.push_back(std::make_unique<DoWhileStatement>(
-        Position{5, 1}, makeLiteral(Position{5, 10}, true), std::vector<std::unique_ptr<Instruction>>{}
+    functionBody.push_back(
+        std::make_unique<WhileStatement>(Position{4, 1}, makeLiteral(Position{4, 10}, 2), std::move(instructions))
+    );
+    instructions.clear();
+    instructions.push_back(std::make_unique<VariableDeclStatement>(
+        Position{5, 50}, VariableDeclaration({5, 50}, {INT}, L"a", true), makeLiteral(Position{5, 60}, 0)
+    ));
+
+    functionBody.push_back(
+        std::make_unique<DoWhileStatement>(Position{5, 1}, makeLiteral(Position{5, 10}, true), std::move(instructions))
+    );
+    functionBody.push_back(std::make_unique<VariableDeclStatement>(
+        Position{6, 1}, VariableDeclaration({6, 1}, {INT}, L"a", true), makeLiteral(Position{6, 10}, 0)
     ));
     Program program = wrapInFunction(std::move(functionBody));
+
     doSemanticAnalysis(program);
     checkNodeContainer(
-        program.functions, {wrappedFunctionHeader + L"`-Body:\n"
-                                                    L" |-IfStatement <line: 3, col: 1>\n"
-                                                    L" |`-SingleIfCase <line: 3, col: 1>\n"
-                                                    L" | `-CastExpression <line: 3, col: 10> targetType=bool\n"
-                                                    L" |  `-Literal <line: 3, col: 10> type=int value=2\n"
-                                                    L" |-WhileStatement <line: 4, col: 1>\n"
-                                                    L" |`-CastExpression <line: 4, col: 10> targetType=bool\n"
-                                                    L" | `-Literal <line: 4, col: 10> type=int value=2\n"
-                                                    L" `-DoWhileStatement <line: 5, col: 1>\n"
-                                                    L"  `-Literal <line: 5, col: 10> type=bool value=true\n"}
+        program.functions,
+        {wrappedFunctionHeader + L"`-Body:\n"
+                                 L" |-IfStatement <line: 3, col: 1>\n"
+                                 L" ||-SingleIfCase <line: 3, col: 1>\n"
+                                 L" ||`-CastExpression <line: 3, col: 10> targetType=bool\n"
+                                 L" || `-Literal <line: 3, col: 10> type=int value=2\n"
+                                 L" |`-ElseCase:\n"
+                                 L" | `-VariableDeclStatement <line: 3, col: 50>\n"
+                                 L" |  |-VariableDeclaration <line: 3, col: 50> type=int name=a mutable=true\n"
+                                 L" |  `-Literal <line: 3, col: 60> type=int value=0\n"
+                                 L" |-WhileStatement <line: 4, col: 1>\n"
+                                 L" ||-CastExpression <line: 4, col: 10> targetType=bool\n"
+                                 L" ||`-Literal <line: 4, col: 10> type=int value=2\n"
+                                 L" |`-VariableDeclStatement <line: 4, col: 50>\n"
+                                 L" | |-VariableDeclaration <line: 4, col: 50> type=int name=a mutable=true\n"
+                                 L" | `-Literal <line: 4, col: 60> type=int value=0\n"
+                                 L" |-DoWhileStatement <line: 5, col: 1>\n"
+                                 L" ||-Literal <line: 5, col: 10> type=bool value=true\n"
+                                 L" |`-VariableDeclStatement <line: 5, col: 50>\n"
+                                 L" | |-VariableDeclaration <line: 5, col: 50> type=int name=a mutable=true\n"
+                                 L" | `-Literal <line: 5, col: 60> type=int value=0\n"
+                                 L" `-VariableDeclStatement <line: 6, col: 1>\n"
+                                 L"  |-VariableDeclaration <line: 6, col: 1> type=int name=a mutable=true\n"
+                                 L"  `-Literal <line: 6, col: 10> type=int value=0\n"}
     );
 }
 
@@ -1389,7 +1418,7 @@ TEST_CASE("variant access in condition", "[doSemanticAnalysis]")
     ifCases.push_back(SingleIfCase(
         Position{4, 1},
         VariableDeclStatement(
-            {4, 10}, VariableDeclaration({4, 10}, {STR}, L"b", false),
+            {4, 10}, VariableDeclaration({4, 10}, {STR}, L"a", false),
             std::make_unique<DotExpression>(Position{4, 20}, std::make_unique<Variable>(Position{4, 20}, L"v1"), L"b")
         ),
         {}
@@ -1409,12 +1438,12 @@ TEST_CASE("variant access in condition", "[doSemanticAnalysis]")
                                  L"  | `-Variable <line: 3, col: 20> name=v1\n"
                                  L"  `-SingleIfCase <line: 4, col: 1>\n"
                                  L"   `-VariableDeclStatement <line: 4, col: 10>\n"
-                                 L"    |-VariableDeclaration <line: 4, col: 10> type=str name=b mutable=false\n"
+                                 L"    |-VariableDeclaration <line: 4, col: 10> type=str name=a mutable=false\n"
                                  L"    `-Variable <line: 4, col: 20> name=v1\n"}
     );
 }
 
-TEST_CASE("conditional statements errors", "[doSemanticAnalysis]")
+TEST_CASE("if condition declaration errors", "[doSemanticAnalysis]")
 {
     std::vector<std::unique_ptr<Instruction>> functionBody;
     std::vector<SingleIfCase> ifCases;
@@ -1477,27 +1506,56 @@ TEST_CASE("conditional statements errors", "[doSemanticAnalysis]")
         std::make_unique<IfStatement>(Position{3, 1}, std::move(ifCases), std::vector<std::unique_ptr<Instruction>>{})
     );
     checkSemanticError<InvalidCastError>(functionBody); // if condition declared type must match the field
+}
 
-    functionBody.clear();
+TEST_CASE("other conditional statements errors", "[doSemanticAnalysis]")
+{
+    std::vector<std::unique_ptr<Instruction>> functionBody;
     functionBody.push_back(std::make_unique<WhileStatement>(
         Position{3, 1}, std::make_unique<Variable>(Position{3, 10}, L"s1"), std::vector<std::unique_ptr<Instruction>>{}
     ));
     checkSemanticError<InvalidCastError>(functionBody); // condition uncastable to bool
 
     functionBody.clear();
-    ifCases.clear();
+    std::vector<std::unique_ptr<Instruction>> instructions;
+    instructions.push_back(std::make_unique<VariableDeclStatement>(
+        Position{4, 1}, VariableDeclaration({4, 1}, {INT}, L"arg", false), makeLiteral({4, 10}, 2)
+    ));
+    functionBody.push_back(
+        std::make_unique<WhileStatement>(Position{3, 1}, makeLiteral(Position{3, 10}, true), std::move(instructions))
+    );
+    checkSemanticError<VariableNameCollisionError>(functionBody); // redeclaration of variable from outside scope
+
+    functionBody.clear();
+    instructions.clear();
+    instructions.push_back(std::make_unique<VariableDeclStatement>(
+        Position{3, 1}, VariableDeclaration({3, 1}, {INT}, L"a", false), makeLiteral({3, 10}, 2)
+    ));
+    functionBody.push_back(
+        std::make_unique<DoWhileStatement>(Position{4, 1}, makeLiteral(Position{4, 10}, true), std::move(instructions))
+    );
+    functionBody.push_back(std::make_unique<VariableDeclStatement>(
+        Position{5, 1}, VariableDeclaration({5, 1}, {INT}, L"abc", false),
+        std::make_unique<Variable>(Position{5, 10}, L"a")
+    ));
+    checkSemanticError<UnknownVariableError>(functionBody); // deletion of variable upon leaving scope
+
+    functionBody.clear();
+    instructions.clear();
+    instructions.push_back(std::make_unique<VariableDeclStatement>(
+        Position{4, 1}, VariableDeclaration({4, 1}, {INT}, L"a", false), makeLiteral({4, 10}, 2)
+    ));
+    std::vector<SingleIfCase> ifCases;
     ifCases.push_back(SingleIfCase(
         Position{3, 1},
         VariableDeclStatement(
             {3, 10}, VariableDeclaration({3, 10}, {INT}, L"a", false),
             std::make_unique<Variable>(Position{3, 20}, L"v1")
         ),
-        {}
+        std::move(instructions)
     ));
-    std::vector<std::unique_ptr<Instruction>> instructions;
-    instructions.push_back(std::make_unique<VariableDeclStatement>(
-        Position{4, 1}, VariableDeclaration({4, 1}, {INT}, L"a", false), makeLiteral({4, 10}, 2)
-    ));
-    functionBody.push_back(std::make_unique<IfStatement>(Position{3, 1}, std::move(ifCases), std::move(instructions)));
+    functionBody.push_back(
+        std::make_unique<IfStatement>(Position{3, 1}, std::move(ifCases), std::vector<std::unique_ptr<Instruction>>{})
+    );
     checkSemanticError<VariableNameCollisionError>(functionBody); // redeclaration of variable from if condition
 }

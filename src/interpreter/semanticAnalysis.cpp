@@ -798,9 +798,7 @@ private:
         if(program.structs.find(complexType) != program.structs.end())
             return false;
         const std::vector<Field> &variantFields = program.variants.find(complexType)->second.fields;
-        return std::find_if(variantFields.begin(), variantFields.end(), [&](const Field &field) {
-                   return field.type == fieldType;
-               }) != variantFields.end();
+        return getField(variantFields, fieldType);
     }
 
     bool isStructInitListValid(Type::InitializationList typeFrom, Type typeTo)
@@ -863,10 +861,10 @@ private:
         if(type.isInitList() || type.isBuiltin())
             return nullptr;
         std::wstring typeName = std::get<std::wstring>(type.value);
-        auto fields = program.variants.find(typeName);
-        if(fields == program.variants.end())
+        auto fields = findIn(program.variants, typeName);
+        if(!fields)
             return nullptr;
-        return &fields->second.fields;
+        return &(*fields)->second.fields;
     }
 
     bool isValidType(Type type)
@@ -876,18 +874,15 @@ private:
         if(type.isBuiltin())
             return true;
         std::wstring typeName = std::get<std::wstring>(type.value);
-        return program.structs.find(typeName) != program.structs.end() ||
-               program.variants.find(typeName) != program.variants.end();
+        return findIn(program.structs, typeName) || findIn(program.variants, typeName);
     }
 
     std::vector<Field> *getStructOrVariantFields(const std::wstring &name)
     {
-        auto foundStruct = program.structs.find(name);
-        if(foundStruct != program.structs.end())
-            return &foundStruct->second.fields;
-        auto foundVariant = program.variants.find(name);
-        if(foundVariant != program.variants.end())
-            return &foundVariant->second.fields;
+        if(auto foundStruct = findIn(program.structs, name))
+            return &(*foundStruct)->second.fields;
+        if(auto foundVariant = findIn(program.variants, name))
+            return &(*foundVariant)->second.fields;
         return nullptr;
     }
 
@@ -895,23 +890,20 @@ private:
     {
         for(auto &[id, function]: visited.functions)
         {
-            auto variantFound = visited.variants.find(id.name);
-            if(variantFound != visited.variants.end())
+            if(auto variantFound = findIn(visited.variants, id.name))
                 throw NameCollisionError(
-                    L"function " + id.name, function, L"variant " + variantFound->first, variantFound->second
+                    L"function " + id.name, function, L"variant " + (*variantFound)->first, (*variantFound)->second
                 );
-            auto structFound = visited.structs.find(id.name);
-            if(structFound != visited.structs.end())
+            if(auto structFound = findIn(visited.structs, id.name))
                 throw NameCollisionError(
-                    L"function " + id.name, function, L"struct " + structFound->first, structFound->second
+                    L"function " + id.name, function, L"struct " + (*structFound)->first, (*structFound)->second
                 );
         }
         for(auto &[name, variant]: visited.variants)
         {
-            auto structFound = visited.structs.find(name);
-            if(structFound != visited.structs.end())
+            if(auto structFound = findIn(visited.structs, name))
                 throw NameCollisionError(
-                    L"variant " + name, variant, L"struct " + structFound->first, structFound->second
+                    L"variant " + name, variant, L"struct " + (*structFound)->first, (*structFound)->second
                 );
         }
     }

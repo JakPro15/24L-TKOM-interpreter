@@ -972,9 +972,8 @@ TEST_CASE("DotExpression valid access", "[doSemanticAnalysis]")
                                  L"  `-SingleIfCase <line: 4, col: 1>\n"
                                  L"   `-VariableDeclStatement <line: 4, col: 10>\n"
                                  L"    |-VariableDeclaration <line: 4, col: 10> type=int name=a mutable=false\n"
-                                 L"    `-DotExpression <line: 4, col: 10> field=a\n"
-                                 L"     `-DotExpression <line: 4, col: 10> field=b\n"
-                                 L"      `-Variable <line: 4, col: 10> name=s2\n"}
+                                 L"    `-DotExpression <line: 4, col: 10> field=b\n"
+                                 L"     `-Variable <line: 4, col: 10> name=s2\n"}
     );
 }
 
@@ -1343,4 +1342,132 @@ TEST_CASE("FunctionCall - overload resolution errors", "[doSemanticAnalysis]")
     addOverload(program, FunctionIdentification(L"f", {{INT}, {STR}}));
     addOverload(program, FunctionIdentification(L"f", {{STR}, {INT}}));
     REQUIRE_THROWS_AS(doSemanticAnalysis(program), AmbiguousFunctionCallError);
+}
+
+TEST_CASE("conditional statements", "[doSemanticAnalysis]")
+{
+    std::vector<std::unique_ptr<Instruction>> functionBody;
+    std::vector<SingleIfCase> ifCases;
+    ifCases.push_back(SingleIfCase(Position{3, 1}, makeLiteral(Position{3, 10}, 2), {}));
+    functionBody.push_back(
+        std::make_unique<IfStatement>(Position{3, 1}, std::move(ifCases), std::vector<std::unique_ptr<Instruction>>{})
+    );
+    functionBody.push_back(std::make_unique<WhileStatement>(
+        Position{4, 1}, makeLiteral(Position{4, 10}, 2), std::vector<std::unique_ptr<Instruction>>{}
+    ));
+    functionBody.push_back(std::make_unique<DoWhileStatement>(
+        Position{5, 1}, makeLiteral(Position{5, 10}, true), std::vector<std::unique_ptr<Instruction>>{}
+    ));
+    Program program = wrapInFunction(std::move(functionBody));
+    doSemanticAnalysis(program);
+    checkNodeContainer(
+        program.functions, {wrappedFunctionHeader + L"`-Body:\n"
+                                                    L" |-IfStatement <line: 3, col: 1>\n"
+                                                    L" |`-SingleIfCase <line: 3, col: 1>\n"
+                                                    L" | `-CastExpression <line: 3, col: 10> targetType=bool\n"
+                                                    L" |  `-Literal <line: 3, col: 10> type=int value=2\n"
+                                                    L" |-WhileStatement <line: 4, col: 1>\n"
+                                                    L" |`-CastExpression <line: 4, col: 10> targetType=bool\n"
+                                                    L" | `-Literal <line: 4, col: 10> type=int value=2\n"
+                                                    L" `-DoWhileStatement <line: 5, col: 1>\n"
+                                                    L"  `-Literal <line: 5, col: 10> type=bool value=true\n"}
+    );
+}
+
+TEST_CASE("variant access in condition", "[doSemanticAnalysis]")
+{
+    std::vector<std::unique_ptr<Instruction>> functionBody;
+    std::vector<SingleIfCase> ifCases;
+    ifCases.push_back(SingleIfCase(
+        Position{3, 1},
+        VariableDeclStatement(
+            {3, 10}, VariableDeclaration({3, 10}, {INT}, L"a", false),
+            std::make_unique<Variable>(Position{3, 20}, L"v1")
+        ),
+        {}
+    ));
+    ifCases.push_back(SingleIfCase(
+        Position{4, 1},
+        VariableDeclStatement(
+            {4, 10}, VariableDeclaration({4, 10}, {STR}, L"b", false),
+            std::make_unique<DotExpression>(Position{4, 20}, std::make_unique<Variable>(Position{4, 20}, L"v1"), L"b")
+        ),
+        {}
+    ));
+    functionBody.push_back(
+        std::make_unique<IfStatement>(Position{3, 1}, std::move(ifCases), std::vector<std::unique_ptr<Instruction>>{})
+    );
+    Program program = wrapInFunction(std::move(functionBody));
+    doSemanticAnalysis(program);
+    checkNodeContainer(
+        program.functions,
+        {wrappedFunctionHeader + L"`-Body:\n"
+                                 L" `-IfStatement <line: 3, col: 1>\n"
+                                 L"  |-SingleIfCase <line: 3, col: 1>\n"
+                                 L"  |`-VariableDeclStatement <line: 3, col: 10>\n"
+                                 L"  | |-VariableDeclaration <line: 3, col: 10> type=int name=a mutable=false\n"
+                                 L"  | `-Variable <line: 3, col: 20> name=v1\n"
+                                 L"  `-SingleIfCase <line: 4, col: 1>\n"
+                                 L"   `-VariableDeclStatement <line: 4, col: 10>\n"
+                                 L"    |-VariableDeclaration <line: 4, col: 10> type=str name=b mutable=false\n"
+                                 L"    `-Variable <line: 4, col: 20> name=v1\n"}
+    );
+}
+
+TEST_CASE("conditional statements errors", "[doSemanticAnalysis]")
+{
+    std::vector<std::unique_ptr<Instruction>> functionBody;
+    std::vector<SingleIfCase> ifCases;
+    ifCases.push_back(SingleIfCase(
+        Position{3, 1},
+        VariableDeclStatement(
+            {3, 10}, VariableDeclaration({3, 10}, {INT}, L"a", false),
+            std::make_unique<DotExpression>(
+                Position{3, 20},
+                std::make_unique<DotExpression>(
+                    Position{3, 20}, std::make_unique<Variable>(Position{3, 20}, L"v2"), L"b"
+                ),
+                L"a"
+            )
+        ),
+        {}
+    ));
+    functionBody.push_back(
+        std::make_unique<IfStatement>(Position{3, 1}, std::move(ifCases), std::vector<std::unique_ptr<Instruction>>{})
+    );
+    checkSemanticError<FieldAccessError>(functionBody); // cannot access subfield of variant in if condition
+
+    functionBody.clear();
+    ifCases.clear();
+    ifCases.push_back(SingleIfCase(
+        Position{3, 1},
+        VariableDeclStatement({3, 10}, VariableDeclaration({3, 10}, {INT}, L"a", false), makeLiteral({3, 20}, 2)), {}
+    ));
+    functionBody.push_back(
+        std::make_unique<IfStatement>(Position{3, 1}, std::move(ifCases), std::vector<std::unique_ptr<Instruction>>{})
+    );
+    checkSemanticError<InvalidIfConditionError>(functionBody); // must access variant in if condition declaration
+
+    functionBody.clear();
+    functionBody.push_back(std::make_unique<WhileStatement>(
+        Position{3, 1}, std::make_unique<Variable>(Position{3, 10}, L"s1"), std::vector<std::unique_ptr<Instruction>>{}
+    ));
+    checkSemanticError<InvalidCastError>(functionBody); // condition uncastable to bool
+
+    functionBody.clear();
+    ifCases.clear();
+    ifCases.push_back(SingleIfCase(
+        Position{3, 1},
+        VariableDeclStatement(
+            {3, 10}, VariableDeclaration({3, 10}, {INT}, L"a", false),
+            std::make_unique<Variable>(Position{3, 20}, L"v1")
+        ),
+        {}
+    ));
+    std::vector<std::unique_ptr<Instruction>> instructions;
+    instructions.push_back(std::make_unique<VariableDeclStatement>(
+        Position{4, 1}, VariableDeclaration({4, 1}, {INT}, L"a", false), makeLiteral({4, 10}, 2)
+    ));
+    functionBody.push_back(std::make_unique<IfStatement>(Position{3, 1}, std::move(ifCases), std::move(instructions)));
+    checkSemanticError<VariableNameCollisionError>(functionBody); // redeclaration of variable from if condition
 }

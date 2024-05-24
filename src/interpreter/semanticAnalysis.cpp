@@ -208,6 +208,7 @@ public:
         {
             accessedVariant = true;
             lastExpressionType = getTypeOfField((*variantFound)->second.fields, visited.field, visited.getPosition());
+            toReplace = std::move(visited.value);
             return;
         }
         throw FieldAccessError(
@@ -266,13 +267,22 @@ public:
         bool shouldAccessVariant = variantReadAccessPermitted;
         visited.value->accept(*this);
         doReplacement(visited.value);
-        if(shouldAccessVariant && !accessedVariant && !isVariantType(lastExpressionType))
+        bool isValueVariant = isVariantType(lastExpressionType);
+        if(shouldAccessVariant && !accessedVariant && !isValueVariant)
             throw InvalidIfConditionError(
                 L"If with declaration must access a variant type", currentSource, visited.getPosition()
             );
-        accessedVariant = false;
         if(lastExpressionType != visited.declaration.type)
-            insertCast(visited.value, lastExpressionType, visited.declaration.type);
+        {
+            if(accessedVariant)
+                throw InvalidCastError(
+                    L"The type in if condition declaration must match the type of the variant's accessed field",
+                    currentSource, visited.getPosition()
+                );
+            if(!isValueVariant)
+                insertCast(visited.value, lastExpressionType, visited.declaration.type);
+        }
+        accessedVariant = false;
     }
 
     void visit(Assignable &visited) override

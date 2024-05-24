@@ -22,6 +22,11 @@ class IncludeInSemanticAnalysisError: public std::runtime_error
     using std::runtime_error::runtime_error;
 };
 
+class InvalidTypeError: public std::runtime_error
+{
+    using std::runtime_error::runtime_error;
+};
+
 class SemanticError: public ErrorAtPosition
 {
     using ErrorAtPosition::ErrorAtPosition;

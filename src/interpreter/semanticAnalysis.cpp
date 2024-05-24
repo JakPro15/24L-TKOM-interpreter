@@ -271,7 +271,7 @@ public:
         if(visited.left == nullptr)
             return visitLeafAssignable(visited);
         blockFurtherDotAccess = false;
-        visited.left->accept(*this);
+        visit(*visited.left);
         if(blockFurtherDotAccess)
             throw FieldAccessError(
                 std::format(L"Attempted access to field of field of variant type"), currentSource,
@@ -327,7 +327,7 @@ public:
     {
         noReturnFunctionPermitted = true;
         variantReadAccessPermitted = false;
-        visited.functionCall.accept(*this);
+        visit(visited.functionCall);
     }
 
     void visit(ReturnStatement &visited) override
@@ -558,7 +558,7 @@ private:
     )
     {
         expression.structType = structType;
-        std::vector<Field> &structFields = *getStructOrVariantFields(structType);
+        const std::vector<Field> &structFields = getStructOrVariantFields(structType);
         for(unsigned i = 0; i < structFields.size(); i++)
         {
             if(structInitListType[i] != structFields[i].type)
@@ -854,13 +854,7 @@ private:
         if(typeFrom.isInitList())
             return isStructInitListValid(std::get<Type::InitializationList>(typeFrom.value), typeTo);
         if(!typeFrom.isBuiltin())
-        {
-            std::wstring typeName = std::get<std::wstring>(typeFrom.value);
-            if(variantReadAccessPermitted)
-                return isFieldOfVariant(typeName, typeTo);
-            else
-                return false;
-        }
+            return false;
         if(!typeTo.isBuiltin())
         {
             std::wstring typeName = std::get<std::wstring>(typeTo.value);
@@ -906,13 +900,13 @@ private:
         return findIn(program.structs, typeName) || findIn(program.variants, typeName);
     }
 
-    std::vector<Field> *getStructOrVariantFields(const std::wstring &name)
+    const std::vector<Field> &getStructOrVariantFields(const std::wstring &name)
     {
         if(auto foundStruct = findIn(program.structs, name))
-            return &(*foundStruct)->second.fields;
+            return (*foundStruct)->second.fields;
         if(auto foundVariant = findIn(program.variants, name))
-            return &(*foundVariant)->second.fields;
-        return nullptr;
+            return (*foundVariant)->second.fields;
+        throw InvalidTypeError(std::format("Internal error - invalid struct or variant type name given"));
     }
 
     void checkNameDuplicates(Program &visited)
@@ -971,7 +965,7 @@ private:
         if(type2Name == type1)
             return true;
 
-        for(const Field &field: *getStructOrVariantFields(type2Name))
+        for(const Field &field: getStructOrVariantFields(type2Name))
         {
             if(isInSubtypes(type1, field.type))
                 return true;

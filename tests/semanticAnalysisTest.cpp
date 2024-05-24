@@ -1361,11 +1361,11 @@ TEST_CASE("conditional statements", "[doSemanticAnalysis]")
     functionBody.push_back(
         std::make_unique<WhileStatement>(Position{4, 1}, makeLiteral(Position{4, 10}, 2), std::move(instructions))
     );
+
     instructions.clear();
     instructions.push_back(std::make_unique<VariableDeclStatement>(
         Position{5, 50}, VariableDeclaration({5, 50}, {INT}, L"a", true), makeLiteral(Position{5, 60}, 0)
     ));
-
     functionBody.push_back(
         std::make_unique<DoWhileStatement>(Position{5, 1}, makeLiteral(Position{5, 10}, true), std::move(instructions))
     );
@@ -1558,4 +1558,134 @@ TEST_CASE("other conditional statements errors", "[doSemanticAnalysis]")
         std::make_unique<IfStatement>(Position{3, 1}, std::move(ifCases), std::vector<std::unique_ptr<Instruction>>{})
     );
     checkSemanticError<VariableNameCollisionError>(functionBody); // redeclaration of variable from if condition
+}
+
+TEST_CASE("non-structural statements: break, continue, return", "[doSemanticAnalysis]")
+{
+    std::vector<std::unique_ptr<Instruction>> functionBody, instructions;
+    instructions.push_back(std::make_unique<ReturnStatement>(Position{3, 50}, nullptr));
+    std::vector<SingleIfCase> ifCases;
+    ifCases.push_back(SingleIfCase(Position{3, 1}, makeLiteral(Position{3, 10}, true), {}));
+    functionBody.push_back(std::make_unique<IfStatement>(Position{3, 1}, std::move(ifCases), std::move(instructions)));
+
+    instructions.clear();
+    instructions.push_back(std::make_unique<BreakStatement>(Position{4, 50}));
+    functionBody.push_back(
+        std::make_unique<WhileStatement>(Position{4, 1}, makeLiteral(Position{4, 10}, true), std::move(instructions))
+    );
+
+    instructions.clear();
+    instructions.push_back(std::make_unique<ContinueStatement>(Position{5, 50}));
+    functionBody.push_back(
+        std::make_unique<DoWhileStatement>(Position{5, 1}, makeLiteral(Position{5, 10}, true), std::move(instructions))
+    );
+    functionBody.push_back(std::make_unique<ReturnStatement>(Position{6, 1}, nullptr));
+    Program program = wrapInFunction(std::move(functionBody));
+
+    doSemanticAnalysis(program);
+    checkNodeContainer(
+        program.functions, {wrappedFunctionHeader + L"`-Body:\n"
+                                                    L" |-IfStatement <line: 3, col: 1>\n"
+                                                    L" ||-SingleIfCase <line: 3, col: 1>\n"
+                                                    L" ||`-Literal <line: 3, col: 10> type=bool value=true\n"
+                                                    L" |`-ElseCase:\n"
+                                                    L" | `-ReturnStatement <line: 3, col: 50>\n"
+                                                    L" |-WhileStatement <line: 4, col: 1>\n"
+                                                    L" ||-Literal <line: 4, col: 10> type=bool value=true\n"
+                                                    L" |`-BreakStatement <line: 4, col: 50>\n"
+                                                    L" |-DoWhileStatement <line: 5, col: 1>\n"
+                                                    L" ||-Literal <line: 5, col: 10> type=bool value=true\n"
+                                                    L" |`-ContinueStatement <line: 5, col: 50>\n"
+                                                    L" `-ReturnStatement <line: 6, col: 1>\n"}
+    );
+}
+
+TEST_CASE("ReturnStatement with value cast", "[doSemanticAnalysis]")
+{
+    std::vector<std::unique_ptr<Instruction>> functionBody, instructions;
+    instructions.push_back(std::make_unique<ReturnStatement>(Position{4, 1}, makeLiteral(Position{4, 10}, L"2")));
+    functionBody.push_back(
+        std::make_unique<WhileStatement>(Position{3, 1}, makeLiteral(Position{3, 10}, true), std::move(instructions))
+    );
+    functionBody.push_back(std::make_unique<ReturnStatement>(Position{5, 1}, makeLiteral(Position{5, 10}, 2)));
+
+    Program program({1, 1});
+    program.functions.emplace(
+        FunctionIdentification(L"function", {}),
+        FunctionDeclaration({1, 1}, L"<test>", {}, {{INT}}, std::move(functionBody))
+    );
+
+    doSemanticAnalysis(program);
+    checkNodeContainer(
+        program.functions, {L"function: FunctionDeclaration <line: 1, col: 1> source=<test> returnType=int\n"
+                            L"`-Body:\n"
+                            L" |-WhileStatement <line: 3, col: 1>\n"
+                            L" ||-Literal <line: 3, col: 10> type=bool value=true\n"
+                            L" |`-ReturnStatement <line: 4, col: 1>\n"
+                            L" | `-CastExpression <line: 4, col: 10> targetType=int\n"
+                            L" |  `-Literal <line: 4, col: 10> type=str value=2\n"
+                            L" `-ReturnStatement <line: 5, col: 1>\n"
+                            L"  `-Literal <line: 5, col: 10> type=int value=2\n"}
+    );
+}
+
+TEST_CASE("BreakStatement and ContinueStatement errors", "[doSemanticAnalysis]")
+{
+    std::vector<std::unique_ptr<Instruction>> functionBody, instructions;
+    instructions.push_back(std::make_unique<BreakStatement>(Position{3, 50}));
+    std::vector<SingleIfCase> ifCases;
+    ifCases.push_back(SingleIfCase(Position{3, 1}, makeLiteral(Position{3, 10}, true), {}));
+    functionBody.push_back(std::make_unique<IfStatement>(Position{3, 1}, std::move(ifCases), std::move(instructions)));
+    checkSemanticError<InvalidBreakError>(functionBody); // break in if (not any loop) not allowed
+
+    instructions.clear();
+    instructions.push_back(std::make_unique<DoWhileStatement>(
+        Position{3, 1}, makeLiteral(Position{3, 10}, true), std::vector<std::unique_ptr<Instruction>>{}
+    ));
+    functionBody.push_back(
+        std::make_unique<WhileStatement>(Position{4, 1}, makeLiteral(Position{4, 10}, true), std::move(instructions))
+    );
+    functionBody.push_back(std::make_unique<ContinueStatement>(Position{4, 50}));
+    checkSemanticError<InvalidContinueError>(functionBody); // continue outside of loop not allowed
+}
+
+TEST_CASE("ReturnStatement errors", "[doSemanticAnalysis]")
+{
+    std::vector<std::unique_ptr<Instruction>> functionBody;
+    functionBody.push_back(std::make_unique<ReturnStatement>(Position{3, 1}, makeLiteral(Position{3, 10}, 2)));
+
+    Program program({1, 1});
+    program.functions.emplace(
+        FunctionIdentification(L"function", {}), FunctionDeclaration({1, 1}, L"<test>", {}, {}, std::move(functionBody))
+    );
+    REQUIRE_THROWS_AS(
+        doSemanticAnalysis(program), InvalidReturnError
+    ); // return with value disallowed in function with no return type
+
+    functionBody.clear();
+    functionBody.push_back(std::make_unique<ReturnStatement>(Position{3, 1}, nullptr));
+
+    program = Program({1, 1});
+    program.functions.emplace(
+        FunctionIdentification(L"function", {}),
+        FunctionDeclaration({1, 1}, L"<test>", {}, {{INT}}, std::move(functionBody))
+    );
+    REQUIRE_THROWS_AS(
+        doSemanticAnalysis(program), InvalidReturnError
+    ); // return without value disallowed in function with return type
+
+    functionBody.clear();
+    std::vector<std::unique_ptr<Expression>> structArguments;
+    structArguments.push_back(makeLiteral(Position{3, 20}, L"2"));
+    structArguments.push_back(makeLiteral(Position{3, 30}, L"3"));
+    functionBody.push_back(std::make_unique<ReturnStatement>(
+        Position{3, 1}, std::make_unique<StructExpression>(Position{3, 10}, std::move(structArguments))
+    ));
+
+    program = Program({1, 1});
+    program.functions.emplace(
+        FunctionIdentification(L"function", {}),
+        FunctionDeclaration({1, 1}, L"<test>", {}, {{INT}}, std::move(functionBody))
+    );
+    REQUIRE_THROWS_AS(doSemanticAnalysis(program), InvalidCastError); // return value not castable to return type
 }

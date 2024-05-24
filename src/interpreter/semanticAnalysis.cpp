@@ -311,6 +311,9 @@ public:
             if(argumentTypes[i] != bestId.parameterTypes[i])
                 insertCast(visited.arguments[i], argumentTypes[i], bestId.parameterTypes[i]);
         }
+        auto returnType = program.functions.at(bestId).returnType;
+        if(returnType)
+            lastExpressionType = *returnType;
     }
 
     void visit(FunctionCallInstruction &visited) override
@@ -369,13 +372,17 @@ public:
     void visit(WhileStatement &visited) override
     {
         visitCondition(visited.condition);
+        loopCounter += 1;
         visitNewScope(visited.body);
+        loopCounter -= 1;
     }
 
     void visit(DoWhileStatement &visited) override
     {
         visitCondition(visited.condition);
+        loopCounter += 1;
         visitNewScope(visited.body);
+        loopCounter -= 1;
     }
 
     void visit(FunctionDeclaration &visited) override

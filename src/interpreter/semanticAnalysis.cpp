@@ -219,12 +219,6 @@ public:
 
     void visit(StructExpression &visited) override
     {
-        if(structType)
-        {
-            setStructExpressionType(visited, *structType, structInitListType);
-            structType = std::nullopt;
-            return;
-        }
         std::vector<Type> types;
         for(auto &argument: visited.arguments)
         {
@@ -458,8 +452,6 @@ private:
     Program &program;
     std::wstring currentSource;
     std::optional<Type> expectedReturnType;
-    std::optional<std::wstring> structType;
-    Type::InitializationList structInitListType;
     Type lastExpressionType;
     std::unordered_map<std::wstring, std::pair<Type, bool>> variableTypes;
     bool noReturnFunctionPermitted, variantReadAccessPermitted, accessedVariant, blockFurtherDotAccess;
@@ -572,17 +564,16 @@ private:
         return std::get<std::wstring>(leftType.value);
     }
 
-    // Expects the struct expression's initialization list type in lastExpressionType
     void setStructExpressionType(
-        StructExpression &visited, const std::wstring &structType, const Type::InitializationList &structInitListType
+        StructExpression &expression, const std::wstring &structType, const Type::InitializationList &structInitListType
     )
     {
-        visited.structType = structType;
+        expression.structType = structType;
         std::vector<Field> &structFields = *getStructOrVariantFields(structType);
         for(unsigned i = 0; i < structFields.size(); i++)
         {
             if(structInitListType[i] != structFields[i].type)
-                insertCast(visited.arguments[i], structInitListType[i], structFields[i].type);
+                insertCast(expression.arguments[i], structInitListType[i], structFields[i].type);
         }
     }
 
@@ -847,11 +838,10 @@ private:
                 currentSource, expression->getPosition()
             );
         if(typeFrom.isInitList())
-        {
-            structType = std::get<std::wstring>(typeTo.value);
-            structInitListType = std::get<Type::InitializationList>(typeFrom.value);
-            expression->accept(*this);
-        }
+            setStructExpressionType(
+                *static_cast<StructExpression *>(expression.get()), std::get<std::wstring>(typeTo.value),
+                std::get<Type::InitializationList>(typeFrom.value)
+            );
         else
             expression = std::make_unique<CastExpression>(expression->getPosition(), std::move(expression), typeTo);
     }

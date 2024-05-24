@@ -11,6 +11,7 @@
 
 #include <algorithm>
 
+namespace {
 Program getTree(const std::wstring &source)
 {
     std::wstringstream sourceStream(source);
@@ -31,6 +32,7 @@ void checkLexingAndParsing(
     checkNodeContainer(tree.structs, expectedStructs);
     checkNodeContainer(tree.variants, expectedVariants);
     checkNodeContainer(tree.functions, expectedFunctions);
+}
 }
 
 TEST_CASE("overloaded functions example", "[Lexer+Parser]")

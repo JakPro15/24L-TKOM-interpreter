@@ -299,6 +299,8 @@ public:
 
     void visit(FunctionCall &visited) override
     {
+        bool noReturnPermitted = noReturnFunctionPermitted;
+        noReturnFunctionPermitted = false;
         std::vector<Type> argumentTypes = visitArguments(visited.arguments);
         if(auto structFound = findIn(program.structs, visited.functionName))
             return visitStructFunctionCall(visited, argumentTypes);
@@ -314,10 +316,16 @@ public:
         auto returnType = program.functions.at(bestId).returnType;
         if(returnType)
             lastExpressionType = *returnType;
+        else if(!noReturnPermitted)
+            throw InvalidFunctionCallError(
+                L"Cannot call a function with no return type where an expression is expected", currentSource,
+                visited.getPosition()
+            );
     }
 
     void visit(FunctionCallInstruction &visited) override
     {
+        noReturnFunctionPermitted = true;
         variantReadAccessPermitted = false;
         visited.functionCall.accept(*this);
     }

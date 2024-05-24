@@ -1240,9 +1240,11 @@ std::vector<VariableDeclaration> createParameters(const FunctionIdentification &
     return parameters;
 }
 
-std::wstring addOverload(Program &program, const FunctionIdentification &id)
+std::wstring addOverload(
+    Program &program, const FunctionIdentification &id, std::optional<Type> returnType = std::nullopt
+)
 {
-    FunctionDeclaration function(Position{1, 1}, L"<test>", createParameters(id), std::nullopt, {});
+    FunctionDeclaration function(Position{1, 1}, L"<test>", createParameters(id), returnType, {});
     std::wstringstream printed;
     std::pair<const FunctionIdentification, FunctionDeclaration> toPrint{id, std::move(function)};
     PrintingVisitor(printed).visit(toPrint);
@@ -1256,8 +1258,9 @@ TEST_CASE("FunctionCall - overload resolution", "[doSemanticAnalysis]")
     std::vector<std::unique_ptr<Expression>> functionArguments;
     functionArguments.push_back(makeLiteral(Position{4, 20}, 2));
     functionArguments.push_back(makeLiteral(Position{4, 30}, 2.0));
-    functionBody.push_back(std::make_unique<FunctionCallInstruction>(
-        Position{4, 1}, FunctionCall(Position{4, 1}, L"f", std::move(functionArguments))
+    functionBody.push_back(std::make_unique<AssignmentStatement>(
+        Position{4, 1}, Assignable(Position{4, 1}, L"arg"),
+        std::make_unique<FunctionCall>(Position{4, 10}, L"f", std::move(functionArguments))
     ));
     functionArguments.clear();
     functionArguments.push_back(makeLiteral(Position{5, 20}, 2.0));
@@ -1267,13 +1270,14 @@ TEST_CASE("FunctionCall - overload resolution", "[doSemanticAnalysis]")
     ));
     Program program = wrapInFunction(std::move(functionBody));
     std::set<std::wstring> printedFunctions;
-    printedFunctions.insert(addOverload(program, FunctionIdentification(L"f", {{INT}, {STR}})));
-    printedFunctions.insert(addOverload(program, FunctionIdentification(L"f", {{STR}, {INT}})));
-    printedFunctions.insert(addOverload(program, FunctionIdentification(L"f", {{INT}, {FLOAT}, {INT}})));
+    printedFunctions.insert(addOverload(program, FunctionIdentification(L"f", {{INT}, {STR}}), {{INT}}));
+    printedFunctions.insert(addOverload(program, FunctionIdentification(L"f", {{STR}, {INT}}), {}));
+    printedFunctions.insert(addOverload(program, FunctionIdentification(L"f", {{INT}, {FLOAT}, {INT}}), {}));
     printedFunctions.insert(
         wrappedFunctionHeader + L"`-Body:\n"
-                                L" |-FunctionCallInstruction <line: 4, col: 1>\n"
-                                L" |`-FunctionCall <line: 4, col: 1> functionName=f\n"
+                                L" |-AssignmentStatement <line: 4, col: 1>\n"
+                                L" ||-Assignable <line: 4, col: 1> right=arg\n"
+                                L" |`-FunctionCall <line: 4, col: 10> functionName=f\n"
                                 L" | |-Literal <line: 4, col: 20> type=int value=2\n"
                                 L" | `-CastExpression <line: 4, col: 30> targetType=str\n"
                                 L" |  `-Literal <line: 4, col: 30> type=float value=2\n"
@@ -1318,7 +1322,7 @@ TEST_CASE("FunctionCall - overload resolution with initialization list", "[doSem
     checkNodeContainer(program.functions, printedFunctions);
 }
 
-TEST_CASE("FunctionCall - overload resolution errors", "[doSemanticAnalysis]")
+TEST_CASE("FunctionCall - errors", "[doSemanticAnalysis]")
 {
     std::vector<std::unique_ptr<Instruction>> functionBody;
     std::vector<std::unique_ptr<Expression>> functionArguments;
@@ -1329,7 +1333,9 @@ TEST_CASE("FunctionCall - overload resolution errors", "[doSemanticAnalysis]")
     Program program = wrapInFunction(std::move(functionBody));
     addOverload(program, FunctionIdentification(L"f", {{INT}, {STR}}));
     addOverload(program, FunctionIdentification(L"f", {{STR}, {INT}}));
-    REQUIRE_THROWS_AS(doSemanticAnalysis(program), InvalidFunctionCallError);
+    REQUIRE_THROWS_AS(
+        doSemanticAnalysis(program), InvalidFunctionCallError
+    ); // no function with matching number of arguments
 
     functionBody.clear();
     functionArguments.clear();
@@ -1341,7 +1347,20 @@ TEST_CASE("FunctionCall - overload resolution errors", "[doSemanticAnalysis]")
     program = wrapInFunction(std::move(functionBody));
     addOverload(program, FunctionIdentification(L"f", {{INT}, {STR}}));
     addOverload(program, FunctionIdentification(L"f", {{STR}, {INT}}));
-    REQUIRE_THROWS_AS(doSemanticAnalysis(program), AmbiguousFunctionCallError);
+    REQUIRE_THROWS_AS(
+        doSemanticAnalysis(program), AmbiguousFunctionCallError
+    ); // two functions with same number of casts required
+
+    functionBody.clear();
+    functionBody.push_back(std::make_unique<AssignmentStatement>(
+        Position{4, 1}, Assignable(Position{4, 1}, L"arg"),
+        std::make_unique<FunctionCall>(Position{4, 10}, L"f", std::vector<std::unique_ptr<Expression>>{})
+    ));
+    program = wrapInFunction(std::move(functionBody));
+    addOverload(program, FunctionIdentification(L"f", {}));
+    REQUIRE_THROWS_AS(
+        doSemanticAnalysis(program), InvalidFunctionCallError
+    ); // attempt to use function call with no return type in an expression
 }
 
 TEST_CASE("conditional statements", "[doSemanticAnalysis]")

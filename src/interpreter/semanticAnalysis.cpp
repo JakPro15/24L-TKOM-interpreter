@@ -261,28 +261,38 @@ public:
         variableTypes.insert({visited.name, {visited.type, visited.isMutable}});
     }
 
-    void visit(VariableDeclStatement &visited) override
+    bool validateConditionVariantAccess(VariableDeclStatement &visited, Type valueType, bool shouldAccessVariant)
     {
-        visited.declaration.accept(*this);
-        bool shouldAccessVariant = variantReadAccessPermitted;
-        visited.value->accept(*this);
-        doReplacement(visited.value);
-        bool isValueVariant = isVariantType(lastExpressionType);
-        if(shouldAccessVariant && !accessedVariant && !isValueVariant)
+        std::vector<Field> *variantFields = getVariantFields(valueType);
+        if(shouldAccessVariant && !accessedVariant && !variantFields)
             throw InvalidIfConditionError(
                 L"If with declaration must access a variant type", currentSource, visited.getPosition()
             );
-        if(lastExpressionType != visited.declaration.type)
+        if(valueType != visited.declaration.type)
         {
             if(accessedVariant)
                 throw InvalidCastError(
                     L"The type in if condition declaration must match the type of the variant's accessed field",
                     currentSource, visited.getPosition()
                 );
-            if(!isValueVariant)
-                insertCast(visited.value, lastExpressionType, visited.declaration.type);
+            if(variantFields && !getField(*variantFields, visited.declaration.type))
+                throw InvalidCastError(
+                    L"The type in if condition declaration must match one of the variant's types", currentSource,
+                    visited.getPosition()
+                );
         }
-        accessedVariant = false;
+        return variantFields;
+    }
+
+    void visit(VariableDeclStatement &visited) override
+    {
+        visited.declaration.accept(*this);
+        bool shouldAccessVariant = variantReadAccessPermitted;
+        visited.value->accept(*this);
+        doReplacement(visited.value);
+        bool isValueVariant = validateConditionVariantAccess(visited, lastExpressionType, shouldAccessVariant);
+        if(lastExpressionType != visited.declaration.type && !isValueVariant)
+            insertCast(visited.value, lastExpressionType, visited.declaration.type);
     }
 
     void visit(Assignable &visited) override
@@ -848,12 +858,15 @@ private:
             expression = std::make_unique<CastExpression>(expression->getPosition(), std::move(expression), typeTo);
     }
 
-    bool isVariantType(Type type)
+    std::vector<Field> *getVariantFields(Type type)
     {
         if(type.isInitList() || type.isBuiltin())
-            return false;
+            return nullptr;
         std::wstring typeName = std::get<std::wstring>(type.value);
-        return program.variants.find(typeName) != program.variants.end();
+        auto fields = program.variants.find(typeName);
+        if(fields == program.variants.end())
+            return nullptr;
+        return &fields->second.fields;
     }
 
     bool isValidType(Type type)
@@ -975,7 +988,6 @@ private:
             parameter.accept(*this);
     }
 };
-
 }
 
 void doSemanticAnalysis(Program &program)

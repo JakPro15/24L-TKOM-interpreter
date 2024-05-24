@@ -1449,6 +1449,36 @@ TEST_CASE("conditional statements errors", "[doSemanticAnalysis]")
     checkSemanticError<InvalidIfConditionError>(functionBody); // must access variant in if condition declaration
 
     functionBody.clear();
+    ifCases.clear();
+    ifCases.push_back(SingleIfCase(
+        Position{3, 1},
+        VariableDeclStatement(
+            {3, 10}, VariableDeclaration({3, 10}, {BOOL}, L"a", false),
+            std::make_unique<Variable>(Position{3, 20}, L"v1")
+        ),
+        {}
+    ));
+    functionBody.push_back(
+        std::make_unique<IfStatement>(Position{3, 1}, std::move(ifCases), std::vector<std::unique_ptr<Instruction>>{})
+    );
+    checkSemanticError<InvalidCastError>(functionBody); // if condition declared type must match a field's type
+
+    functionBody.clear();
+    ifCases.clear();
+    ifCases.push_back(SingleIfCase(
+        Position{3, 1},
+        VariableDeclStatement(
+            {3, 10}, VariableDeclaration({3, 10}, {STR}, L"a", false),
+            std::make_unique<DotExpression>(Position{3, 20}, std::make_unique<Variable>(Position{3, 20}, L"v1"), L"a")
+        ),
+        {}
+    ));
+    functionBody.push_back(
+        std::make_unique<IfStatement>(Position{3, 1}, std::move(ifCases), std::vector<std::unique_ptr<Instruction>>{})
+    );
+    checkSemanticError<InvalidCastError>(functionBody); // if condition declared type must match the field
+
+    functionBody.clear();
     functionBody.push_back(std::make_unique<WhileStatement>(
         Position{3, 1}, std::make_unique<Variable>(Position{3, 10}, L"s1"), std::vector<std::unique_ptr<Instruction>>{}
     ));

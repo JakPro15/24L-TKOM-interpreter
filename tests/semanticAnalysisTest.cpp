@@ -1387,6 +1387,29 @@ TEST_CASE("FunctionCall - errors", "[doSemanticAnalysis]")
     REQUIRE_THROWS_AS(
         doSemanticAnalysis(program), InvalidFunctionCallError
     ); // attempt to use function call with no return type in an expression
+
+    functionBody.clear();
+    functionArguments.clear();
+    functionArguments.push_back(std::make_unique<Variable>(Position{4, 20}, L"arg"));
+    functionArguments.push_back(makeLiteral({4, 30}, 2));
+    functionBody.push_back(std::make_unique<FunctionCallInstruction>(
+        Position{4, 1}, FunctionCall(Position{4, 10}, L"f", std::move(functionArguments))
+    ));
+    program = wrapInFunction(std::move(functionBody));
+    using enum Type::Builtin;
+    program.functions.insert(
+        {FunctionIdentification(L"f", {{INT}, {STR}}),
+         std::make_unique<FunctionDeclaration>(
+             Position{1, 1}, L"<test>",
+             std::vector<VariableDeclaration>{
+                 VariableDeclaration({1, 10}, {INT}, L"a", false), VariableDeclaration({1, 20}, {STR}, L"b", true)
+             },
+             std::nullopt, std::vector<std::unique_ptr<Instruction>>{}
+         )}
+    );
+    REQUIRE_THROWS_AS(
+        doSemanticAnalysis(program), ImmutableError
+    ); // cannot pass immutable or temporary value as mutable reference
 }
 
 TEST_CASE("conditional statements", "[doSemanticAnalysis]")

@@ -28,7 +28,7 @@ public:
 
     void visit(Literal &visited) override
     {
-        lastExpressionType = visited.getType();
+        lastExpressionType = {visited.getType(), false};
     }
 
     void visit(Variable &visited) override
@@ -38,28 +38,28 @@ public:
             throw UnknownVariableError(
                 std::format(L"Unknown variable: {}", visited.name), currentSource, visited.getPosition()
             );
-        lastExpressionType = found->first;
+        lastExpressionType = {found->first, true};
     }
 
     void visit(OrExpression &visited) override
     {
         ensureExpressionHasType(visited.left, Type{BOOL});
         ensureExpressionHasType(visited.right, Type{BOOL});
-        lastExpressionType = Type{BOOL};
+        lastExpressionType = {{BOOL}, false};
     }
 
     void visit(XorExpression &visited) override
     {
         ensureExpressionHasType(visited.left, Type{BOOL});
         ensureExpressionHasType(visited.right, Type{BOOL});
-        lastExpressionType = Type{BOOL};
+        lastExpressionType = {{BOOL}, false};
     }
 
     void visit(AndExpression &visited) override
     {
         ensureExpressionHasType(visited.left, Type{BOOL});
         ensureExpressionHasType(visited.right, Type{BOOL});
-        lastExpressionType = Type{BOOL};
+        lastExpressionType = {{BOOL}, false};
     }
 
     void visit(EqualExpression &visited) override
@@ -86,38 +86,38 @@ public:
     {
         ensureExpressionHasType(visited.left, Type{STR});
         ensureExpressionHasType(visited.right, Type{STR});
-        lastExpressionType = Type{STR};
+        lastExpressionType = {{STR}, false};
     }
 
     void visit(StringMultiplyExpression &visited) override
     {
         ensureExpressionHasType(visited.left, Type{STR});
         ensureExpressionHasType(visited.right, Type{INT});
-        lastExpressionType = Type{STR};
+        lastExpressionType = {{STR}, false};
     }
 
     void visit(GreaterExpression &visited) override
     {
         visitIntOrFloatExpression(visited);
-        lastExpressionType = Type{BOOL};
+        lastExpressionType = {{BOOL}, false};
     }
 
     void visit(LesserExpression &visited) override
     {
         visitIntOrFloatExpression(visited);
-        lastExpressionType = Type{BOOL};
+        lastExpressionType = {{BOOL}, false};
     }
 
     void visit(GreaterEqualExpression &visited) override
     {
         visitIntOrFloatExpression(visited);
-        lastExpressionType = Type{BOOL};
+        lastExpressionType = {{BOOL}, false};
     }
 
     void visit(LesserEqualExpression &visited) override
     {
         visitIntOrFloatExpression(visited);
-        lastExpressionType = Type{BOOL};
+        lastExpressionType = {{BOOL}, false};
     }
 
     void visit(PlusExpression &visited) override
@@ -139,21 +139,21 @@ public:
     {
         ensureExpressionHasType(visited.left, Type{FLOAT});
         ensureExpressionHasType(visited.right, Type{FLOAT});
-        lastExpressionType = Type{FLOAT};
+        lastExpressionType = {{FLOAT}, false};
     }
 
     void visit(FloorDivideExpression &visited) override
     {
         ensureExpressionHasType(visited.left, Type{INT});
         ensureExpressionHasType(visited.right, Type{INT});
-        lastExpressionType = Type{INT};
+        lastExpressionType = {{INT}, false};
     }
 
     void visit(ModuloExpression &visited) override
     {
         ensureExpressionHasType(visited.left, Type{INT});
         ensureExpressionHasType(visited.right, Type{INT});
-        lastExpressionType = Type{INT};
+        lastExpressionType = {{INT}, false};
     }
 
     void visit(ExponentExpression &visited) override
@@ -164,50 +164,55 @@ public:
     void visit(UnaryMinusExpression &visited) override
     {
         visitExpression(visited.value);
-        if(lastExpressionType != Type{INT} && lastExpressionType != Type{FLOAT})
-            insertCast(visited.value, lastExpressionType, Type{FLOAT});
-        lastExpressionType = (lastExpressionType == Type{INT}) ? Type{INT} : Type{FLOAT};
+        if(lastExpressionType.first != Type{INT} && lastExpressionType.first != Type{FLOAT})
+            insertCast(visited.value, lastExpressionType.first, Type{FLOAT});
+        lastExpressionType = {(lastExpressionType.first == Type{INT}) ? Type{INT} : Type{FLOAT}, false};
     }
 
     void visit(NotExpression &visited) override
     {
         ensureExpressionHasType(visited.value, Type{BOOL});
-        lastExpressionType = Type{BOOL};
+        lastExpressionType = {{BOOL}, false};
     }
 
     void visit(IsExpression &visited) override
     {
         visitExpression(visited.left);
-        if(lastExpressionType.isInitList())
+        if(lastExpressionType.first.isInitList())
             throw InvalidInitListError(
                 L"Structure initialization list is not allowed with 'is' operator", currentSource,
                 visited.left->getPosition()
             );
-        lastExpressionType = Type{BOOL};
+        lastExpressionType = {{BOOL}, false};
     }
 
     void visit(SubscriptExpression &visited) override
     {
         ensureExpressionHasType(visited.left, Type{STR});
         ensureExpressionHasType(visited.right, Type{INT});
-        lastExpressionType = Type{STR};
+        lastExpressionType = {{STR}, false};
     }
 
     void visit(DotExpression &visited) override
     {
         bool canAccessVariant = variantReadAccessPermitted;
         visitExpression(visited.value);
-        std::wstring typeName = getTypeNameForDotExpression(lastExpressionType, visited.getPosition());
+        bool isMutable = lastExpressionType.second;
+        std::wstring typeName = getTypeNameForDotExpression(lastExpressionType.first, visited.getPosition());
         if(auto structFound = findIn(program.structs, typeName))
         {
-            lastExpressionType = getTypeOfField((*structFound)->second.fields, visited.field, visited.getPosition());
+            lastExpressionType = {
+                getTypeOfField((*structFound)->second.fields, visited.field, visited.getPosition()), isMutable
+            };
             return;
         }
         std::optional<std::unordered_map<std::wstring, VariantDeclaration>::iterator> variantFound;
         if(canAccessVariant && (variantFound = findIn(program.variants, typeName)))
         {
             accessedVariant = true;
-            lastExpressionType = getTypeOfField((*variantFound)->second.fields, visited.field, visited.getPosition());
+            lastExpressionType = {
+                getTypeOfField((*variantFound)->second.fields, visited.field, visited.getPosition()), isMutable
+            };
             toReplace = std::move(visited.value);
             return;
         }
@@ -223,22 +228,23 @@ public:
         for(auto &argument: visited.arguments)
         {
             visitExpression(argument);
-            types.push_back(lastExpressionType);
+            types.push_back(lastExpressionType.first);
         }
-        lastExpressionType = {types};
+        lastExpressionType = {{types}, false};
     }
 
     void visit(CastExpression &visited) override
     {
         visitExpression(visited.value);
-        if(!areTypesConvertible(lastExpressionType, visited.targetType))
+        if(!areTypesConvertible(lastExpressionType.first, visited.targetType))
             throw InvalidCastError(
                 std::format(
-                    L"Explicit conversion between types {} and {} is impossible", lastExpressionType, visited.targetType
+                    L"Explicit conversion between types {} and {} is impossible", lastExpressionType.first,
+                    visited.targetType
                 ),
                 currentSource, visited.getPosition()
             );
-        lastExpressionType = visited.targetType;
+        lastExpressionType = {visited.targetType, false};
     }
 
     void visit(VariableDeclaration &visited) override
@@ -261,9 +267,9 @@ public:
         bool shouldAccessVariant = variantReadAccessPermitted;
         visited.value->accept(*this);
         doReplacement(visited.value);
-        bool isValueVariant = validateConditionVariantAccess(visited, lastExpressionType, shouldAccessVariant);
-        if(lastExpressionType != visited.declaration.type && !isValueVariant)
-            insertCast(visited.value, lastExpressionType, visited.declaration.type);
+        bool isValueVariant = validateConditionVariantAccess(visited, lastExpressionType.first, shouldAccessVariant);
+        if(lastExpressionType.first != visited.declaration.type && !isValueVariant)
+            insertCast(visited.value, lastExpressionType.first, visited.declaration.type);
     }
 
     void visit(Assignable &visited) override
@@ -277,22 +283,22 @@ public:
                 std::format(L"Attempted access to field of field of variant type"), currentSource,
                 visited.left->getPosition()
             );
-        if(lastExpressionType.isBuiltin())
+        if(lastExpressionType.first.isBuiltin())
             throw FieldAccessError(
-                std::format(L"Attempted access to field of simple type {}", lastExpressionType), currentSource,
+                std::format(L"Attempted access to field of simple type {}", lastExpressionType.first), currentSource,
                 visited.left->getPosition()
             );
         ensureFieldAssignable(
-            std::get<std::wstring>(lastExpressionType.value), visited.right, visited.left->getPosition()
+            std::get<std::wstring>(lastExpressionType.first.value), visited.right, visited.left->getPosition()
         );
     }
 
     void visit(AssignmentStatement &visited) override
     {
         visited.left.accept(*this);
-        Type leftType = lastExpressionType;
+        Type leftType = lastExpressionType.first;
         visitExpression(visited.right);
-        Type rightType = lastExpressionType;
+        Type rightType = lastExpressionType.first;
         if(leftType != rightType)
             insertCast(visited.right, rightType, leftType);
     }
@@ -301,21 +307,21 @@ public:
     {
         bool noReturnPermitted = noReturnFunctionPermitted;
         noReturnFunctionPermitted = false;
-        std::vector<Type> argumentTypes = visitArguments(visited.arguments);
+        auto [argumentTypes, argumentsMutable] = visitArguments(visited.arguments);
         if(auto structFound = findIn(program.structs, visited.functionName))
             return visitStructFunctionCall(visited, argumentTypes);
         if(auto variantFound = findIn(program.variants, visited.functionName))
             return visitVariantFunctionCall(visited, argumentTypes, (*variantFound)->second.fields);
 
         const FunctionIdentification &bestId = getBestOverload(visited, argumentTypes);
-        for(unsigned i = 0; i < bestId.parameterTypes.size(); i++)
-        {
-            if(argumentTypes[i] != bestId.parameterTypes[i])
-                insertCast(visited.arguments[i], argumentTypes[i], bestId.parameterTypes[i]);
-        }
-        auto returnType = program.functions.at(bestId)->returnType;
+        const std::unique_ptr<BaseFunctionDeclaration> &function = program.functions.at(bestId);
+
+        validateArgumentMutability(bestId, function, argumentsMutable, visited.getPosition());
+        insertArgumentConversions(bestId, visited.arguments, argumentTypes);
+
+        auto returnType = function->returnType;
         if(returnType)
-            lastExpressionType = *returnType;
+            lastExpressionType = {*returnType, false};
         else if(!noReturnPermitted)
             throw InvalidFunctionCallError(
                 L"Cannot call a function with no return type where an expression is expected", currentSource,
@@ -342,8 +348,8 @@ public:
             return;
         }
         visitExpression(visited.returnValue);
-        if(lastExpressionType != expectedReturnType)
-            insertCast(visited.returnValue, lastExpressionType, *expectedReturnType);
+        if(lastExpressionType.first != expectedReturnType)
+            insertCast(visited.returnValue, lastExpressionType.first, *expectedReturnType);
     }
 
     void visit(ContinueStatement &visited) override
@@ -430,7 +436,7 @@ private:
     Program &program;
     std::wstring currentSource;
     std::optional<Type> expectedReturnType;
-    Type lastExpressionType;
+    std::pair<Type, bool> lastExpressionType;
     std::vector<std::unordered_map<std::wstring, std::pair<Type, bool>>> variableTypeScopes;
     bool noReturnFunctionPermitted, variantReadAccessPermitted, accessedVariant, blockFurtherDotAccess;
     std::unique_ptr<Expression> toReplace;
@@ -470,8 +476,8 @@ private:
     void ensureExpressionHasType(std::unique_ptr<Expression> &expression, Type desiredType)
     {
         visitExpression(expression);
-        if(lastExpressionType != desiredType)
-            insertCast(expression, lastExpressionType, desiredType);
+        if(lastExpressionType.first != desiredType)
+            insertCast(expression, lastExpressionType.first, desiredType);
     }
 
     Type getTargetTypeForEquality(Type::Builtin leftType, Type::Builtin rightType)
@@ -489,10 +495,10 @@ private:
     void visitEqualityExpression(EqualityExpression &visited)
     {
         visitExpression(visited.left);
-        Type leftType = lastExpressionType;
+        Type leftType = lastExpressionType.first;
         visitExpression(visited.right);
-        Type rightType = lastExpressionType;
-        lastExpressionType = Type{BOOL};
+        Type rightType = lastExpressionType.first;
+        lastExpressionType = {{BOOL}, false};
 
         if(leftType.isInitList())
             return insertCast(visited.left, leftType, rightType);
@@ -518,10 +524,10 @@ private:
     void visitTypedEqualityExpression(TypedEqualityExpression &visited)
     {
         visitExpression(visited.left);
-        Type leftType = lastExpressionType;
+        Type leftType = lastExpressionType.first;
         visitExpression(visited.right);
-        Type rightType = lastExpressionType;
-        lastExpressionType = Type{BOOL};
+        Type rightType = lastExpressionType.first;
+        lastExpressionType = {{BOOL}, false};
 
         if(leftType.isInitList())
             return insertCast(visited.left, leftType, rightType);
@@ -530,29 +536,29 @@ private:
     }
 
     template <typename IntOrFloatExpression>
-    Type visitIntOrFloatExpression(IntOrFloatExpression &expression)
+    std::pair<Type, bool> visitIntOrFloatExpression(IntOrFloatExpression &expression)
     {
         visitExpression(expression.left);
-        Type leftType = lastExpressionType;
+        Type leftType = lastExpressionType.first;
         visitExpression(expression.right);
-        Type rightType = lastExpressionType;
+        Type rightType = lastExpressionType.first;
 
         if(leftType == Type{INT} && rightType == Type{INT})
-            return Type{INT};
+            return {{INT}, false};
         if(leftType != Type{FLOAT})
-            insertCast(expression.left, leftType, Type{FLOAT});
+            insertCast(expression.left, leftType, {FLOAT});
         if(rightType != Type{FLOAT})
-            insertCast(expression.right, rightType, Type{FLOAT});
-        return Type{FLOAT};
+            insertCast(expression.right, rightType, {FLOAT});
+        return {{FLOAT}, false};
     }
 
     std::wstring getTypeNameForDotExpression(Type leftType, Position position)
     {
-        if(lastExpressionType.isInitList())
+        if(lastExpressionType.first.isInitList())
             throw InvalidInitListError(
                 L"Structure initialization list is not allowed with '.' operator", currentSource, position
             );
-        if(lastExpressionType.isBuiltin())
+        if(lastExpressionType.first.isBuiltin())
             throw FieldAccessError(L"Attempted access to field of simple type {}", currentSource, position);
         return std::get<std::wstring>(leftType.value);
     }
@@ -581,15 +587,17 @@ private:
         return result;
     }
 
-    std::vector<Type> visitArguments(std::vector<std::unique_ptr<Expression>> &arguments)
+    std::pair<std::vector<Type>, std::vector<bool>> visitArguments(std::vector<std::unique_ptr<Expression>> &arguments)
     {
         std::vector<Type> argumentTypes;
+        std::vector<bool> argumentsMutable;
         for(auto &argument: arguments)
         {
             visitExpression(argument);
-            argumentTypes.push_back(lastExpressionType);
+            argumentTypes.push_back(lastExpressionType.first);
+            argumentsMutable.push_back(lastExpressionType.second);
         }
-        return argumentTypes;
+        return {argumentTypes, argumentsMutable};
     }
 
     Type::InitializationList getInitListType(FunctionCall &visited, const std::vector<Type> &argumentTypes)
@@ -624,7 +632,7 @@ private:
         );
         setStructExpressionType(*structExpression, visited.functionName, initListType);
         toReplace = std::move(structExpression);
-        lastExpressionType = {visited.functionName};
+        lastExpressionType = {{visited.functionName}, false};
     }
 
     // case when the function call is an explicit cast to a variant type, parsed as FunctionCall
@@ -644,7 +652,7 @@ private:
         toReplace = std::make_unique<CastExpression>(
             visited.getPosition(), std::move(visited.arguments[0]), Type{visited.functionName}
         );
-        lastExpressionType = {visited.functionName};
+        lastExpressionType = {{visited.functionName}, false};
     }
 
     unsigned countNeededConversions(const std::vector<Type> &parameterTypes, const std::vector<Type> &argumentTypes)
@@ -710,6 +718,35 @@ private:
         return overloads[bestIndex];
     }
 
+    void validateArgumentMutability(
+        const FunctionIdentification &id, const std::unique_ptr<BaseFunctionDeclaration> &function,
+        std::vector<bool> argumentsMutable, Position position
+    )
+    {
+        for(unsigned i = 0; i < argumentsMutable.size(); i++)
+        {
+            if(!argumentsMutable[i] && function->parameters[i].isMutable)
+                throw ImmutableError(
+                    std::format(
+                        L"{}th argument to function {} must be mutable and must not be a temporary value", i, id
+                    ),
+                    currentSource, position
+                );
+        }
+    }
+
+    void insertArgumentConversions(
+        const FunctionIdentification &id, std::vector<std::unique_ptr<Expression>> &arguments,
+        std::vector<Type> argumentTypes
+    )
+    {
+        for(unsigned i = 0; i < id.parameterTypes.size(); i++)
+        {
+            if(argumentTypes[i] != id.parameterTypes[i])
+                insertCast(arguments[i], argumentTypes[i], id.parameterTypes[i]);
+        }
+    }
+
     void visitLeafAssignable(Assignable &visited)
     {
         auto variableFound = getVariableType(visited.right);
@@ -722,7 +759,7 @@ private:
                 std::format(L"Attempted to modify immutable variable {}", visited.right), currentSource,
                 visited.getPosition()
             );
-        lastExpressionType = variableFound->first;
+        lastExpressionType = {variableFound->first, true};
     }
 
     void visitInstructions(std::vector<std::unique_ptr<Instruction>> &instructions)
@@ -748,8 +785,8 @@ private:
     void visitCondition(std::unique_ptr<Expression> &condition)
     {
         visitExpression(condition);
-        if(lastExpressionType != Type{BOOL})
-            insertCast(condition, lastExpressionType, Type{BOOL});
+        if(lastExpressionType.first != Type{BOOL})
+            insertCast(condition, lastExpressionType.first, Type{BOOL});
     }
 
     Type getTypeOfField(const std::vector<Field> &fields, std::wstring fieldName, Position position)
@@ -759,7 +796,9 @@ private:
         });
         if(fieldFound == fields.end())
             throw FieldAccessError(
-                std::format(L"Attempted access to nonexistent field {} of type {}", fieldName, lastExpressionType),
+                std::format(
+                    L"Attempted access to nonexistent field {} of type {}", fieldName, lastExpressionType.first
+                ),
                 currentSource, position
             );
         return fieldFound->type;
@@ -790,12 +829,12 @@ private:
     {
         if(auto structFound = findIn(program.structs, complexTypeName))
         {
-            lastExpressionType = getTypeOfField((*structFound)->second.fields, fieldName, position);
+            lastExpressionType = {getTypeOfField((*structFound)->second.fields, fieldName, position), true};
             return;
         }
         if(auto variantFound = findIn(program.variants, complexTypeName))
         {
-            lastExpressionType = getTypeOfField((*variantFound)->second.fields, fieldName, position);
+            lastExpressionType = {getTypeOfField((*variantFound)->second.fields, fieldName, position), true};
             blockFurtherDotAccess = true;
             return;
         }

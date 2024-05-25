@@ -24,7 +24,9 @@ Program getTree(const std::wstring &source)
     program.add(
         {FunctionIdentification(L"print", {{Type::Builtin::STR}}),
          BuiltinFunctionDeclaration(
-             Position{0, 0}, L"<builtins>", std::vector<VariableDeclaration>{}, std::nullopt,
+             Position{0, 0}, L"<builtins>",
+             std::vector<VariableDeclaration>{VariableDeclaration{{0, 0}, {Type::Builtin::STR}, L"value", false}},
+             std::nullopt,
              std::function<std::optional<Object>(std::vector<Object>)>([](std::vector<Object>) { return Object(); })
          )}
     );
@@ -42,7 +44,9 @@ void checkProcessing(
     checkNodeContainer(tree.structs, expectedStructs);
     checkNodeContainer(tree.variants, expectedVariants);
     std::set<std::wstring> functionWithDummyBuiltins = expectedFunctions;
-    functionWithDummyBuiltins.insert(L"print(str): BuiltinFunctionDeclaration <line: 0, col: 0> source=<builtins>\n");
+    functionWithDummyBuiltins.insert(L"print(str): BuiltinFunctionDeclaration <line: 0, col: 0> source=<builtins>\n"
+                                     L"`-Parameters:\n"
+                                     L" `-VariableDeclaration <line: 0, col: 0> type=str name=value mutable=false\n");
     checkNodeContainer(tree.functions, functionWithDummyBuiltins);
 }
 

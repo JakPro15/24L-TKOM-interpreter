@@ -313,7 +313,7 @@ public:
             if(argumentTypes[i] != bestId.parameterTypes[i])
                 insertCast(visited.arguments[i], argumentTypes[i], bestId.parameterTypes[i]);
         }
-        auto returnType = program.functions.at(bestId).returnType;
+        auto returnType = program.functions.at(bestId)->returnType;
         if(returnType)
             lastExpressionType = *returnType;
         else if(!noReturnPermitted)
@@ -406,6 +406,7 @@ public:
     EMPTY_VISIT(StructDeclaration);
     EMPTY_VISIT(VariantDeclaration);
     EMPTY_VISIT(IncludeStatement);
+    EMPTY_VISIT(BuiltinFunctionDeclaration);
 
     void visit(Program &visited) override
     {
@@ -420,7 +421,7 @@ public:
         for(const auto &[name, structure]: visited.structs)
             checkStructOrVariant(name, structure);
         for(auto &function: visited.functions)
-            function.second.accept(*this);
+            function.second->accept(*this);
     }
 private:
     Program &program;
@@ -915,11 +916,11 @@ private:
         {
             if(auto variantFound = findIn(visited.variants, id.name))
                 throw NameCollisionError(
-                    L"function " + id.name, function, L"variant " + (*variantFound)->first, (*variantFound)->second
+                    L"function " + id.name, *function, L"variant " + (*variantFound)->first, (*variantFound)->second
                 );
             if(auto structFound = findIn(visited.structs, id.name))
                 throw NameCollisionError(
-                    L"function " + id.name, function, L"struct " + (*structFound)->first, (*structFound)->second
+                    L"function " + id.name, *function, L"struct " + (*structFound)->first, (*structFound)->second
                 );
         }
         for(auto &[name, variant]: visited.variants)

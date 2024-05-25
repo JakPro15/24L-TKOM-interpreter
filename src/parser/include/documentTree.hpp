@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <format>
+#include <functional>
 #include <memory>
 #include <optional>
 #include <ostream>
@@ -423,16 +424,42 @@ private:
     std::wstring source;
 };
 
-struct FunctionDeclaration: public DocumentTreeNode
+struct BaseFunctionDeclaration: public DocumentTreeNode
+{
+    explicit BaseFunctionDeclaration(
+        Position position, std::wstring source, std::vector<VariableDeclaration> parameters,
+        std::optional<Type> returnType
+    );
+    std::wstring getSource() const;
+    std::vector<VariableDeclaration> parameters;
+    std::optional<Type> returnType;
+private:
+    std::wstring source;
+};
+
+struct FunctionDeclaration: public BaseFunctionDeclaration
 {
     explicit FunctionDeclaration(
         Position position, std::wstring source, std::vector<VariableDeclaration> parameters,
         std::optional<Type> returnType, std::vector<std::unique_ptr<Instruction>> body
     );
-    std::wstring getSource() const;
-    std::vector<VariableDeclaration> parameters;
-    std::optional<Type> returnType;
     std::vector<std::unique_ptr<Instruction>> body;
+    void accept(DocumentTreeVisitor &visitor) override;
+};
+
+struct Object
+{
+    Type type;
+    std::variant<std::wstring, int32_t, double, bool, std::vector<Object>> value;
+};
+
+struct BuiltinFunctionDeclaration: public BaseFunctionDeclaration
+{
+    explicit BuiltinFunctionDeclaration(
+        Position position, std::wstring source, std::vector<VariableDeclaration> parameters,
+        std::optional<Type> returnType, std::function<Object(std::vector<Object>)> body
+    );
+    std::function<Object(std::vector<Object>)> body;
     void accept(DocumentTreeVisitor &visitor) override;
 private:
     std::wstring source;
@@ -451,11 +478,12 @@ struct Program: public DocumentTreeNode
     std::vector<IncludeStatement> includes;
     std::unordered_map<std::wstring, StructDeclaration> structs;
     std::unordered_map<std::wstring, VariantDeclaration> variants;
-    std::unordered_map<FunctionIdentification, FunctionDeclaration> functions;
+    std::unordered_map<FunctionIdentification, std::unique_ptr<BaseFunctionDeclaration>> functions;
     void accept(DocumentTreeVisitor &visitor) override;
     void add(std::pair<std::wstring, StructDeclaration> structBuilt);
     void add(std::pair<std::wstring, VariantDeclaration> variantBuilt);
     void add(std::pair<FunctionIdentification, FunctionDeclaration> functionBuilt);
+    void add(std::pair<FunctionIdentification, BuiltinFunctionDeclaration> builtinFunction);
 };
 
 #endif

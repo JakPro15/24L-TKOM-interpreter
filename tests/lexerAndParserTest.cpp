@@ -209,11 +209,11 @@ void doPriorityTest(const std::wstring &expressionSource, const std::wstring &ex
     std::wstring source = L"func main() { print(" + expressionSource + L"); }";
     Program tree = getTree(source);
     REQUIRE(tree.functions.size() == 1);
-    FunctionDeclaration &main = tree.functions.at({L"main", {}});
+    std::unique_ptr<BaseFunctionDeclaration> &main = tree.functions.at({L"main", {}});
 
     std::wstringstream result;
     PrintingVisitor printer(result);
-    printer.visit(main);
+    main->accept(printer);
     REQUIRE(result.str() == expectedMain);
 }
 

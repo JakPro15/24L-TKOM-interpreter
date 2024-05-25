@@ -21,7 +21,10 @@ TEST_CASE("valid single top level statement Programs", "[doSemanticAnalysis]")
     doSemanticAnalysis(program);
     program.variants.clear();
     program.functions.emplace(
-        FunctionIdentification(L"function", {}), FunctionDeclaration({1, 1}, L"<test>", {}, {}, {})
+        FunctionIdentification(L"function", {}), std::make_unique<FunctionDeclaration>(
+                                                     Position{1, 1}, L"<test>", std::vector<VariableDeclaration>{},
+                                                     std::nullopt, std::vector<std::unique_ptr<Instruction>>{}
+                                                 )
     );
     doSemanticAnalysis(program);
 }
@@ -142,14 +145,20 @@ TEST_CASE("struct, variant, function name collisions", "[doSemanticAnalysis]")
     program = Program({1, 1}); // struct-function collision
     program.structs.emplace(L"structure", StructDeclaration({1, 1}, L"<test>", {Field({2, 2}, {INT}, L"b")}));
     program.functions.emplace(
-        FunctionIdentification(L"structure", {}), FunctionDeclaration({1, 1}, L"<test>", {}, {}, {})
+        FunctionIdentification(L"structure", {}), std::make_unique<FunctionDeclaration>(
+                                                      Position{1, 1}, L"<test>", std::vector<VariableDeclaration>{},
+                                                      std::nullopt, std::vector<std::unique_ptr<Instruction>>{}
+                                                  )
     );
     REQUIRE_THROWS_AS(doSemanticAnalysis(program), NameCollisionError);
 
     program = Program({1, 1}); // variant-function collision
     program.variants.emplace(L"structure", VariantDeclaration({1, 1}, L"<test>", {Field({2, 2}, {INT}, L"b")}));
     program.functions.emplace(
-        FunctionIdentification(L"structure", {}), FunctionDeclaration({1, 1}, L"<test>", {}, {}, {})
+        FunctionIdentification(L"structure", {}), std::make_unique<FunctionDeclaration>(
+                                                      Position{1, 1}, L"<test>", std::vector<VariableDeclaration>{},
+                                                      std::nullopt, std::vector<std::unique_ptr<Instruction>>{}
+                                                  )
     );
     REQUIRE_THROWS_AS(doSemanticAnalysis(program), NameCollisionError);
 }
@@ -158,15 +167,15 @@ TEST_CASE("valid function parameters", "[doSemanticAnalysis]")
 {
     Program program({1, 1});
     program.functions.emplace(
-        FunctionIdentification(L"function", {}), FunctionDeclaration(
-                                                     {1, 1}, L"<test>",
-                                                     {
+        FunctionIdentification(L"function", {}), std::make_unique<FunctionDeclaration>(
+                                                     Position{1, 1}, L"<test>",
+                                                     std::vector<VariableDeclaration>{
                                                          VariableDeclaration({2, 1}, {INT}, L"a", false),
                                                          VariableDeclaration({3, 1}, {STR}, L"b", true),
                                                          VariableDeclaration({4, 1}, {BOOL}, L"c", false),
                                                          VariableDeclaration({5, 1}, {INT}, L"d", false),
                                                      },
-                                                     {}, {}
+                                                     std::nullopt, std::vector<std::unique_ptr<Instruction>>{}
                                                  )
     );
     doSemanticAnalysis(program);
@@ -176,13 +185,13 @@ TEST_CASE("function parameters errors", "[doSemanticAnalysis]")
 {
     Program program({1, 1}); // two parameters with same name
     program.functions.emplace(
-        FunctionIdentification(L"function", {}), FunctionDeclaration(
-                                                     {1, 1}, L"<test>",
-                                                     {
+        FunctionIdentification(L"function", {}), std::make_unique<FunctionDeclaration>(
+                                                     Position{1, 1}, L"<test>",
+                                                     std::vector<VariableDeclaration>{
                                                          VariableDeclaration({2, 1}, {INT}, L"a", false),
                                                          VariableDeclaration({3, 1}, {STR}, L"a", true),
                                                      },
-                                                     {}, {}
+                                                     std::nullopt, std::vector<std::unique_ptr<Instruction>>{}
                                                  )
     );
     REQUIRE_THROWS_AS(doSemanticAnalysis(program), VariableNameCollisionError);
@@ -190,7 +199,11 @@ TEST_CASE("function parameters errors", "[doSemanticAnalysis]")
     program = Program({1, 1}); // parameter with nonexistent type
     program.functions.emplace(
         FunctionIdentification(L"function", {}),
-        FunctionDeclaration({1, 1}, L"<test>", {VariableDeclaration({2, 1}, {L"xd"}, L"a", false)}, {}, {})
+        std::make_unique<FunctionDeclaration>(
+            Position{1, 1}, L"<test>",
+            std::vector<VariableDeclaration>{VariableDeclaration({2, 1}, {L"xd"}, L"a", false)}, std::nullopt,
+            std::vector<std::unique_ptr<Instruction>>{}
+        )
     );
     REQUIRE_THROWS_AS(doSemanticAnalysis(program), UnknownVariableTypeError);
 }
@@ -239,16 +252,16 @@ Program wrapInFunction(std::vector<std::unique_ptr<Instruction>> instructions)
     );
     program.functions.emplace(
         FunctionIdentification(L"function", {{INT}, {L"strt1"}, {L"vart1"}, {L"strt2"}, {L"vart2"}}),
-        FunctionDeclaration(
-            {1, 1}, L"<test>",
-            {
+        std::make_unique<FunctionDeclaration>(
+            Position{1, 1}, L"<test>",
+            std::vector<VariableDeclaration>{
                 VariableDeclaration({2, 1}, {INT}, L"arg", true),
                 VariableDeclaration({2, 10}, {L"strt1"}, L"s1", true),
                 VariableDeclaration({2, 20}, {L"vart1"}, L"v1", true),
                 VariableDeclaration({2, 30}, {L"strt2"}, L"s2", true),
                 VariableDeclaration({2, 40}, {L"vart2"}, L"v2", true),
             },
-            {}, std::move(instructions)
+            std::nullopt, std::move(instructions)
         )
     );
     return program;
@@ -1244,11 +1257,13 @@ std::wstring addOverload(
     Program &program, const FunctionIdentification &id, std::optional<Type> returnType = std::nullopt
 )
 {
-    FunctionDeclaration function(Position{1, 1}, L"<test>", createParameters(id), returnType, {});
+    auto function = std::make_unique<FunctionDeclaration>(
+        Position{1, 1}, L"<test>", createParameters(id), returnType, std::vector<std::unique_ptr<Instruction>>{}
+    );
     std::wstringstream printed;
-    std::pair<const FunctionIdentification, FunctionDeclaration> toPrint{id, std::move(function)};
+    std::pair<const FunctionIdentification, std::unique_ptr<BaseFunctionDeclaration>> toPrint{id, std::move(function)};
     PrintingVisitor(printed).visit(toPrint);
-    program.add({id, std::move(toPrint.second)});
+    program.functions.insert({id, std::move(toPrint.second)});
     return printed.str();
 }
 
@@ -1630,8 +1645,10 @@ TEST_CASE("ReturnStatement with value cast", "[doSemanticAnalysis]")
 
     Program program({1, 1});
     program.functions.emplace(
-        FunctionIdentification(L"function", {}),
-        FunctionDeclaration({1, 1}, L"<test>", {}, {{INT}}, std::move(functionBody))
+        FunctionIdentification(L"function", {}), std::make_unique<FunctionDeclaration>(
+                                                     Position{1, 1}, L"<test>", std::vector<VariableDeclaration>{},
+                                                     std::optional<Type>{{INT}}, std::move(functionBody)
+                                                 )
     );
 
     doSemanticAnalysis(program);
@@ -1675,7 +1692,10 @@ TEST_CASE("ReturnStatement errors", "[doSemanticAnalysis]")
 
     Program program({1, 1});
     program.functions.emplace(
-        FunctionIdentification(L"function", {}), FunctionDeclaration({1, 1}, L"<test>", {}, {}, std::move(functionBody))
+        FunctionIdentification(L"function", {}),
+        std::make_unique<FunctionDeclaration>(
+            Position{1, 1}, L"<test>", std::vector<VariableDeclaration>{}, std::nullopt, std::move(functionBody)
+        )
     );
     REQUIRE_THROWS_AS(
         doSemanticAnalysis(program), InvalidReturnError
@@ -1686,8 +1706,10 @@ TEST_CASE("ReturnStatement errors", "[doSemanticAnalysis]")
 
     program = Program({1, 1});
     program.functions.emplace(
-        FunctionIdentification(L"function", {}),
-        FunctionDeclaration({1, 1}, L"<test>", {}, {{INT}}, std::move(functionBody))
+        FunctionIdentification(L"function", {}), std::make_unique<FunctionDeclaration>(
+                                                     Position{1, 1}, L"<test>", std::vector<VariableDeclaration>{},
+                                                     std::optional<Type>{{INT}}, std::move(functionBody)
+                                                 )
     );
     REQUIRE_THROWS_AS(
         doSemanticAnalysis(program), InvalidReturnError
@@ -1703,8 +1725,10 @@ TEST_CASE("ReturnStatement errors", "[doSemanticAnalysis]")
 
     program = Program({1, 1});
     program.functions.emplace(
-        FunctionIdentification(L"function", {}),
-        FunctionDeclaration({1, 1}, L"<test>", {}, {{INT}}, std::move(functionBody))
+        FunctionIdentification(L"function", {}), std::make_unique<FunctionDeclaration>(
+                                                     Position{1, 1}, L"<test>", std::vector<VariableDeclaration>{},
+                                                     std::optional<Type>{{INT}}, std::move(functionBody)
+                                                 )
     );
     REQUIRE_THROWS_AS(doSemanticAnalysis(program), InvalidCastError); // return value not castable to return type
 }

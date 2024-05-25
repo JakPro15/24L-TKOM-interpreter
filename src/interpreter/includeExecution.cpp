@@ -20,7 +20,16 @@ void addProgram(Program &program, Program &toAdd)
         program.add(std::move(structure));
 
     for(auto &function: toAdd.functions)
-        program.add(std::move(function));
+    {
+        if(program.functions.find(function.first) != program.functions.end())
+        {
+            throw DuplicateFunctionError(
+                std::format(L"Duplicate function with signature {}", function.first), function.second->getSource(),
+                function.second->getPosition()
+            );
+        }
+        program.functions.insert(std::move(function));
+    }
 }
 
 void executeAllIncludes(Program &program, std::wstring programSource, std::vector<std::wstring> &pastIncludes)

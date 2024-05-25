@@ -59,9 +59,10 @@ public:
     void visit(StructDeclaration &visited) override;
     void visit(VariantDeclaration &visited) override;
     void visit(FunctionDeclaration &visited) override;
+    void visit(BuiltinFunctionDeclaration &visited) override;
     void visit(IncludeStatement &visited) override;
     void visit(Program &visited) override;
-    void visit(std::pair<const FunctionIdentification, FunctionDeclaration> &visited);
+    void visit(std::pair<const FunctionIdentification, std::unique_ptr<BaseFunctionDeclaration>> &visited);
 
     template <typename NodeContainer>
     void visitContainer(NodeContainer &visited)

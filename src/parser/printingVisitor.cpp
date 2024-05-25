@@ -61,10 +61,10 @@ void PrintingVisitor::visitBinaryOperation(std::wstring name, BinaryOperation &v
     popIndent();
 }
 
-void PrintingVisitor::visit(std::pair<const FunctionIdentification, FunctionDeclaration> &visited)
+void PrintingVisitor::visit(std::pair<const FunctionIdentification, std::unique_ptr<BaseFunctionDeclaration>> &visited)
 {
     out << visited.first << L": ";
-    visited.second.accept(*this);
+    visited.second->accept(*this);
 }
 
 #define BINARY_OP_VISIT(type)                     \
@@ -314,6 +314,22 @@ void PrintingVisitor::visit(FunctionDeclaration &visited)
         out << indent << L"`-Body:\n";
         indent += L" ";
         visitContainer(visited.body);
+        popIndent();
+    }
+}
+
+void PrintingVisitor::visit(BuiltinFunctionDeclaration &visited)
+{
+    out << L"BuiltinFunctionDeclaration " << visited.getPosition();
+    if(visited.returnType.has_value())
+        out << L" returnType=" << *visited.returnType;
+    out << L"\n";
+    if(!visited.parameters.empty())
+    {
+        out << indent << L"`-";
+        indent += L" ";
+        out << L"Parameters:\n";
+        visitContainer(visited.parameters);
         popIndent();
     }
 }

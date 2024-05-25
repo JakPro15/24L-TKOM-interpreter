@@ -151,13 +151,24 @@ std::wstring VariantDeclaration::getSource() const
     return source;
 }
 
+BaseFunctionDeclaration::BaseFunctionDeclaration(
+    Position position, std::wstring source, std::vector<VariableDeclaration> parameters, std::optional<Type> returnType
+): DocumentTreeNode(position), parameters(parameters), returnType(returnType), source(source)
+{}
+
 FunctionDeclaration::FunctionDeclaration(
     Position position, std::wstring source, std::vector<VariableDeclaration> parameters, std::optional<Type> returnType,
     std::vector<std::unique_ptr<Instruction>> body
-): DocumentTreeNode(position), parameters(parameters), returnType(returnType), body(std::move(body)), source(source)
+): BaseFunctionDeclaration(position, source, parameters, returnType), body(std::move(body))
 {}
 
-std::wstring FunctionDeclaration::getSource() const
+BuiltinFunctionDeclaration::BuiltinFunctionDeclaration(
+    Position position, std::wstring source, std::vector<VariableDeclaration> parameters, std::optional<Type> returnType,
+    std::function<Object(std::vector<Object>)> body
+): BaseFunctionDeclaration(position, source, parameters, returnType), body(body)
+{}
+
+std::wstring BaseFunctionDeclaration::getSource() const
 {
     return source;
 }
@@ -201,7 +212,13 @@ void Program::add(std::pair<FunctionIdentification, FunctionDeclaration> functio
             functionBuilt.second.getPosition()
         );
     }
-    functions.insert(std::move(functionBuilt));
+    functions.insert({functionBuilt.first, std::make_unique<FunctionDeclaration>(std::move(functionBuilt.second))});
+}
+
+void Program::add(std::pair<FunctionIdentification, BuiltinFunctionDeclaration> builtinFunction)
+{
+    // assumes builtin functions are added first and do not have duplicates
+    functions.insert({builtinFunction.first, std::make_unique<BuiltinFunctionDeclaration>(builtinFunction.second)});
 }
 
 #define DEFINE_ACCEPT(type)                         \
@@ -256,5 +273,6 @@ DEFINE_ACCEPT(Field);
 DEFINE_ACCEPT(StructDeclaration);
 DEFINE_ACCEPT(VariantDeclaration);
 DEFINE_ACCEPT(FunctionDeclaration);
+DEFINE_ACCEPT(BuiltinFunctionDeclaration);
 DEFINE_ACCEPT(IncludeStatement);
 DEFINE_ACCEPT(Program);

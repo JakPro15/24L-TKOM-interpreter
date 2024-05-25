@@ -48,6 +48,7 @@ struct Field;
 struct StructDeclaration;
 struct VariantDeclaration;
 struct FunctionDeclaration;
+struct BuiltinFunctionDeclaration;
 struct IncludeStatement;
 struct Program;
 
@@ -101,6 +102,7 @@ public:
     virtual void visit(StructDeclaration &visited) = 0;
     virtual void visit(VariantDeclaration &visited) = 0;
     virtual void visit(FunctionDeclaration &visited) = 0;
+    virtual void visit(BuiltinFunctionDeclaration &visited) = 0;
     virtual void visit(IncludeStatement &visited) = 0;
     virtual void visit(Program &visited) = 0;
 };

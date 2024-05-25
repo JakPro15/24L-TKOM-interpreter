@@ -181,14 +181,14 @@ Operatory oznaczone w powyższej tabeli jako "nie dotyczy" nie dopuszczają uży
 
 Przykłady:
 ```
-int a = 2 / 2 * 3;      # a === 3
-int b = "4" ** 2 ** "1" # b === 16
-str c = "4" ! "2" @ "2" # c === "422"
-float e = 2 / 4.0       # e === 0.5
-bool f = 3 === -"-3"    # f === true
-int g = "2345"["1"]     # g === 3
-int h = "abc"["2.1"]    # błąd - string nie reprezentuje liczby całkowitej
-bool a = 2 < 3 < 4;     # błąd - operatory porównania nie dopuszczają wielu porównań jedno za drugim
+int a = 2 / 2 * 3;       # a === 3
+int b = "4" ** 2 ** "1"; # b === 16
+str c = "4" ! "2" @ "2"; # c === "422"
+float e = 2 / 4.0;       # e === 0.5
+bool f = 3 === -"-3";    # f === false - unarny minus zwraca float gdy argument nie jest int
+int g = "2345"["1"];     # g === 3
+int h = "abc"["2.1"];    # błąd - string nie reprezentuje liczby całkowitej
+bool a = 2 < 3 < 4;      # błąd - operatory porównania nie dopuszczają wielu porównań jedno za drugim
 ```
 ### Rekordy wariantowe
 Język wspiera definiowanie przez użytkownika rekordów wariantowych:

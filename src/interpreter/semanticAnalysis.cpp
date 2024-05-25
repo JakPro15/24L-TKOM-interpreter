@@ -417,7 +417,10 @@ public:
 
         checkNameDuplicates(visited);
         for(const auto &[name, variant]: visited.variants)
+        {
             checkStructOrVariant(name, variant);
+            checkFieldTypeDuplicates(variant.fields);
+        }
         for(const auto &[name, structure]: visited.structs)
             checkStructOrVariant(name, structure);
         for(auto &function: visited.functions)
@@ -943,6 +946,20 @@ private:
                     currentSource, field.getPosition()
                 );
             fieldNames.insert(field.name);
+        }
+    }
+
+    void checkFieldTypeDuplicates(const std::vector<Field> &fields)
+    {
+        std::unordered_set<Type> fieldTypes;
+        for(const Field &field: fields)
+        {
+            if(fieldTypes.find(field.type) != fieldTypes.end())
+                throw FieldTypeCollisionError(
+                    std::format(L"More than one variant fields have the same type: {}", field.type), currentSource,
+                    field.getPosition()
+                );
+            fieldTypes.insert(field.type);
         }
     }
 

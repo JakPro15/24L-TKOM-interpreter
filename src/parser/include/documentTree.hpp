@@ -457,9 +457,9 @@ struct BuiltinFunctionDeclaration: public BaseFunctionDeclaration
 {
     explicit BuiltinFunctionDeclaration(
         Position position, std::wstring source, std::vector<VariableDeclaration> parameters,
-        std::optional<Type> returnType, std::function<Object(std::vector<Object>)> body
+        std::optional<Type> returnType, std::function<std::optional<Object>(std::vector<Object>)> body
     );
-    std::function<Object(std::vector<Object>)> body;
+    std::function<std::optional<Object>(std::vector<Object>)> body;
     void accept(DocumentTreeVisitor &visitor) override;
 private:
     std::wstring source;

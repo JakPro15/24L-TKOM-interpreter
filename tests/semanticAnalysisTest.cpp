@@ -46,7 +46,7 @@ TEST_CASE("nonexistent field types", "[doSemanticAnalysis]")
     REQUIRE_THROWS_AS(doSemanticAnalysis(program), UnknownFieldTypeError);
 }
 
-TEST_CASE("duplicate field names", "[doSemanticAnalysis]")
+TEST_CASE("duplicate fields", "[doSemanticAnalysis]")
 {
     Program program({1, 1});
     program.structs.emplace(
@@ -65,11 +65,22 @@ TEST_CASE("duplicate field names", "[doSemanticAnalysis]")
                         {1, 1}, L"<test>",
                         {
                             Field({2, 2}, {INT}, L"b"),
-                            Field({3, 2}, {INT}, L"b"),
+                            Field({3, 2}, {STR}, L"b"),
                         }
                     )
     );
     REQUIRE_THROWS_AS(doSemanticAnalysis(program), FieldNameCollisionError);
+    program.variants.clear();
+    program.variants.emplace(
+        L"wariant", VariantDeclaration(
+                        {1, 1}, L"<test>",
+                        {
+                            Field({2, 2}, {INT}, L"a"),
+                            Field({3, 2}, {INT}, L"b"),
+                        }
+                    )
+    );
+    REQUIRE_THROWS_AS(doSemanticAnalysis(program), FieldTypeCollisionError);
 }
 
 TEST_CASE("multiple structures and variants - valid Program", "[doSemanticAnalysis]")

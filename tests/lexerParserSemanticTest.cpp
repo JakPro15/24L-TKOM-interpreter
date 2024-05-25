@@ -21,6 +21,13 @@ Program getTree(const std::wstring &source)
     CommentDiscarder commentDiscarder(lexer);
     Parser parser(commentDiscarder);
     Program program = parser.parseProgram();
+    program.add(
+        {FunctionIdentification(L"print", {{Type::Builtin::STR}}),
+         BuiltinFunctionDeclaration(
+             Position{0, 0}, L"<builtins>", std::vector<VariableDeclaration>{}, std::nullopt,
+             std::function<std::optional<Object>(std::vector<Object>)>([](std::vector<Object>) { return Object(); })
+         )}
+    );
     doSemanticAnalysis(program);
     return program;
 }
@@ -34,7 +41,9 @@ void checkProcessing(
 
     checkNodeContainer(tree.structs, expectedStructs);
     checkNodeContainer(tree.variants, expectedVariants);
-    checkNodeContainer(tree.functions, expectedFunctions);
+    std::set<std::wstring> functionWithDummyBuiltins = expectedFunctions;
+    functionWithDummyBuiltins.insert(L"print(str): BuiltinFunctionDeclaration <line: 0, col: 0> source=<builtins>\n");
+    checkNodeContainer(tree.functions, functionWithDummyBuiltins);
 }
 
 std::wstring wrapInMain(const std::wstring &source)
@@ -274,6 +283,10 @@ TEST_CASE("variants", "[Lexer+Parser+SemanticAnalyzer]")
                                  L"    str b;\n"
                                  L"    bool c;\n"
                                  L"}\n";
+    std::wstring printedVariant = L"Variant: VariantDeclaration <line: 1, col: 1> source=<test>\n"
+                                  L"|-Field <line: 2, col: 5> type=int name=a\n"
+                                  L"|-Field <line: 3, col: 5> type=str name=b\n"
+                                  L"`-Field <line: 4, col: 5> type=bool name=c\n";
     std::wstring source = variantSource + L"func main() {\n"
                                           L"    Variant$ a = 2; # a.a === 2\n"
                                           L"    a.b = \"string\";\n"
@@ -281,11 +294,7 @@ TEST_CASE("variants", "[Lexer+Parser+SemanticAnalyzer]")
                                           L"    a = true;       # a is bool\n"
                                           L"}\n";
     checkProcessing(
-        source, {},
-        {L"Variant: VariantDeclaration <line: 1, col: 1> source=<test>\n"
-         L"|-Field <line: 2, col: 5> type=int name=a\n"
-         L"|-Field <line: 3, col: 5> type=str name=b\n"
-         L"`-Field <line: 4, col: 5> type=bool name=c\n"},
+        source, {}, {printedVariant},
         {L"main: FunctionDeclaration <line: 6, col: 1> source=<test>\n"
          L"`-Body:\n"
          L" |-VariableDeclStatement <line: 7, col: 5>\n"
@@ -313,32 +322,150 @@ TEST_CASE("variants", "[Lexer+Parser+SemanticAnalyzer]")
                              L"}\n";
     REQUIRE_THROWS(getTree(source));
 
-    // source = variantSource + L"func f(int i) -> int { return 1; }\n"
-    //                          L"func f(Variant v) -> int { return 2; }\n"
-    //                          L"\n"
-    //                          L"func main() {\n"
-    //                          L"    print(f(Variant(3))); # 2\n"
-    //                          L"}\n";
-    // checkProcessing(
-    //     source, {},
-    //     {L"Variant: VariantDeclaration <line: 1, col: 1> source=<test>\n"
-    //      L"|-Field <line: 2, col: 5> type=int name=a\n"
-    //      L"|-Field <line: 3, col: 5> type=str name=b\n"
-    //      L"`-Field <line: 4, col: 5> type=bool name=c\n"},
-    //     {L"f(int): FunctionDeclaration <line: 6, col: 1> source=<test> returnType=int\n"
-    //      L"|-Parameters:\n"
-    //      L"|`-VariableDeclaration <line: 6, col: 8> type=int name=i mutable=false\n"
-    //      L"`-Body:\n"
-    //      L" `-ReturnStatement <line: 6, col: 24>\n"
-    //      L"  `-Literal <line: 6, col: 31> type=int value=1\n",
-    //      L"f(Variant): FunctionDeclaration <line: 7, col: 1> source=<test> returnType=int\n"
-    //      L"|-Parameters:\n"
-    //      L"|`-VariableDeclaration <line: 7, col: 8> type=int name=i mutable=false\n"
-    //      L"`-Body:\n"
-    //      L" `-ReturnStatement <line: 7, col: 28>\n"
-    //      L"  `-Literal <line: 7, col: 35> type=int value=2\n",
-    //      L"main: FunctionDeclaration <line: 9, col: 1> source=<test>\n"
-    //      L"`-Body:\n"
-    //      L" |-FunctionCallInstruction <line: 10, col: 5>\n"}
-    // );
+    source = variantSource + L"func f(int i) -> int { return 1; }\n"
+                             L"func f(Variant v) -> int { return 2; }\n"
+                             L"\n"
+                             L"func main() {\n"
+                             L"    print(f(Variant(3))); # 2\n"
+                             L"}\n";
+    checkProcessing(
+        source, {}, {printedVariant},
+        {L"f(int): FunctionDeclaration <line: 6, col: 1> source=<test> returnType=int\n"
+         L"|-Parameters:\n"
+         L"|`-VariableDeclaration <line: 6, col: 8> type=int name=i mutable=false\n"
+         L"`-Body:\n"
+         L" `-ReturnStatement <line: 6, col: 24>\n"
+         L"  `-Literal <line: 6, col: 31> type=int value=1\n",
+         L"f(Variant): FunctionDeclaration <line: 7, col: 1> source=<test> returnType=int\n"
+         L"|-Parameters:\n"
+         L"|`-VariableDeclaration <line: 7, col: 8> type=Variant name=v mutable=false\n"
+         L"`-Body:\n"
+         L" `-ReturnStatement <line: 7, col: 28>\n"
+         L"  `-Literal <line: 7, col: 35> type=int value=2\n",
+         L"main: FunctionDeclaration <line: 9, col: 1> source=<test>\n"
+         L"`-Body:\n"
+         L" `-FunctionCallInstruction <line: 10, col: 5>\n"
+         L"  `-FunctionCall <line: 10, col: 5> functionName=print\n"
+         L"   `-CastExpression <line: 10, col: 11> targetType=str\n"
+         L"    `-FunctionCall <line: 10, col: 11> functionName=f\n"
+         L"     `-CastExpression <line: 10, col: 13> targetType=Variant\n"
+         L"      `-Literal <line: 10, col: 21> type=int value=3\n"}
+    );
+
+    source = variantSource +
+             L"func main() {\n"
+             L"    Variant$ a = 2; # a.a === 2\n"
+             L"    bool b = a.c;   # błąd - dostęp do wartości rekordu wariantowego przez '.' poza 'if' z deklaracją\n"
+             L"}\n";
+    REQUIRE_THROWS(getTree(source));
+
+    source = variantSource + L"func main() {\n"
+                             L"    Variant$ a = 2; # a.a === 2\n"
+                             L"    if(bool b = a) {}\n"
+                             L"    if(bool b = a.c) {}\n"
+                             L"}\n";
+    checkProcessing(
+        source, {}, {printedVariant},
+        {L"main: FunctionDeclaration <line: 6, col: 1> source=<test>\n"
+         L"`-Body:\n"
+         L" |-VariableDeclStatement <line: 7, col: 5>\n"
+         L" ||-VariableDeclaration <line: 7, col: 5> type=Variant name=a mutable=true\n"
+         L" |`-CastExpression <line: 7, col: 18> targetType=Variant\n"
+         L" | `-Literal <line: 7, col: 18> type=int value=2\n"
+         L" |-IfStatement <line: 8, col: 5>\n"
+         L" |`-SingleIfCase <line: 8, col: 5>\n"
+         L" | `-VariableDeclStatement <line: 8, col: 8>\n"
+         L" |  |-VariableDeclaration <line: 8, col: 8> type=bool name=b mutable=false\n"
+         L" |  `-Variable <line: 8, col: 17> name=a\n"
+         L" `-IfStatement <line: 9, col: 5>\n"
+         L"  `-SingleIfCase <line: 9, col: 5>\n"
+         L"   `-VariableDeclStatement <line: 9, col: 8>\n"
+         L"    |-VariableDeclaration <line: 9, col: 8> type=bool name=b mutable=false\n"
+         L"    `-Variable <line: 9, col: 17> name=a\n"}
+    );
+
+    source = variantSource + L"func main() {\n"
+                             L"    Variant$ a = 2; # a.a === 2\n"
+                             L"    if(int$ value = a) {\n"
+                             L"        value = 3;\n"
+                             L"    }\n"
+                             L"}\n";
+    checkProcessing(
+        source, {}, {printedVariant},
+        {L"main: FunctionDeclaration <line: 6, col: 1> source=<test>\n"
+         L"`-Body:\n"
+         L" |-VariableDeclStatement <line: 7, col: 5>\n"
+         L" ||-VariableDeclaration <line: 7, col: 5> type=Variant name=a mutable=true\n"
+         L" |`-CastExpression <line: 7, col: 18> targetType=Variant\n"
+         L" | `-Literal <line: 7, col: 18> type=int value=2\n"
+         L" `-IfStatement <line: 8, col: 5>\n"
+         L"  `-SingleIfCase <line: 8, col: 5>\n"
+         L"   |-VariableDeclStatement <line: 8, col: 8>\n"
+         L"   ||-VariableDeclaration <line: 8, col: 8> type=int name=value mutable=true\n"
+         L"   |`-Variable <line: 8, col: 21> name=a\n"
+         L"   `-AssignmentStatement <line: 9, col: 9>\n"
+         L"    |-Assignable <line: 9, col: 9> right=value\n"
+         L"    `-Literal <line: 9, col: 17> type=int value=3\n"}
+    );
+
+    source = variantSource + L"func main() {\n"
+                             L"    Variant$ a = 2; # a.a === 2\n"
+                             L"    if(int$ value = a) {}\n"
+                             L"    value = 3;\n"
+                             L"}\n";
+    REQUIRE_THROWS(getTree(source));
+
+    source = L"variant Variant1 {\n"
+             L"    int a;\n"
+             L"    int b; # błąd - dwa pola rekordu wariantowego o tym samym typie\n"
+             L"}\n";
+    REQUIRE_THROWS(getTree(source));
+
+    source = L"variant Variant1 {\n"
+             L"    int$ a; # błąd - pole rekordu wariantowego oznaczone jako mutowalne\n"
+             L"    str b;\n"
+             L"}\n";
+    REQUIRE_THROWS(getTree(source));
+
+    source = L"variant Variant {\n"
+             L"    int a;\n"
+             L"    str b;\n"
+             L"}\n"
+             L"struct Struct {\n"
+             L"    int a;\n"
+             L"    str b;\n"
+             L"}\n"
+             L"variant StructOrVariant {\n"
+             L"    Struct a;\n"
+             L"    Variant b;\n"
+             L"}\n";
+    checkProcessing(
+        source,
+        {L"Struct: StructDeclaration <line: 5, col: 1> source=<test>\n"
+         L"|-Field <line: 6, col: 5> type=int name=a\n"
+         L"`-Field <line: 7, col: 5> type=str name=b\n"},
+        {L"Variant: VariantDeclaration <line: 1, col: 1> source=<test>\n"
+         L"|-Field <line: 2, col: 5> type=int name=a\n"
+         L"`-Field <line: 3, col: 5> type=str name=b\n",
+         L"StructOrVariant: VariantDeclaration <line: 9, col: 1> source=<test>\n"
+         L"|-Field <line: 10, col: 5> type=Struct name=a\n"
+         L"`-Field <line: 11, col: 5> type=Variant name=b\n"},
+        {}
+    );
+
+    source = L"variant Wrong {\n"
+             L"    int a;\n"
+             L"    Wrong b; # błąd - rekord wariantowy zawiera sam siebie\n"
+             L"}\n";
+    REQUIRE_THROWS(getTree(source));
+
+    source = L"struct Struct {\n"
+             L"    int a;\n"
+             L"    StructOrInt b;\n"
+             L"}\n"
+             L"variant StructOrInt {\n"
+             L"    Struct a; # błąd - rekord wariantowy zawiera sam siebie\n"
+             L"    int b;\n"
+             L"}\n";
+    REQUIRE_THROWS(getTree(source));
 }

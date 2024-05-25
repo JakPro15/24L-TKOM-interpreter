@@ -48,7 +48,6 @@ private:
     std::unique_ptr<ReturnStatement> parseReturnStatement();
     std::unique_ptr<IfStatement> parseIfStatement();
     std::variant<VariableDeclStatement, std::unique_ptr<Expression>> parseIfCondition();
-    VariableDeclStatement parseIfConditionDeclaration();
     std::unique_ptr<WhileStatement> parseWhileStatement();
     std::unique_ptr<DoWhileStatement> parseDoWhileStatement();
     std::unique_ptr<Expression> parseExpression();

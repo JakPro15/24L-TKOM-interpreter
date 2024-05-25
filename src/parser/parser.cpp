@@ -497,24 +497,15 @@ std::unique_ptr<IfStatement> Parser::parseIfStatement()
 //              | VARIABLE_DECL, '=', EXPRESSION ;
 std::variant<VariableDeclStatement, std::unique_ptr<Expression>> Parser::parseIfCondition()
 {
-    if(current.getType() == IDENTIFIER && (next.getType() == IDENTIFIER || next.getType() == DOLLAR_SIGN))
-    { // special case of looking at next token for disambiguation,
-      // as both EXPRESSION and VARIABLE_DECL may begin with IDENTIFIER
-        return parseIfConditionDeclaration();
-    }
-    std::unique_ptr<Expression> condition;
-    if((condition = parseExpression()))
-        return condition;
-    return parseIfConditionDeclaration();
-}
-
-// VARIABLE_DECL, '=', EXPRESSION
-VariableDeclStatement Parser::parseIfConditionDeclaration()
-{
     Position begin = current.getPosition();
-    Type type = *mustBePresent(parseTypeIdentifier(), L"a variable declaration or expression");
-    auto [isMutable, name, value] = parseNoTypeDecl();
-    return VariableDeclStatement(begin, VariableDeclaration(begin, type, name, isMutable), std::move(value));
+    std::optional<Type> type;
+    if((next.getType() == IDENTIFIER || next.getType() == DOLLAR_SIGN) && (type = parseTypeIdentifier()))
+    { // special case of looking at next token for disambiguation,
+      // as both EXPRESSION and VARIABLE_DECL may begin with IDENTIFIER or BUILTIN_TYPE
+        auto [isMutable, name, value] = parseNoTypeDecl();
+        return VariableDeclStatement(begin, VariableDeclaration(begin, *type, name, isMutable), std::move(value));
+    }
+    return mustBePresent(parseExpression(), L"a variable declaration or expression");
 }
 
 // WHILE_STMT = 'while', '(', EXPRESSION, ')', INSTR_BLOCK ;

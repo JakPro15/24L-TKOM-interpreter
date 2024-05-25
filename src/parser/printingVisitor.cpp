@@ -320,7 +320,7 @@ void PrintingVisitor::visit(FunctionDeclaration &visited)
 
 void PrintingVisitor::visit(BuiltinFunctionDeclaration &visited)
 {
-    out << L"BuiltinFunctionDeclaration " << visited.getPosition();
+    out << L"BuiltinFunctionDeclaration " << visited.getPosition() << L" source=" << visited.getSource();
     if(visited.returnType.has_value())
         out << L" returnType=" << *visited.returnType;
     out << L"\n";

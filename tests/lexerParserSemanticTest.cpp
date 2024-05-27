@@ -473,3 +473,114 @@ TEST_CASE("variants", "[Lexer+Parser+SemanticAnalyzer]")
              L"}\n";
     REQUIRE_THROWS(getTree(source));
 }
+
+TEST_CASE("structures", "[Lexer+Parser+SemanticAnalyzer]")
+{
+    std::wstring structsSource = L"struct OtherStruct {\n"
+                                 L"    int a;\n"
+                                 L"    str b;\n"
+                                 L"}\n"
+                                 L"struct MyStruct {\n"
+                                 L"    int a;\n"
+                                 L"    float b;\n"
+                                 L"    OtherStruct c;\n"
+                                 L"    bool d;\n"
+                                 L"}\n";
+    std::set<std::wstring> printedStructs = {
+        L"OtherStruct: StructDeclaration <line: 1, col: 1> source=<test>\n"
+        L"|-Field <line: 2, col: 5> type=int name=a\n"
+        L"`-Field <line: 3, col: 5> type=str name=b\n",
+        L"MyStruct: StructDeclaration <line: 5, col: 1> source=<test>\n"
+        L"|-Field <line: 6, col: 5> type=int name=a\n"
+        L"|-Field <line: 7, col: 5> type=float name=b\n"
+        L"|-Field <line: 8, col: 5> type=OtherStruct name=c\n"
+        L"`-Field <line: 9, col: 5> type=bool name=d\n"
+    };
+    checkProcessing(structsSource, printedStructs, {}, {});
+
+    std::wstring source = L"struct Struct1 {\n"
+                          L"    int$ a; # błąd - pole struktury oznaczone jako mutowalne\n"
+                          L"}\n";
+    REQUIRE_THROWS(getTree(source));
+
+    source = L"struct Struct1 {\n"
+             L"    Struct1 a; # błąd - struktura zawiera samą siebie\n"
+             L"}\n";
+    REQUIRE_THROWS(getTree(source));
+
+    source = L"struct Struct1 {\n"
+             L"    Struct2 a;\n"
+             L"}\n"
+             L"struct Struct2 {\n"
+             L"    Struct1 a; # błąd - struktura zawiera samą siebie\n"
+             L"}\n";
+    REQUIRE_THROWS(getTree(source));
+
+    source = structsSource + L"func function_taking_MyStruct(MyStruct a) {}\n"
+                             L"func main() {\n"
+                             L"    MyStruct a = {2, 4.3, {4, \"a\"}, true};\n"
+                             L"    int$ b = MyStruct({2, 4.3, {4, \"a\"}, true}).a;\n"
+                             L"    function_taking_MyStruct(MyStruct({2, 4.3, {4, \"a\"}, true}));\n"
+                             L"    b = a.c.a; # b === 4\n"
+                             L"}\n";
+    checkProcessing(
+        source, printedStructs, {},
+        {L"function_taking_MyStruct(MyStruct): FunctionDeclaration <line: 11, col: 1> source=<test>\n"
+         L"`-Parameters:\n"
+         L" `-VariableDeclaration <line: 11, col: 31> type=MyStruct name=a mutable=false\n",
+         L"main: FunctionDeclaration <line: 12, col: 1> source=<test>\n"
+         L"`-Body:\n"
+         L" |-VariableDeclStatement <line: 13, col: 5>\n"
+         L" ||-VariableDeclaration <line: 13, col: 5> type=MyStruct name=a mutable=false\n"
+         L" |`-StructExpression <line: 13, col: 18> structType=MyStruct\n"
+         L" | |-Literal <line: 13, col: 19> type=int value=2\n"
+         L" | |-Literal <line: 13, col: 22> type=float value=4.3\n"
+         L" | |-StructExpression <line: 13, col: 27> structType=OtherStruct\n"
+         L" | ||-Literal <line: 13, col: 28> type=int value=4\n"
+         L" | |`-Literal <line: 13, col: 31> type=str value=a\n"
+         L" | `-Literal <line: 13, col: 37> type=bool value=true\n"
+         L" |-VariableDeclStatement <line: 14, col: 5>\n"
+         L" ||-VariableDeclaration <line: 14, col: 5> type=int name=b mutable=true\n"
+         L" |`-DotExpression <line: 14, col: 14> field=a\n"
+         L" | `-StructExpression <line: 14, col: 23> structType=MyStruct\n"
+         L" |  |-Literal <line: 14, col: 24> type=int value=2\n"
+         L" |  |-Literal <line: 14, col: 27> type=float value=4.3\n"
+         L" |  |-StructExpression <line: 14, col: 32> structType=OtherStruct\n"
+         L" |  ||-Literal <line: 14, col: 33> type=int value=4\n"
+         L" |  |`-Literal <line: 14, col: 36> type=str value=a\n"
+         L" |  `-Literal <line: 14, col: 42> type=bool value=true\n"
+         L" |-FunctionCallInstruction <line: 15, col: 5>\n"
+         L" |`-FunctionCall <line: 15, col: 5> functionName=function_taking_MyStruct\n"
+         L" | `-StructExpression <line: 15, col: 39> structType=MyStruct\n"
+         L" |  |-Literal <line: 15, col: 40> type=int value=2\n"
+         L" |  |-Literal <line: 15, col: 43> type=float value=4.3\n"
+         L" |  |-StructExpression <line: 15, col: 48> structType=OtherStruct\n"
+         L" |  ||-Literal <line: 15, col: 49> type=int value=4\n"
+         L" |  |`-Literal <line: 15, col: 52> type=str value=a\n"
+         L" |  `-Literal <line: 15, col: 58> type=bool value=true\n"
+         L" `-AssignmentStatement <line: 16, col: 5>\n"
+         L"  |-Assignable <line: 16, col: 5> right=b\n"
+         L"  `-DotExpression <line: 16, col: 9> field=a\n"
+         L"   `-DotExpression <line: 16, col: 9> field=c\n"
+         L"    `-Variable <line: 16, col: 9> name=a\n"}
+    );
+
+    source = L"struct S1 {\n"
+             L"    int a;\n"
+             L"    int b;\n"
+             L"}\n"
+             L"variant V {\n"
+             L"    S1 s;\n"
+             L"    int i;\n"
+             L"}\n"
+             L"struct S2 {\n"
+             L"    V v;\n"
+             L"    int i;\n"
+             L"}\n"
+             L"\n"
+             L"func main() {\n"
+             L"    S2 s = {{2, 3}, 2};\n"
+             L"    # konieczne jest podanie typu S1, ponieważ jest wewnątrz rekordu wariantowego\n"
+             L"}\n";
+    REQUIRE_THROWS(getTree(source));
+}

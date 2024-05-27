@@ -1,6 +1,6 @@
 #include "semanticAnalysis.hpp"
 
-#include "interpreterExceptions.hpp"
+#include "semanticExceptions.hpp"
 
 #include <algorithm>
 #include <functional>

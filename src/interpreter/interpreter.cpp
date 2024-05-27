@@ -1,3 +1,5 @@
 #include "interpreter.hpp"
 
-Interpreter::Interpreter(std::istream &input, std::ostream &output): input(input), output(output) {}
+Interpreter::Interpreter(std::vector<std::wstring> arguments, std::istream &input, std::ostream &output):
+    arguments(arguments), input(input), output(output)
+{}

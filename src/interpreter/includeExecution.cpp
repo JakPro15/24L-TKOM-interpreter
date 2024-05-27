@@ -1,9 +1,9 @@
 #include "commentDiscarder.hpp"
 #include "convertToString.hpp"
 #include "documentTree.hpp"
-#include "interpreterExceptions.hpp"
 #include "lexer.hpp"
 #include "parser.hpp"
+#include "semanticExceptions.hpp"
 #include "streamReader.hpp"
 
 #include <format>

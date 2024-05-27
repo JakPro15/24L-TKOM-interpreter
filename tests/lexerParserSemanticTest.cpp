@@ -27,7 +27,8 @@ Program getTree(const std::wstring &source)
              Position{0, 0}, L"<builtins>",
              std::vector<VariableDeclaration>{VariableDeclaration{{0, 0}, {Type::Builtin::STR}, L"value", false}},
              std::nullopt,
-             std::function<std::optional<Object>(std::vector<Object>)>([](std::vector<Object>) { return Object(); })
+             BuiltinFunctionDeclaration::Body([](Position, const std::wstring &,
+                                                 std::vector<std::reference_wrapper<Object>>) { return Object(); })
          )}
     );
     doSemanticAnalysis(program);

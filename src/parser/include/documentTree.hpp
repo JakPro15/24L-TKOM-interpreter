@@ -2,6 +2,7 @@
 #define DOCUMENTTREE_HPP
 
 #include "documentTreeVisitor.hpp"
+#include "object.hpp"
 #include "position.hpp"
 #include "type.hpp"
 
@@ -447,19 +448,15 @@ struct FunctionDeclaration: public BaseFunctionDeclaration
     void accept(DocumentTreeVisitor &visitor) override;
 };
 
-struct Object
-{
-    Type type;
-    std::variant<std::wstring, int32_t, double, bool, std::vector<Object>> value;
-};
-
 struct BuiltinFunctionDeclaration: public BaseFunctionDeclaration
 {
+    using Body = std::function<
+        std::optional<Object>(Position, const std::wstring &, std::vector<std::reference_wrapper<Object>>)>;
     explicit BuiltinFunctionDeclaration(
         Position position, std::wstring source, std::vector<VariableDeclaration> parameters,
-        std::optional<Type> returnType, std::function<std::optional<Object>(std::vector<Object>)> body
+        std::optional<Type> returnType, Body body
     );
-    std::function<std::optional<Object>(std::vector<Object>)> body;
+    Body body;
     void accept(DocumentTreeVisitor &visitor) override;
 private:
     std::wstring source;

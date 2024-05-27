@@ -1,5 +1,5 @@
-#ifndef INTERPRETEREXCEPTIONS_HPP
-#define INTERPRETEREXCEPTIONS_HPP
+#ifndef SEMANTICEXCEPTIONS_HPP
+#define SEMANTICEXCEPTIONS_HPP
 
 #include "documentTree.hpp"
 #include "readerExceptions.hpp"

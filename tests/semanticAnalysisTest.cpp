@@ -2,7 +2,7 @@
 
 #include "checkNodeContainer.hpp"
 #include "documentTree.hpp"
-#include "interpreterExceptions.hpp"
+#include "semanticExceptions.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 

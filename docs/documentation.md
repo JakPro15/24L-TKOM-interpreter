@@ -611,9 +611,13 @@ if(a == 0) {
 
 ### Funkcje wbudowane
 ```
+no_arguments() -> int
+```
+Zwraca liczbę argumentów wywołania programu.
+```
 argument(int index) -> str
 ```
-Zwraca argument wywołania programu o podanym indeksie (indeksowanie od 0).
+Zwraca argument wywołania programu o podanym indeksie (indeksowanie od 0). Jeżeli nie istnieje argument o takim indeksie, powoduje błąd czasu wykonania.
 ```
 print(str message)
 println(str message)
@@ -624,7 +628,7 @@ input() -> str
 ```
 Zwraca linię z wejścia standardowego (wszystkie znaki do znaku nowej linii włącznie).
 ```
-input(int num_chars) -> str
+input(int no_chars) -> str
 ```
 Zwraca do num_chars 8-bitowych znaków z wejścia standardowego.
 ```

@@ -164,7 +164,7 @@ FunctionDeclaration::FunctionDeclaration(
 
 BuiltinFunctionDeclaration::BuiltinFunctionDeclaration(
     Position position, std::wstring source, std::vector<VariableDeclaration> parameters, std::optional<Type> returnType,
-    std::function<std::optional<Object>(std::vector<Object>)> body
+    Body body
 ): BaseFunctionDeclaration(position, source, parameters, returnType), body(body)
 {}
 

@@ -27,7 +27,7 @@ private:
         variables;
     Program *program;
     std::vector<std::reference_wrapper<Object>> functionArguments;
-    bool shouldReturn;
+    bool shouldReturn, shouldContinue, shouldBreak;
 
     Object &getVariable(const std::wstring &name);
     void addVariable(const std::wstring &name, const Object &object);
@@ -40,6 +40,14 @@ private:
     TargetType cast(SourceType value, Position position);
     template <typename TargetType>
     Object getCastedObject(Type::Builtin targetType, Position position);
+
+    template <typename LeftType, typename RightType, typename BinaryOperation>
+    std::pair<LeftType, RightType> getBinaryOpArgs(BinaryOperation &visited);
+    template <typename LeftType, typename RightType, typename BinaryOperation>
+    std::pair<LeftType, RightType> getBinaryOpArgsLeftAccepted(BinaryOperation &visited);
+
+    int32_t addIntegers(int32_t left, int32_t right, Position position);
+    void visitInstructionBlock(std::vector<std::unique_ptr<Instruction>> &block);
 
     void visit(Literal &visited) override;
     void visit(Variable &visited) override;

@@ -14,7 +14,7 @@ Interpreter::Interpreter(
     std::function<Program(std::wifstream &, std::wstring)> parseFromFile
 ):
     currentSource(programSource), arguments(arguments), input(input), output(output), parseFromFile(parseFromFile),
-    shouldReturn(false)
+    shouldReturn(false), shouldContinue(false), shouldBreak(false)
 {}
 
 #define EMPTY_VISIT(type) \
@@ -70,6 +70,47 @@ Object &Interpreter::getLastResult()
     return getObject(lastResult);
 }
 
+template <typename LeftType, typename RightType, typename BinaryOperation>
+std::pair<LeftType, RightType> Interpreter::getBinaryOpArgs(BinaryOperation &visited)
+{
+    visited.left->accept(*this);
+    return getBinaryOpArgsLeftAccepted<LeftType, RightType>(visited);
+}
+
+template <typename LeftType, typename RightType, typename BinaryOperation>
+std::pair<LeftType, RightType> Interpreter::getBinaryOpArgsLeftAccepted(BinaryOperation &visited)
+{
+    LeftType left = std::get<LeftType>(getLastResult().value);
+    visited.right->accept(*this);
+    RightType right = std::get<RightType>(getLastResult().value);
+    return {left, right};
+}
+
+int32_t Interpreter::addIntegers(int32_t left, int32_t right, Position position)
+{
+    if(left >= 0)
+    {
+        if(std::numeric_limits<int32_t>::max() - left < right)
+            throw IntegerRangeError(L"Addition or subtraction of integers would overflow", currentSource, position);
+    }
+    else
+    {
+        if(right < std::numeric_limits<int32_t>::min() - left)
+            throw IntegerRangeError(L"Addition or subtraction of integers would overflow", currentSource, position);
+    }
+    return left + right;
+}
+
+void Interpreter::visitInstructionBlock(std::vector<std::unique_ptr<Instruction>> &block)
+{
+    for(auto &instruction: block)
+    {
+        instruction->accept(*this);
+        if(shouldReturn || shouldBreak || shouldContinue)
+            return;
+    }
+}
+
 void Interpreter::visit(Literal &visited)
 {
     lastResult = Object(
@@ -114,9 +155,40 @@ void Interpreter::visit(GreaterEqualExpression &) {}
 
 void Interpreter::visit(LesserEqualExpression &) {}
 
-void Interpreter::visit(PlusExpression &) {}
+void Interpreter::visit(PlusExpression &visited)
+{
+    visited.left->accept(*this);
+    if(getLastResult().type == Type{INT})
+    {
+        auto [left, right] = getBinaryOpArgsLeftAccepted<int32_t, int32_t>(visited);
+        lastResult = Object{{INT}, addIntegers(left, right, visited.getPosition())};
+    }
+    else
+    {
+        auto [left, right] = getBinaryOpArgsLeftAccepted<double, double>(visited);
+        lastResult = Object{{FLOAT}, left + right};
+    }
+}
 
-void Interpreter::visit(MinusExpression &) {}
+void Interpreter::visit(MinusExpression &visited)
+{
+    visited.left->accept(*this);
+    if(getLastResult().type == Type{INT})
+    {
+        auto [left, right] = getBinaryOpArgsLeftAccepted<int32_t, int32_t>(visited);
+        if(right > std::numeric_limits<int32_t>::min())
+            lastResult = Object{{INT}, addIntegers(left, -right, visited.getPosition())};
+        else if(left > std::numeric_limits<int32_t>::min())
+            lastResult = Object{{INT}, -addIntegers(-left, right, visited.getPosition())};
+        else
+            throw IntegerRangeError(L"Subtraction of integers would overflow", currentSource, visited.getPosition());
+    }
+    else
+    {
+        auto [left, right] = getBinaryOpArgsLeftAccepted<double, double>(visited);
+        lastResult = Object{{FLOAT}, left - right};
+    }
+}
 
 void Interpreter::visit(MultiplyExpression &) {}
 
@@ -353,17 +425,71 @@ void Interpreter::visit(ReturnStatement &visited)
     shouldReturn = true;
 }
 
-void Interpreter::visit(ContinueStatement &) {}
+void Interpreter::visit(ContinueStatement &)
+{
+    shouldContinue = true;
+}
 
-void Interpreter::visit(BreakStatement &) {}
+void Interpreter::visit(BreakStatement &)
+{
+    shouldBreak = true;
+}
 
-void Interpreter::visit(SingleIfCase &) {}
+void Interpreter::visit(SingleIfCase &visited)
+{
+    if(std::holds_alternative<VariableDeclStatement>(visited.condition))
+        visit(std::get<VariableDeclStatement>(visited.condition));
+    else
+        std::get<std::unique_ptr<Expression>>(visited.condition)->accept(*this);
+}
 
-void Interpreter::visit(IfStatement &) {}
+void Interpreter::visit(IfStatement &visited)
+{
+    bool executeElse = true;
+    for(SingleIfCase &singleCase: visited.cases)
+    {
+        visit(singleCase);
+        if(std::get<bool>(getLastResult().value))
+        {
+            executeElse = false;
+            visitInstructionBlock(singleCase.body);
+            break;
+        }
+    }
+    if(executeElse)
+        visitInstructionBlock(visited.elseCaseBody);
+}
 
-void Interpreter::visit(WhileStatement &) {}
+#define HANDLE_LOOP_FLAGS           \
+    if(shouldBreak || shouldReturn) \
+    {                               \
+        shouldBreak = false;        \
+        return;                     \
+    }                               \
+    if(shouldContinue)              \
+    {                               \
+        shouldContinue = false;     \
+        break;                      \
+    }
 
-void Interpreter::visit(DoWhileStatement &) {}
+void Interpreter::visit(WhileStatement &visited)
+{
+    while(visited.condition->accept(*this), std::get<bool>(getLastResult().value))
+    {
+        visitInstructionBlock(visited.body);
+        HANDLE_LOOP_FLAGS;
+    }
+}
+
+void Interpreter::visit(DoWhileStatement &visited)
+{
+    do
+    {
+        visitInstructionBlock(visited.body);
+        HANDLE_LOOP_FLAGS;
+    }
+    while(visited.condition->accept(*this), std::get<bool>(getLastResult().value));
+}
 
 void Interpreter::visit(FunctionDeclaration &visited)
 {
@@ -372,12 +498,7 @@ void Interpreter::visit(FunctionDeclaration &visited)
     variables.push({{}});
     for(unsigned i = 0; i < functionArguments.size(); i++)
         addVariable(visited.parameters.at(i).name, functionArguments.at(i));
-    for(auto &instruction: visited.body)
-    {
-        instruction->accept(*this);
-        if(shouldReturn)
-            break;
-    }
+    visitInstructionBlock(visited.body);
     shouldReturn = false;
     variables.pop();
 }

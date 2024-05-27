@@ -5,6 +5,10 @@
 #include "runtimeExceptions.hpp"
 #include "semanticAnalysis.hpp"
 
+#include <cmath>
+
+using enum Type::Builtin;
+
 Interpreter::Interpreter(
     std::wstring programSource, std::vector<std::wstring> arguments, std::wistream &input, std::wostream &output,
     std::function<Program(std::wifstream &, std::wstring)> parseFromFile
@@ -114,9 +118,164 @@ void Interpreter::visit(DotExpression &) {}
 
 void Interpreter::visit(StructExpression &) {}
 
-void Interpreter::visit(CastExpression &) {}
+template <typename TargetType, typename SourceType>
+TargetType Interpreter::cast(SourceType, Position)
+{
+    throw RuntimeSemanticException("Invalid cast detected");
+}
 
-void Interpreter::visit(VariableDeclaration &) {}
+template <>
+int32_t Interpreter::cast(double value, Position position)
+{
+    value = std::round(value);
+    if(value < std::numeric_limits<int32_t>::min() || value > std::numeric_limits<int32_t>::max() || std::isnan(value))
+        throw IntegerRangeError(
+            std::format(L"Conversion of float {} to integer would result in a value out of integer range", value),
+            currentSource, position
+        );
+    return static_cast<int32_t>(value);
+}
+
+template <>
+int32_t Interpreter::cast(const std::wstring &value, Position position)
+{
+    long converted;
+    try
+    {
+        converted = std::stol(value);
+    }
+    catch(const std::invalid_argument &e)
+    {
+        throw CastImpossibleError(
+            std::format(L"Conversion of string {} to integer failed", value), currentSource, position
+        );
+    }
+    catch(const std::out_of_range &e)
+    {
+        throw IntegerRangeError(
+            std::format(L"Conversion of string {} to integer would result in a value out of integer range", value),
+            currentSource, position
+        );
+    }
+    if(converted < std::numeric_limits<int32_t>::min() || converted > std::numeric_limits<int32_t>::max())
+        throw IntegerRangeError(
+            std::format(L"Conversion of string {} to integer would result in a value out of integer range", value),
+            currentSource, position
+        );
+    return static_cast<int32_t>(converted);
+}
+
+template <>
+int32_t Interpreter::cast(bool value, Position)
+{
+    return static_cast<int32_t>(value);
+}
+
+template <>
+double Interpreter::cast(int32_t value, Position)
+{
+    return static_cast<double>(value);
+}
+
+template <>
+double Interpreter::cast(const std::wstring &value, Position position)
+{
+    try
+    {
+        return std::stod(value);
+    }
+    catch(const std::invalid_argument &e)
+    {
+        throw CastImpossibleError(
+            std::format(L"Conversion of string {} to integer failed", value), currentSource, position
+        );
+    }
+    catch(const std::out_of_range &e)
+    {
+        throw IntegerRangeError(
+            std::format(L"Conversion of string {} to integer would result in a value out of integer range", value),
+            currentSource, position
+        );
+    }
+}
+
+template <>
+double Interpreter::cast(bool value, Position)
+{
+    return static_cast<double>(value);
+}
+
+template <>
+std::wstring Interpreter::cast(int32_t value, Position)
+{
+    return std::to_wstring(value);
+}
+
+template <>
+std::wstring Interpreter::cast(double value, Position)
+{
+    return std::to_wstring(value);
+}
+
+template <>
+std::wstring Interpreter::cast(bool value, Position)
+{
+    if(value)
+        return L"true";
+    else
+        return L"false";
+}
+
+template <>
+bool Interpreter::cast(int32_t value, Position)
+{
+    return value != 0;
+}
+
+template <>
+bool Interpreter::cast(double value, Position)
+{
+    return value != 0;
+}
+
+template <>
+bool Interpreter::cast(const std::wstring &value, Position)
+{
+    return value.size() > 0;
+}
+
+template <typename TargetType>
+Object Interpreter::getCastedObject(Type::Builtin targetType, Position position)
+{
+    return Object(
+        {targetType}, std::visit([&](auto value) { return cast<TargetType>(value, position); }, getLastResult().value)
+    );
+}
+
+void Interpreter::visit(CastExpression &visited)
+{
+    visited.value->accept(*this);
+    if(visited.targetType.isBuiltin())
+    {
+        Type::Builtin type = std::get<Type::Builtin>(visited.targetType.value);
+        switch(type)
+        {
+        case INT:
+            lastResult = getCastedObject<int32_t>(type, visited.getPosition());
+            break;
+        case STR:
+            lastResult = getCastedObject<std::wstring>(type, visited.getPosition());
+            break;
+        case FLOAT:
+            lastResult = getCastedObject<double>(type, visited.getPosition());
+            break;
+        case BOOL:
+            lastResult = getCastedObject<bool>(type, visited.getPosition());
+        }
+    }
+    else // cast to variant type case
+        getLastResult().type = visited.targetType;
+}
 
 void Interpreter::visit(VariableDeclStatement &visited)
 {
@@ -133,7 +292,13 @@ void Interpreter::visit(Assignable &visited)
     }
     visit(*visited.left);
     Object &left = getLastResult();
-    const std::vector<Field> &fields = getFields(std::get<std::wstring>(left.type.value));
+    std::wstring typeName = std::get<std::wstring>(left.type.value);
+
+    auto structFound = program->structs.find(typeName);
+    if(structFound != program->structs.end())
+        return; // variant access case - leave lastResult as is
+
+    const std::vector<Field> &fields = structFound->second.fields;
     unsigned fieldIndex = std::find_if(
                               fields.begin(), fields.end(),
                               [&](const Field &field) { return field.name == visited.right; }
@@ -148,7 +313,7 @@ void Interpreter::visit(AssignmentStatement &visited)
     Object &assignmentTarget = getLastResult();
     visited.right->accept(*this);
     Object &value = getLastResult();
-    assignmentTarget = value;
+    assignmentTarget.value = value.value;
 }
 
 void Interpreter::visit(FunctionCall &visited)
@@ -184,12 +349,6 @@ void Interpreter::visit(WhileStatement &) {}
 
 void Interpreter::visit(DoWhileStatement &) {}
 
-void Interpreter::visit(Field &) {}
-
-void Interpreter::visit(StructDeclaration &) {}
-
-void Interpreter::visit(VariantDeclaration &) {}
-
 void Interpreter::visit(FunctionDeclaration &visited)
 {
     callPosition = visited.getPosition();
@@ -208,8 +367,6 @@ void Interpreter::visit(BuiltinFunctionDeclaration &visited)
     if(result)
         lastResult = *result;
 }
-
-void Interpreter::visit(IncludeStatement &) {}
 
 void Interpreter::visit(Program &visited)
 {
@@ -230,3 +387,9 @@ void Interpreter::visit(Program &visited)
         );
     fullProgram.functions.at({L"main", {}})->accept(*this);
 }
+
+EMPTY_VISIT(VariableDeclaration);
+EMPTY_VISIT(IncludeStatement);
+EMPTY_VISIT(Field);
+EMPTY_VISIT(StructDeclaration);
+EMPTY_VISIT(VariantDeclaration);

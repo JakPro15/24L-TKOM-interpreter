@@ -32,6 +32,11 @@ private:
     Object &getLastResult();
     const std::vector<Field> &getFields(const std::wstring &typeName);
 
+    template <typename TargetType, typename SourceType>
+    TargetType cast(SourceType value, Position position);
+    template <typename TargetType>
+    Object getCastedObject(Type::Builtin targetType, Position position);
+
     void visit(Literal &visited) override;
     void visit(Variable &visited) override;
     void visit(IsExpression &visited) override;

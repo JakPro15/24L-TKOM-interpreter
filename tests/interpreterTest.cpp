@@ -95,3 +95,30 @@ TEST_CASE("VariableDeclStatement and Variable", "[Interpreter]")
     interpreter.visit(program);
     REQUIRE(output.str() == L"msg\n");
 }
+
+TEST_CASE("AssignmentStatement", "[Interpreter]")
+{
+    Program program({1, 1});
+    std::vector<std::unique_ptr<Instruction>> instructions;
+    instructions.push_back(std::make_unique<VariableDeclStatement>(
+        Position{2, 1}, VariableDeclaration({2, 1}, {STR}, L"a", true), makeLiteral({2, 10}, L"msg")
+    ));
+    instructions.push_back(std::make_unique<AssignmentStatement>(
+        Position{3, 1}, Assignable({3, 1}, L"a"), makeLiteral({2, 10}, L"not msg")
+    ));
+    std::vector<std::unique_ptr<Expression>> arguments;
+    arguments.push_back(std::make_unique<Variable>(Position{3, 10}, L"a"));
+    instructions.push_back(std::make_unique<FunctionCallInstruction>(
+        Position{4, 1}, FunctionCall({4, 1}, L"println", std::move(arguments))
+    ));
+    program.functions.emplace(
+        FunctionIdentification(L"main", {}),
+        std::make_unique<FunctionDeclaration>(
+            Position{1, 1}, L"<test>", std::vector<VariableDeclaration>{}, std::nullopt, std::move(instructions)
+        )
+    );
+    std::wstringstream input, output;
+    Interpreter interpreter(L"<test>", {}, input, output, parseFromStream);
+    interpreter.visit(program);
+    REQUIRE(output.str() == L"not msg\n");
+}

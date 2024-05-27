@@ -38,6 +38,14 @@ Object &Interpreter::getLastResult()
         return std::get<Object>(lastResult);
 }
 
+const std::vector<Field> &Interpreter::getFields(const std::wstring &typeName)
+{
+    auto structFound = program->structs.find(typeName);
+    if(structFound != program->structs.end())
+        return structFound->second.fields;
+    return program->variants.at(typeName).fields;
+}
+
 void Interpreter::visit(Literal &visited)
 {
     lastResult = Object(
@@ -51,7 +59,7 @@ void Interpreter::visit(Literal &visited)
 
 void Interpreter::visit(Variable &visited)
 {
-    lastResult = getVariable(visited.name);
+    lastResult = std::reference_wrapper(getVariable(visited.name));
 }
 
 void Interpreter::visit(IsExpression &) {}
@@ -116,9 +124,32 @@ void Interpreter::visit(VariableDeclStatement &visited)
     addVariable(visited.declaration.name, getLastResult());
 }
 
-void Interpreter::visit(Assignable &) {}
+void Interpreter::visit(Assignable &visited)
+{
+    if(!visited.left)
+    {
+        lastResult = std::reference_wrapper(getVariable(visited.right));
+        return;
+    }
+    visit(*visited.left);
+    Object &left = getLastResult();
+    const std::vector<Field> &fields = getFields(std::get<std::wstring>(left.type.value));
+    unsigned fieldIndex = std::find_if(
+                              fields.begin(), fields.end(),
+                              [&](const Field &field) { return field.name == visited.right; }
+                          ) -
+                          fields.begin();
+    lastResult = std::reference_wrapper(std::get<std::vector<Object>>(left.value)[fieldIndex]);
+}
 
-void Interpreter::visit(AssignmentStatement &) {}
+void Interpreter::visit(AssignmentStatement &visited)
+{
+    visit(visited.left);
+    Object &assignmentTarget = getLastResult();
+    visited.right->accept(*this);
+    Object &value = getLastResult();
+    assignmentTarget = value;
+}
 
 void Interpreter::visit(FunctionCall &visited)
 {
@@ -131,7 +162,7 @@ void Interpreter::visit(FunctionCall &visited)
     std::vector<Type> argumentTypes;
     for(auto &argument: functionArguments)
         argumentTypes.push_back(argument.get().type);
-    functions->at(FunctionIdentification(visited.functionName, argumentTypes))->accept(*this);
+    program->functions.at(FunctionIdentification(visited.functionName, argumentTypes))->accept(*this);
 }
 
 void Interpreter::visit(FunctionCallInstruction &visited)
@@ -182,20 +213,20 @@ void Interpreter::visit(IncludeStatement &) {}
 
 void Interpreter::visit(Program &visited)
 {
-    Program program = prepareBuiltinFunctions(visited.getPosition(), arguments, input, output);
-    mergePrograms(program, visited);
-    executeIncludes(program, currentSource, parseFromFile);
-    doSemanticAnalysis(program);
-    if(program.functions.count({L"main", {}}) == 0)
+    Program fullProgram = prepareBuiltinFunctions(visited.getPosition(), arguments, input, output);
+    mergePrograms(fullProgram, visited);
+    executeIncludes(fullProgram, currentSource, parseFromFile);
+    doSemanticAnalysis(fullProgram);
+    if(fullProgram.functions.count({L"main", {}}) == 0)
         throw MainNotFoundError(
-            L"main function has not been found in the program", currentSource, program.getPosition()
+            L"main function has not been found in the program", currentSource, fullProgram.getPosition()
         );
-    functions = &program.functions;
-    auto &main = functions->at({L"main", {}});
+    program = &fullProgram;
+    auto &main = fullProgram.functions.at({L"main", {}});
     if(main->returnType)
         throw MainReturnTypeError(
             std::format(L"main function should not return a type, returns {}", *main->returnType), currentSource,
             main->getPosition()
         );
-    program.functions.at({L"main", {}})->accept(*this);
+    fullProgram.functions.at({L"main", {}})->accept(*this);
 }

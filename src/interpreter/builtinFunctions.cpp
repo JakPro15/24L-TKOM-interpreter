@@ -18,8 +18,8 @@ BuiltinFunction builtinNoArguments(const std::vector<std::wstring> &arguments)
                 if(noArguments > std::numeric_limits<int32_t>::max())
                     throw RuntimeError(
                         L"Program arguments number exceeds int type maximum value", callSource, callPosition
-                    );
-                return Object{{STR}, static_cast<int32_t>(arguments.size())};
+                    ); // *should* not be reachable
+                return Object{{INT}, static_cast<int32_t>(arguments.size())};
             }
         )
     };
@@ -56,10 +56,12 @@ BuiltinFunction builtinPrint(std::wostream &output)
         FunctionIdentification(L"print", {{STR}}),
         BuiltinFunctionDeclaration(
             {0, 0}, L"<builtins>", {VariableDeclaration({0, 0}, {STR}, L"message", false)}, std::nullopt,
-            [&](Position, const std::wstring &,
+            [&](Position callPosition, const std::wstring &callSource,
                 std::vector<std::reference_wrapper<Object>> args) -> std::optional<Object> {
                 auto message = getArg<std::wstring>(args);
                 output << message;
+                if(output.bad())
+                    throw StandardOutputError(L"Standard output stream returned error", callSource, callPosition);
                 return std::nullopt;
             }
         )
@@ -72,10 +74,12 @@ BuiltinFunction builtinPrintln(std::wostream &output)
         FunctionIdentification(L"println", {{STR}}),
         BuiltinFunctionDeclaration(
             {0, 0}, L"<builtins>", {VariableDeclaration({0, 0}, {STR}, L"message", false)}, std::nullopt,
-            [&](Position, const std::wstring &,
+            [&](Position callPosition, const std::wstring &callSource,
                 std::vector<std::reference_wrapper<Object>> args) -> std::optional<Object> {
                 auto message = getArg<std::wstring>(args);
                 output << message << L'\n';
+                if(output.bad())
+                    throw StandardOutputError(L"Standard output stream returned error", callSource, callPosition);
                 return std::nullopt;
             }
         )
@@ -88,9 +92,12 @@ BuiltinFunction builtinInputLine(std::wistream &input)
         FunctionIdentification(L"input", {}),
         BuiltinFunctionDeclaration(
             {0, 0}, L"<builtins>", {}, {{STR}},
-            [&](Position, const std::wstring &, std::vector<std::reference_wrapper<Object>>) -> std::optional<Object> {
+            [&](Position callPosition, const std::wstring &callSource,
+                std::vector<std::reference_wrapper<Object>>) -> std::optional<Object> {
                 std::wstring line;
                 std::getline(input, line);
+                if(input.bad())
+                    throw StandardInputError(L"Standard input stream returned error", callSource, callPosition);
                 return Object{{STR}, line};
             }
         )
@@ -113,6 +120,9 @@ BuiltinFunction builtinInput(std::wistream &input)
                 std::wstring read;
                 read.resize(static_cast<size_t>(numberOfCharacters));
                 input.read(&read[0], numberOfCharacters);
+                if(input.bad())
+                    throw StandardInputError(L"Standard input stream returned error", callSource, callPosition);
+                read.resize(input.gcount());
                 return Object{{STR}, read};
             }
         )
@@ -166,7 +176,7 @@ std::pair<T, T> getTwoArgs(const std::vector<std::reference_wrapper<Object>> &ar
     return {first, second};
 }
 
-const BuiltinFunction builtintMaxFloat = {
+const BuiltinFunction builtinMaxFloat = {
     FunctionIdentification(L"max", {{FLOAT}, {FLOAT}}),
     BuiltinFunctionDeclaration(
         {0, 0}, L"<builtins>",

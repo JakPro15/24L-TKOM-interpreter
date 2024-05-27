@@ -22,4 +22,14 @@ class IntegerRangeError: public RuntimeError
     using RuntimeError::RuntimeError;
 };
 
+class StandardInputError: public RuntimeError
+{
+    using RuntimeError::RuntimeError;
+};
+
+class StandardOutputError: public RuntimeError
+{
+    using RuntimeError::RuntimeError;
+};
+
 #endif

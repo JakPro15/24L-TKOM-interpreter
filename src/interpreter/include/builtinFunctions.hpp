@@ -8,5 +8,5 @@ BuiltinFunction builtinPrint(std::wostream &output);
 BuiltinFunction builtinPrintln(std::wostream &output);
 BuiltinFunction builtinInputLine(std::wistream &input);
 BuiltinFunction builtinInput(std::wistream &input);
-extern const BuiltinFunction builtinLen, builtinAbsFloat, builtinAbsInt, builtintMaxFloat, builtinMaxInt,
+extern const BuiltinFunction builtinLen, builtinAbsFloat, builtinAbsInt, builtinMaxFloat, builtinMaxInt,
     builtinMinFloat, builtinMinInt;

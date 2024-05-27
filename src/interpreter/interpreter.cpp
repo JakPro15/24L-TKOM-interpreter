@@ -16,7 +16,7 @@ Interpreter::Interpreter(
 
 Object &Interpreter::getVariable(const std::wstring &name)
 {
-    for(auto scope: variables.top())
+    for(auto &scope: variables.top())
     {
         auto found = scope.find(name);
         if(found != scope.end())

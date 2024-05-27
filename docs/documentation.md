@@ -596,7 +596,7 @@ if(true) {
 int b = a + 2; # błąd - nieznana zmienna a
 ```
 
-Nie można deklarować zmiennej ani typu, jeżeli w momencie jej deklaracji widoczna jest zmienna, funkcja lub typ o tej samej nazwie.
+Nie można deklarować zmiennej, jeżeli istnieje już zmienna o tej samej nazwie, ani typu, jeżeli istnieje już funkcja lub typ o tej samej nazwie.
 ```
 func f(int a) {
     str a = "a"; # błąd - istnieje już stała a
@@ -607,14 +607,6 @@ int a = 0;
 if(a == 0) {
     int a = 1; # błąd - istnieje już stała a
 }
-```
-```
-struct nazwa {
-    int a;
-    int b;
-}
-
-int nazwa = 0; # błąd - istnieje już typ nazwa
 ```
 
 ### Funkcje wbudowane

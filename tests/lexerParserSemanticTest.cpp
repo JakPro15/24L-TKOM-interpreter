@@ -685,3 +685,25 @@ TEST_CASE("functions", "[Lexer+Parser+SemanticAnalyzer]")
              L"func f(int$ a) {} # błąd - duplikat funkcji\n";
     REQUIRE_THROWS(getTree(source));
 }
+
+TEST_CASE("variable visibility", "[Lexer+Parser+SemanticAnalyzer]")
+{
+    std::wstring source = L"func main() {\n"
+                          L"    if(true) {\n"
+                          L"        int a = 4;\n"
+                          L"    }\n"
+                          L"    int b = a + 2; # błąd - nieznana zmienna a\n"
+                          L"}\n";
+    REQUIRE_THROWS(getTree(source));
+
+    source = L"func f(int a) {\n"
+             L"    str a = \"a\"; # błąd - istnieje już stała a\n"
+             L"}\n";
+    REQUIRE_THROWS(getTree(source));
+
+    source = L"int a = 0;\n"
+             L"if(a == 0) {\n"
+             L"    int a = 1; # błąd - istnieje już stała a\n"
+             L"}\n";
+    REQUIRE_THROWS(getTree(source));
+}

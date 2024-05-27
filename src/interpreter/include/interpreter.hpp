@@ -30,14 +30,14 @@ private:
     bool shouldReturn, shouldContinue, shouldBreak;
 
     Object &getVariable(const std::wstring &name);
-    void addVariable(const std::wstring &name, const Object &object);
+    void addVariable(const std::wstring &name, Object &&object);
     void addVariable(const std::wstring &name, std::reference_wrapper<Object> object);
     Object &getLastResult();
 
     template <typename NumberType>
     NumberType fromString(const std::wstring &value, Position position, const std::wstring &typeName);
     template <typename TargetType, typename SourceType>
-    TargetType cast(SourceType value, Position position);
+    TargetType cast(const SourceType &value, Position position);
     template <typename TargetType>
     Object getCastedObject(Type::Builtin targetType, Position position);
 

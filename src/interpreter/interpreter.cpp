@@ -55,9 +55,9 @@ Object &Interpreter::getVariable(const std::wstring &name)
     throw RuntimeSemanticException("Variable not found");
 }
 
-void Interpreter::addVariable(const std::wstring &name, const Object &object)
+void Interpreter::addVariable(const std::wstring &name, Object &&object)
 {
-    variables.top()[variables.top().size() - 1].insert({name, object});
+    variables.top()[variables.top().size() - 1].insert({name, std::move(object)});
 }
 
 void Interpreter::addVariable(const std::wstring &name, std::reference_wrapper<Object> object)
@@ -116,7 +116,10 @@ void Interpreter::visit(Literal &visited)
     lastResult = Object(
         visited.getType(),
         std::visit(
-            [](auto value) -> std::variant<std::wstring, int32_t, double, bool, std::vector<Object>> { return value; },
+            [](auto &value
+            ) -> std::variant<std::wstring, int32_t, double, bool, std::vector<Object>, std::unique_ptr<Object>> {
+                return value;
+            },
             visited.value
         )
     );
@@ -124,7 +127,7 @@ void Interpreter::visit(Literal &visited)
 
 void Interpreter::visit(Variable &visited)
 {
-    lastResult = std::reference_wrapper(getVariable(visited.name));
+    lastResult = getVariable(visited.name);
 }
 
 void Interpreter::visit(IsExpression &) {}
@@ -219,27 +222,28 @@ void Interpreter::visit(StructExpression &visited)
     for(auto &argument: visited.arguments)
     {
         argument->accept(*this);
-        fields.push_back(getLastResult());
+        fields.push_back(std::move(getLastResult()));
     }
-    lastResult = Object{{*visited.structType}, fields};
+    lastResult = Object{{*visited.structType}, std::move(fields)};
 }
 
 template <typename TargetType, typename SourceType>
-TargetType Interpreter::cast(SourceType, Position)
+TargetType Interpreter::cast(const SourceType &, Position)
 {
     throw RuntimeSemanticException("Invalid cast detected");
 }
 
 template <>
-int32_t Interpreter::cast(double value, Position position)
+int32_t Interpreter::cast(const double &value, Position position)
 {
-    value = std::round(value);
-    if(value < std::numeric_limits<int32_t>::min() || value > std::numeric_limits<int32_t>::max() || std::isnan(value))
+    double rounded = std::round(value);
+    if(rounded < std::numeric_limits<int32_t>::min() || rounded > std::numeric_limits<int32_t>::max() ||
+       std::isnan(rounded))
         throw CastImpossibleError(
             std::format(L"Conversion of float {} to integer would result in a value out of integer range", value),
             currentSource, position
         );
-    return static_cast<int32_t>(value);
+    return static_cast<int32_t>(rounded);
 }
 
 template <typename NumberType>
@@ -264,49 +268,49 @@ NumberType Interpreter::fromString(const std::wstring &value, Position position,
 }
 
 template <>
-int32_t Interpreter::cast(std::wstring value, Position position)
+int32_t Interpreter::cast(const std::wstring &value, Position position)
 {
     return fromString<int32_t>(value, position, L"integer");
 }
 
 template <>
-int32_t Interpreter::cast(bool value, Position)
+int32_t Interpreter::cast(const bool &value, Position)
 {
     return static_cast<int32_t>(value);
 }
 
 template <>
-double Interpreter::cast(int32_t value, Position)
+double Interpreter::cast(const int32_t &value, Position)
 {
     return static_cast<double>(value);
 }
 
 template <>
-double Interpreter::cast(std::wstring value, Position position)
+double Interpreter::cast(const std::wstring &value, Position position)
 {
     return fromString<double>(value, position, L"float");
 }
 
 template <>
-double Interpreter::cast(bool value, Position)
+double Interpreter::cast(const bool &value, Position)
 {
     return static_cast<double>(value);
 }
 
 template <>
-std::wstring Interpreter::cast(int32_t value, Position)
+std::wstring Interpreter::cast(const int32_t &value, Position)
 {
     return std::format(L"{}", value);
 }
 
 template <>
-std::wstring Interpreter::cast(double value, Position)
+std::wstring Interpreter::cast(const double &value, Position)
 {
     return std::format(L"{}", value);
 }
 
 template <>
-std::wstring Interpreter::cast(bool value, Position)
+std::wstring Interpreter::cast(const bool &value, Position)
 {
     if(value)
         return L"true";
@@ -315,19 +319,19 @@ std::wstring Interpreter::cast(bool value, Position)
 }
 
 template <>
-bool Interpreter::cast(int32_t value, Position)
+bool Interpreter::cast(const int32_t &value, Position)
 {
     return value != 0;
 }
 
 template <>
-bool Interpreter::cast(double value, Position)
+bool Interpreter::cast(const double &value, Position)
 {
     return value != 0;
 }
 
 template <>
-bool Interpreter::cast(std::wstring value, Position)
+bool Interpreter::cast(const std::wstring &value, Position)
 {
     return value.size() > 0;
 }
@@ -369,14 +373,14 @@ void Interpreter::visit(CastExpression &visited)
 void Interpreter::visit(VariableDeclStatement &visited)
 {
     visited.value->accept(*this);
-    addVariable(visited.declaration.name, getLastResult());
+    addVariable(visited.declaration.name, std::move(getLastResult()));
 }
 
 void Interpreter::visit(Assignable &visited)
 {
     if(!visited.left)
     {
-        lastResult = std::reference_wrapper(getVariable(visited.right));
+        lastResult = getVariable(visited.right);
         return;
     }
     visit(*visited.left);
@@ -387,7 +391,7 @@ void Interpreter::visit(Assignable &visited)
     if(structFound == program->structs.end())
         return; // variant access case - leave lastResult as is
 
-    lastResult = std::reference_wrapper(getField(left, structFound, visited.right));
+    lastResult = getField(left, structFound, visited.right);
 }
 
 void Interpreter::visit(AssignmentStatement &visited)
@@ -396,7 +400,7 @@ void Interpreter::visit(AssignmentStatement &visited)
     Object &assignmentTarget = getLastResult();
     visited.right->accept(*this);
     Object &value = getLastResult();
-    assignmentTarget.value = value.value;
+    assignmentTarget.value = std::move(value.value);
 }
 
 void Interpreter::visit(FunctionCall &visited)
@@ -495,9 +499,10 @@ void Interpreter::visit(FunctionDeclaration &visited)
 {
     callPosition = visited.getPosition();
     currentSource = visited.getSource();
-    variables.push({{}});
+    variables.emplace();
+    variables.top().emplace_back();
     for(unsigned i = 0; i < functionArguments.size(); i++)
-        addVariable(visited.parameters.at(i).name, functionArguments.at(i));
+        addVariable(visited.parameters.at(i).name, std::move(functionArguments.at(i)));
     visitInstructionBlock(visited.body);
     shouldReturn = false;
     variables.pop();
@@ -507,7 +512,7 @@ void Interpreter::visit(BuiltinFunctionDeclaration &visited)
 {
     auto result = visited.body(callPosition, currentSource, functionArguments);
     if(result)
-        lastResult = *result;
+        lastResult = std::move(*result);
 }
 
 void Interpreter::visit(Program &visited)

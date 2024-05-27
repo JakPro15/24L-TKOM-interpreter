@@ -10,8 +10,7 @@
 #include <fstream>
 #include <vector>
 
-namespace {
-void addProgram(Program &program, Program &toAdd)
+void mergePrograms(Program &program, Program &toAdd)
 {
     for(auto &variant: toAdd.variants)
         program.add(std::move(variant));
@@ -22,17 +21,19 @@ void addProgram(Program &program, Program &toAdd)
     for(auto &function: toAdd.functions)
     {
         if(program.functions.find(function.first) != program.functions.end())
-        {
             throw DuplicateFunctionError(
                 std::format(L"Duplicate function with signature {}", function.first), function.second->getSource(),
                 function.second->getPosition()
             );
-        }
         program.functions.insert(std::move(function));
     }
 }
 
-void executeAllIncludes(Program &program, std::wstring programSource, std::vector<std::wstring> &pastIncludes)
+namespace {
+void executeAllIncludes(
+    Program &program, const std::wstring &programSource, std::vector<std::wstring> &pastIncludes,
+    std::function<Program(std::wifstream &, std::wstring)> parseFromFile
+)
 {
     pastIncludes.push_back(programSource);
     std::vector<IncludeStatement> includes = program.includes;
@@ -47,23 +48,22 @@ void executeAllIncludes(Program &program, std::wstring programSource, std::vecto
         std::wifstream inputFile(convertToString(include.filePath));
         if(!inputFile.is_open())
             throw FileError(
-                std::format(L"Error opening file {} required from include statement", programSource), include.filePath,
+                std::format(L"Error opening file {} required from include statement", include.filePath), programSource,
                 include.getPosition()
             );
-        StreamReader reader(inputFile, include.filePath);
-        Lexer lexer(reader);
-        CommentDiscarder commentDiscarder(lexer);
-        Parser parser(lexer);
-        Program newProgram = parser.parseProgram();
-        executeAllIncludes(newProgram, include.filePath, pastIncludes);
-        addProgram(program, newProgram);
+        Program newProgram = parseFromFile(inputFile, include.filePath);
+        executeAllIncludes(newProgram, include.filePath, pastIncludes, parseFromFile);
+        mergePrograms(program, newProgram);
     }
     pastIncludes.pop_back();
 }
 }
 
-void executeIncludes(Program &program, std::wstring programSource)
+void executeIncludes(
+    Program &program, const std::wstring &programSource,
+    std::function<Program(std::wifstream &, std::wstring)> parseFromFile
+)
 {
     std::vector<std::wstring> pastIncludes;
-    executeAllIncludes(program, programSource, pastIncludes);
+    executeAllIncludes(program, programSource, pastIncludes, parseFromFile);
 }

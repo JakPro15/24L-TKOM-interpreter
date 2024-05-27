@@ -227,3 +227,24 @@ const BuiltinFunction builtinMinInt = {
         }
     )
 };
+
+Program prepareBuiltinFunctions(
+    Position programPosition, const std::vector<std::wstring> &arguments, std::wistream &input, std::wostream &output
+)
+{
+    Program program(programPosition);
+    program.add(builtinNoArguments(arguments));
+    program.add(builtinArgument(arguments));
+    program.add(builtinPrint(output));
+    program.add(builtinPrintln(output));
+    program.add(builtinInputLine(input));
+    program.add(builtinInput(input));
+    program.add(builtinLen);
+    program.add(builtinAbsFloat);
+    program.add(builtinAbsInt);
+    program.add(builtinMaxFloat);
+    program.add(builtinMaxInt);
+    program.add(builtinMinFloat);
+    program.add(builtinMinInt);
+    return program;
+}

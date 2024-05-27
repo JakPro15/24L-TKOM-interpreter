@@ -25,7 +25,7 @@ add_executable(
     lexerAndParserTest.cpp
     semanticAnalysisTest.cpp
     lexerParserSemanticTest.cpp
-    testBuiltinFunctions.cpp
+    builtinFunctionsTest.cpp
 )
 target_compile_options(Tests PUBLIC -fprofile-arcs -ftest-coverage)
 target_include_directories(Tests PUBLIC include)

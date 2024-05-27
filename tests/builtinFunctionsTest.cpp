@@ -1,4 +1,5 @@
 #include "builtinFunctions.hpp"
+
 #include "runtimeExceptions.hpp"
 
 #include <catch2/catch_test_macros.hpp>
@@ -174,4 +175,23 @@ TEST_CASE("max(int, int), min(int, int)", "[builtinFunctions]")
     arg2.value = -20;
     REQUIRE(builtinMaxInt.second.body(Position{1, 1}, L"<test>", {arg1, arg2}) == Object{{INT}, -3});
     REQUIRE(builtinMinInt.second.body(Position{1, 1}, L"<test>", {arg1, arg2}) == Object{{INT}, -20});
+}
+
+TEST_CASE("prepareBuiltinFunctions", "[builtinFunctions]")
+{
+    std::wstringstream iostream;
+    Program builtins = prepareBuiltinFunctions({2, 1}, {}, iostream, iostream);
+    REQUIRE(builtins.getPosition() == Position{2, 1});
+    REQUIRE(builtins.includes.size() == 0);
+    REQUIRE(builtins.variants.size() == 0);
+    REQUIRE(builtins.structs.size() == 0);
+    std::vector<FunctionIdentification> builtinIds = {
+        {L"no_arguments", {}},    {L"argument", {{INT}}},       {L"print", {{STR}}},      {L"println", {{STR}}},
+        {L"input", {}},           {L"input", {{INT}}},          {L"len", {{STR}}},        {L"abs", {{INT}}},
+        {L"abs", {{FLOAT}}},      {L"max", {{FLOAT}, {FLOAT}}}, {L"max", {{INT}, {INT}}}, {L"min", {{FLOAT}, {FLOAT}}},
+        {L"min", {{INT}, {INT}}},
+    };
+    REQUIRE(builtins.functions.size() == builtinIds.size());
+    for(const FunctionIdentification &id: builtinIds)
+        REQUIRE(builtins.functions.count(id) == 1);
 }

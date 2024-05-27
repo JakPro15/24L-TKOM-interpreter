@@ -10,3 +10,7 @@ BuiltinFunction builtinInputLine(std::wistream &input);
 BuiltinFunction builtinInput(std::wistream &input);
 extern const BuiltinFunction builtinLen, builtinAbsFloat, builtinAbsInt, builtinMaxFloat, builtinMaxInt,
     builtinMinFloat, builtinMinInt;
+
+Program prepareBuiltinFunctions(
+    Position programPosition, const std::vector<std::wstring> &arguments, std::wistream &input, std::wostream &output
+);

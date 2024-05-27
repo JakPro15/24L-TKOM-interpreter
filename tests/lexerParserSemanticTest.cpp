@@ -584,3 +584,104 @@ TEST_CASE("structures", "[Lexer+Parser+SemanticAnalyzer]")
              L"}\n";
     REQUIRE_THROWS(getTree(source));
 }
+
+TEST_CASE("functions", "[Lexer+Parser+SemanticAnalyzer]")
+{
+    std::wstring source = L"func funkcja(int a, str b) -> bool\n"
+                          L"{\n"
+                          L"    # instrukcje\n"
+                          L"    return true;\n"
+                          L"}\n"
+                          L"func funkcja(int$ a)\n"
+                          L"{\n"
+                          L"    # instrukcje\n"
+                          L"}\n";
+    checkProcessing(
+        source, {}, {},
+        {L"funkcja(int, str): FunctionDeclaration <line: 1, col: 1> source=<test> returnType=bool\n"
+         L"|-Parameters:\n"
+         L"||-VariableDeclaration <line: 1, col: 14> type=int name=a mutable=false\n"
+         L"|`-VariableDeclaration <line: 1, col: 21> type=str name=b mutable=false\n"
+         L"`-Body:\n"
+         L" `-ReturnStatement <line: 4, col: 5>\n"
+         L"  `-Literal <line: 4, col: 12> type=bool value=true\n",
+         L"funkcja(int): FunctionDeclaration <line: 6, col: 1> source=<test>\n"
+         L"`-Parameters:\n"
+         L" `-VariableDeclaration <line: 6, col: 14> type=int name=a mutable=true\n"}
+    );
+
+    source = L"func funkcja(int$ a)\n"
+             L"{\n"
+             L"    if(a === 3) {\n"
+             L"        return;\n"
+             L"    }\n"
+             L"    a = a + 1;\n"
+             L"}\n";
+    checkProcessing(
+        source, {}, {},
+        {L"funkcja(int): FunctionDeclaration <line: 1, col: 1> source=<test>\n"
+         L"|-Parameters:\n"
+         L"|`-VariableDeclaration <line: 1, col: 14> type=int name=a mutable=true\n"
+         L"`-Body:\n"
+         L" |-IfStatement <line: 3, col: 5>\n"
+         L" |`-SingleIfCase <line: 3, col: 5>\n"
+         L" | |-IdenticalExpression <line: 3, col: 8>\n"
+         L" | ||-Variable <line: 3, col: 8> name=a\n"
+         L" | |`-Literal <line: 3, col: 14> type=int value=3\n"
+         L" | `-ReturnStatement <line: 4, col: 9>\n"
+         L" `-AssignmentStatement <line: 6, col: 5>\n"
+         L"  |-Assignable <line: 6, col: 5> right=a\n"
+         L"  `-PlusExpression <line: 6, col: 9>\n"
+         L"   |-Variable <line: 6, col: 9> name=a\n"
+         L"   `-Literal <line: 6, col: 13> type=int value=1\n"}
+    );
+
+    source = L"func f(int a, int$ b)\n"
+             L"{\n"
+             L"    a = 3; # błąd - a jest niemutowalne\n"
+             L"}\n";
+    REQUIRE_THROWS(getTree(source));
+
+    source = L"func f(int a, str b) -> int { return 1; }\n"
+             L"func f(int a, int b) -> int { return 2; }\n"
+             L"\n"
+             L"func main() {\n"
+             L"    int c = f(1, 2);   # c === 2\n"
+             L"}\n";
+    checkProcessing(
+        source, {}, {},
+        {L"f(int, str): FunctionDeclaration <line: 1, col: 1> source=<test> returnType=int\n"
+         L"|-Parameters:\n"
+         L"||-VariableDeclaration <line: 1, col: 8> type=int name=a mutable=false\n"
+         L"|`-VariableDeclaration <line: 1, col: 15> type=str name=b mutable=false\n"
+         L"`-Body:\n"
+         L" `-ReturnStatement <line: 1, col: 31>\n"
+         L"  `-Literal <line: 1, col: 38> type=int value=1\n",
+         L"f(int, int): FunctionDeclaration <line: 2, col: 1> source=<test> returnType=int\n"
+         L"|-Parameters:\n"
+         L"||-VariableDeclaration <line: 2, col: 8> type=int name=a mutable=false\n"
+         L"|`-VariableDeclaration <line: 2, col: 15> type=int name=b mutable=false\n"
+         L"`-Body:\n"
+         L" `-ReturnStatement <line: 2, col: 31>\n"
+         L"  `-Literal <line: 2, col: 38> type=int value=2\n",
+         L"main: FunctionDeclaration <line: 4, col: 1> source=<test>\n"
+         L"`-Body:\n"
+         L" `-VariableDeclStatement <line: 5, col: 5>\n"
+         L"  |-VariableDeclaration <line: 5, col: 5> type=int name=c mutable=false\n"
+         L"  `-FunctionCall <line: 5, col: 13> functionName=f\n"
+         L"   |-Literal <line: 5, col: 15> type=int value=1\n"
+         L"   `-Literal <line: 5, col: 18> type=int value=2\n"}
+    );
+
+    source = L"func f(int a, str b) -> int { return 1; }\n"
+             L"func f(int a, int b) -> int { return 2; }\n"
+             L"\n"
+             L"func main() {\n"
+             L"    f(1, 2.5);       # błąd - niejednoznaczne wywołanie funkcji\n"
+             L"}\n";
+    REQUIRE_THROWS(getTree(source));
+
+    source = L"func f(int a) {}\n"
+             L"func f(int$ a) {} # błąd - duplikat funkcji\n";
+    REQUIRE_THROWS(getTree(source));
+}

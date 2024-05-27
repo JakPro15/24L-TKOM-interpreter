@@ -508,8 +508,9 @@ Wartość jest zwracana z funkcji przez słowo kluczowe `return`. Możliwe jest 
 ```
 func funkcja(int$ a)
 {
-    if(a === 3)
+    if(a === 3) {
         return;
+    }
     a = a + 1;
 }
 
@@ -575,6 +576,13 @@ func main() {
     int c = f(1, 2);   # c === 2
     # f(1, 2.5);       # błąd - niejednoznaczne wywołanie funkcji
 }
+```
+
+Nie jest możliwe przeciążanie funkcji po mutowalności argumentu.
+
+```
+func f(int a) {}
+func f(int$ a) {} # błąd - duplikat funkcji
 ```
 
 

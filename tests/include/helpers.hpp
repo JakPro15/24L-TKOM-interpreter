@@ -1,3 +1,7 @@
+#ifndef HELPERS_HPP
+#define HELPERS_HPP
+
+#include "documentTree.hpp"
 #include "printingVisitor.hpp"
 
 #include <catch2/catch_test_macros.hpp>
@@ -18,3 +22,7 @@ void checkNodeContainer(NodeContainer &container, const std::set<std::wstring> &
     }
     REQUIRE(results == expected);
 }
+
+std::unique_ptr<Literal> makeLiteral(Position position, std::variant<std::wstring, int32_t, double, bool> value);
+
+#endif

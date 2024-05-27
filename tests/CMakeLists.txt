@@ -17,7 +17,8 @@ endif()
 add_executable(
     Tests
     include/fakeLexer.hpp
-    include/checkNodeContainer.hpp
+    include/helpers.hpp
+    helpers.cpp
     readerTest.cpp
     lexerTest.cpp
     commentDiscarderTest.cpp
@@ -26,6 +27,7 @@ add_executable(
     semanticAnalysisTest.cpp
     lexerParserSemanticTest.cpp
     builtinFunctionsTest.cpp
+    interpreterTest.cpp
 )
 target_compile_options(Tests PUBLIC -fprofile-arcs -ftest-coverage)
 target_include_directories(Tests PUBLIC include)

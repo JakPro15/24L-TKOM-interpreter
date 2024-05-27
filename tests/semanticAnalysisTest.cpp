@@ -1,7 +1,7 @@
 #include "semanticAnalysis.hpp"
 
-#include "checkNodeContainer.hpp"
 #include "documentTree.hpp"
+#include "helpers.hpp"
 #include "semanticExceptions.hpp"
 
 #include <catch2/catch_test_macros.hpp>
@@ -286,11 +286,6 @@ const std::wstring wrappedFunctionHeader =
     L"||-VariableDeclaration <line: 2, col: 20> type=vart1 name=v1 mutable=true\n"
     L"||-VariableDeclaration <line: 2, col: 30> type=strt2 name=s2 mutable=true\n"
     L"|`-VariableDeclaration <line: 2, col: 40> type=vart2 name=v2 mutable=true\n";
-
-std::unique_ptr<Literal> makeLiteral(Position position, std::variant<std::wstring, int32_t, double, bool> value)
-{
-    return std::make_unique<Literal>(position, value);
-}
 
 TEST_CASE("VariableDeclStatement cast insertion", "[doSemanticAnalysis]")
 {

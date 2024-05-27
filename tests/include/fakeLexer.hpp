@@ -1,3 +1,6 @@
+#ifndef FAKELEXER_HPP
+#define FAKELEXER_HPP
+
 #include "iLexer.hpp"
 
 template <typename TokenContainer>
@@ -21,3 +24,5 @@ public:
 private:
     decltype(std::begin(std::declval<const TokenContainer &>())) current, end;
 };
+
+#endif

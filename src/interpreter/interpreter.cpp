@@ -129,40 +129,38 @@ int32_t Interpreter::cast(double value, Position position)
 {
     value = std::round(value);
     if(value < std::numeric_limits<int32_t>::min() || value > std::numeric_limits<int32_t>::max() || std::isnan(value))
-        throw IntegerRangeError(
+        throw CastImpossibleError(
             std::format(L"Conversion of float {} to integer would result in a value out of integer range", value),
             currentSource, position
         );
     return static_cast<int32_t>(value);
 }
 
-template <>
-int32_t Interpreter::cast(const std::wstring &value, Position position)
+template <typename NumberType>
+NumberType Interpreter::fromString(const std::wstring &value, Position position, const std::wstring &typeName)
 {
-    long converted;
-    try
-    {
-        converted = std::stol(value);
-    }
-    catch(const std::invalid_argument &e)
-    {
+    std::wstringstream stream(value);
+    NumberType converted;
+    stream >> converted;
+    if(stream.fail())
         throw CastImpossibleError(
-            std::format(L"Conversion of string {} to integer failed", value), currentSource, position
+            std::format(L"Conversion of string {} to {} failed", value, typeName), currentSource, position
         );
-    }
-    catch(const std::out_of_range &e)
-    {
-        throw IntegerRangeError(
-            std::format(L"Conversion of string {} to integer would result in a value out of integer range", value),
-            currentSource, position
+    std::wstring rest;
+    rest.resize(value.size());
+    stream.read(&rest[0], value.size());
+    rest.resize(stream.gcount());
+    if(!std::all_of(rest.begin(), rest.end(), isspace))
+        throw CastImpossibleError(
+            std::format(L"Conversion of string {} to {} failed", value, typeName), currentSource, position
         );
-    }
-    if(converted < std::numeric_limits<int32_t>::min() || converted > std::numeric_limits<int32_t>::max())
-        throw IntegerRangeError(
-            std::format(L"Conversion of string {} to integer would result in a value out of integer range", value),
-            currentSource, position
-        );
-    return static_cast<int32_t>(converted);
+    return converted;
+}
+
+template <>
+int32_t Interpreter::cast(std::wstring value, Position position)
+{
+    return fromString<int32_t>(value, position, L"integer");
 }
 
 template <>
@@ -178,25 +176,9 @@ double Interpreter::cast(int32_t value, Position)
 }
 
 template <>
-double Interpreter::cast(const std::wstring &value, Position position)
+double Interpreter::cast(std::wstring value, Position position)
 {
-    try
-    {
-        return std::stod(value);
-    }
-    catch(const std::invalid_argument &e)
-    {
-        throw CastImpossibleError(
-            std::format(L"Conversion of string {} to integer failed", value), currentSource, position
-        );
-    }
-    catch(const std::out_of_range &e)
-    {
-        throw IntegerRangeError(
-            std::format(L"Conversion of string {} to integer would result in a value out of integer range", value),
-            currentSource, position
-        );
-    }
+    return fromString<double>(value, position, L"float");
 }
 
 template <>
@@ -208,13 +190,13 @@ double Interpreter::cast(bool value, Position)
 template <>
 std::wstring Interpreter::cast(int32_t value, Position)
 {
-    return std::to_wstring(value);
+    return std::format(L"{}", value);
 }
 
 template <>
 std::wstring Interpreter::cast(double value, Position)
 {
-    return std::to_wstring(value);
+    return std::format(L"{}", value);
 }
 
 template <>
@@ -239,7 +221,7 @@ bool Interpreter::cast(double value, Position)
 }
 
 template <>
-bool Interpreter::cast(const std::wstring &value, Position)
+bool Interpreter::cast(std::wstring value, Position)
 {
     return value.size() > 0;
 }
@@ -248,7 +230,8 @@ template <typename TargetType>
 Object Interpreter::getCastedObject(Type::Builtin targetType, Position position)
 {
     return Object(
-        {targetType}, std::visit([&](auto value) { return cast<TargetType>(value, position); }, getLastResult().value)
+        {targetType},
+        std::visit([&](const auto &value) { return cast<TargetType>(value, position); }, getLastResult().value)
     );
 }
 

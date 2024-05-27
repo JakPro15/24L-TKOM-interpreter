@@ -32,6 +32,8 @@ private:
     Object &getLastResult();
     const std::vector<Field> &getFields(const std::wstring &typeName);
 
+    template <typename NumberType>
+    NumberType fromString(const std::wstring &value, Position position, const std::wstring &typeName);
     template <typename TargetType, typename SourceType>
     TargetType cast(SourceType value, Position position);
     template <typename TargetType>

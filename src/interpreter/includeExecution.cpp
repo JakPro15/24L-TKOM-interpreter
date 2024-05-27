@@ -20,7 +20,7 @@ void mergePrograms(Program &program, Program &toAdd)
 
     for(auto &function: toAdd.functions)
     {
-        if(program.functions.find(function.first) != program.functions.end())
+        if(program.functions.count(function.first) == 1)
             throw DuplicateFunctionError(
                 std::format(L"Duplicate function with signature {}", function.first), function.second->getSource(),
                 function.second->getPosition()

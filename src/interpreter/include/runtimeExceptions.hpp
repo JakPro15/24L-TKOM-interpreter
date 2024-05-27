@@ -23,6 +23,7 @@ DECLARE_RUNTIME_ERROR(IntegerRangeError);
 DECLARE_RUNTIME_ERROR(StandardInputError);
 DECLARE_RUNTIME_ERROR(StandardOutputError);
 DECLARE_RUNTIME_ERROR(MainNotFoundError);
+DECLARE_RUNTIME_ERROR(MainReturnTypeError);
 
 class RuntimeSemanticException: public std::runtime_error
 {

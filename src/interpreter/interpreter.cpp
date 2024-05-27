@@ -191,5 +191,11 @@ void Interpreter::visit(Program &visited)
             L"main function has not been found in the program", currentSource, program.getPosition()
         );
     functions = &program.functions;
+    auto &main = functions->at({L"main", {}});
+    if(main->returnType)
+        throw MainReturnTypeError(
+            std::format(L"main function should not return a type, returns {}", *main->returnType), currentSource,
+            main->getPosition()
+        );
     program.functions.at({L"main", {}})->accept(*this);
 }

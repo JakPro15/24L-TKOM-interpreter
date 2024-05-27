@@ -36,7 +36,7 @@ class SemanticError: public ErrorAtPosition
     class class_name: public SemanticError  \
     {                                       \
         using SemanticError::SemanticError; \
-    };
+    }
 
 DECLARE_SEMANTIC_ERROR(UnknownFieldTypeError);
 DECLARE_SEMANTIC_ERROR(UnknownVariableTypeError);

@@ -11,11 +11,8 @@
 
 using enum Type::Builtin;
 
-#define EMPTY_VISIT(type)              \
-    void visit(type &visited) override \
-    {                                  \
-        static_cast<void>(visited);    \
-    }
+#define EMPTY_VISIT(type) \
+    void visit(type &) override {}
 
 namespace {
 class SemanticAnalyzer: public DocumentTreeVisitor

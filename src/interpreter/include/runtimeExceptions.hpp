@@ -12,24 +12,21 @@ class RuntimeError: public ErrorAtPosition
     using ErrorAtPosition::ErrorAtPosition;
 };
 
-class BuiltinFunctionArgumentError: public RuntimeError
-{
-    using RuntimeError::RuntimeError;
-};
+#define DECLARE_RUNTIME_ERROR(class_name) \
+    class class_name: public RuntimeError \
+    {                                     \
+        using RuntimeError::RuntimeError; \
+    }
 
-class IntegerRangeError: public RuntimeError
-{
-    using RuntimeError::RuntimeError;
-};
+DECLARE_RUNTIME_ERROR(BuiltinFunctionArgumentError);
+DECLARE_RUNTIME_ERROR(IntegerRangeError);
+DECLARE_RUNTIME_ERROR(StandardInputError);
+DECLARE_RUNTIME_ERROR(StandardOutputError);
+DECLARE_RUNTIME_ERROR(MainNotFoundError);
 
-class StandardInputError: public RuntimeError
+class RuntimeSemanticException: public std::runtime_error
 {
-    using RuntimeError::RuntimeError;
-};
-
-class StandardOutputError: public RuntimeError
-{
-    using RuntimeError::RuntimeError;
+    using std::runtime_error::runtime_error;
 };
 
 #endif

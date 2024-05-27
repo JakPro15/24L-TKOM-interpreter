@@ -3,6 +3,7 @@
 
 #include <functional>
 #include <iostream>
+#include <stack>
 #include <string>
 #include <vector>
 
@@ -10,15 +11,25 @@ class Interpreter: public DocumentTreeVisitor
 {
 public:
     Interpreter(
-        std::vector<std::wstring> arguments, std::istream &input, std::ostream &output,
+        std::wstring programSource, std::vector<std::wstring> arguments, std::wistream &input, std::wostream &output,
         std::function<Program(std::wifstream &, std::wstring)> parseFromFile
     );
     void visit(Program &visited) override;
 private:
+    Position callPosition;
+    std::wstring currentSource;
     std::vector<std::wstring> arguments;
-    std::istream &input;
-    std::ostream &output;
+    std::wistream &input;
+    std::wostream &output;
     std::function<Program(std::wifstream &, std::wstring)> parseFromFile;
+    std::variant<std::monostate, Object, std::reference_wrapper<Object>> lastResult;
+    std::stack<std::vector<std::unordered_map<std::wstring, Object>>> variables;
+    std::unordered_map<FunctionIdentification, std::unique_ptr<BaseFunctionDeclaration>> *functions;
+    std::vector<std::reference_wrapper<Object>> functionArguments;
+
+    Object &getVariable(const std::wstring &name);
+    void addVariable(const std::wstring &name, const Object &object);
+    Object &getLastResult();
 
     void visit(Literal &visited) override;
     void visit(Variable &visited) override;

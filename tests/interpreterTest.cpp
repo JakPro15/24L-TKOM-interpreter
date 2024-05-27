@@ -199,3 +199,55 @@ TEST_CASE("CastExpression", "[Interpreter]")
     doCastTest({BOOL}, L"", L"false");
     doCastTest({BOOL}, L"abc", L"true");
 }
+
+TEST_CASE("FunctionDeclaration and passing values by reference", "[Interpreter]")
+{
+    Program program({1, 1});
+    std::vector<std::unique_ptr<Instruction>> instructions;
+    instructions.push_back(
+        std::make_unique<AssignmentStatement>(Position{2, 1}, Assignable({2, 1}, L"a"), makeLiteral({2, 10}, 3))
+    );
+    instructions.push_back(std::make_unique<ReturnStatement>(Position{3, 1}, makeLiteral({3, 10}, 4)));
+    instructions.push_back(
+        std::make_unique<AssignmentStatement>(Position{4, 1}, Assignable({4, 1}, L"a"), makeLiteral({4, 10}, 5))
+    );
+    program.functions.emplace(
+        FunctionIdentification(L"f", {{INT}}),
+        std::make_unique<FunctionDeclaration>(
+            Position{1, 1}, L"<test>",
+            std::vector<VariableDeclaration>{VariableDeclaration({1, 10}, {INT}, L"a", true)}, Type{INT},
+            std::move(instructions)
+        )
+    );
+
+    instructions.clear();
+    instructions.push_back(std::make_unique<VariableDeclStatement>(
+        Position{6, 1}, VariableDeclaration({6, 1}, {INT}, L"a", true), makeLiteral({6, 10}, 2)
+    ));
+    std::vector<std::unique_ptr<Expression>> arguments;
+    arguments.push_back(std::make_unique<Variable>(Position{7, 20}, L"a"));
+    instructions.push_back(std::make_unique<VariableDeclStatement>(
+        Position{7, 1}, VariableDeclaration({7, 1}, {INT}, L"b", false),
+        std::make_unique<FunctionCall>(Position{7, 10}, L"f", std::move(arguments))
+    ));
+    arguments.clear();
+    arguments.push_back(std::make_unique<Variable>(Position{8, 10}, L"a"));
+    instructions.push_back(std::make_unique<FunctionCallInstruction>(
+        Position{8, 1}, FunctionCall({8, 1}, L"println", std::move(arguments))
+    ));
+    arguments.clear();
+    arguments.push_back(std::make_unique<Variable>(Position{9, 10}, L"b"));
+    instructions.push_back(std::make_unique<FunctionCallInstruction>(
+        Position{9, 1}, FunctionCall({9, 1}, L"println", std::move(arguments))
+    ));
+    program.functions.emplace(
+        FunctionIdentification(L"main", {}),
+        std::make_unique<FunctionDeclaration>(
+            Position{1, 1}, L"<test>", std::vector<VariableDeclaration>{}, std::nullopt, std::move(instructions)
+        )
+    );
+    std::wstringstream input, output;
+    Interpreter interpreter(L"<test>", {}, input, output, parseFromStream);
+    interpreter.visit(program);
+    REQUIRE(output.str() == L"3\n4\n");
+}

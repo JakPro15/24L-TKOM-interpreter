@@ -12,11 +12,24 @@ using enum Type::Builtin;
 Interpreter::Interpreter(
     std::wstring programSource, std::vector<std::wstring> arguments, std::wistream &input, std::wostream &output,
     std::function<Program(std::wifstream &, std::wstring)> parseFromFile
-): currentSource(programSource), arguments(arguments), input(input), output(output), parseFromFile(parseFromFile)
+):
+    currentSource(programSource), arguments(arguments), input(input), output(output), parseFromFile(parseFromFile),
+    shouldReturn(false)
 {}
 
 #define EMPTY_VISIT(type) \
     void Interpreter::visit(type &) {}
+
+namespace {
+template <typename... Types>
+Object &getObject(std::variant<Types...> &variant)
+{
+    if(std::holds_alternative<std::reference_wrapper<Object>>(variant))
+        return std::get<std::reference_wrapper<Object>>(variant).get();
+    else
+        return std::get<Object>(variant);
+}
+}
 
 Object &Interpreter::getVariable(const std::wstring &name)
 {
@@ -24,7 +37,7 @@ Object &Interpreter::getVariable(const std::wstring &name)
     {
         auto found = scope.find(name);
         if(found != scope.end())
-            return found->second;
+            return getObject(found->second);
     }
     throw RuntimeSemanticException("Variable not found");
 }
@@ -34,12 +47,14 @@ void Interpreter::addVariable(const std::wstring &name, const Object &object)
     variables.top()[variables.top().size() - 1].insert({name, object});
 }
 
+void Interpreter::addVariable(const std::wstring &name, std::reference_wrapper<Object> object)
+{
+    variables.top()[variables.top().size() - 1].insert({name, object});
+}
+
 Object &Interpreter::getLastResult()
 {
-    if(std::holds_alternative<std::reference_wrapper<Object>>(lastResult))
-        return std::get<std::reference_wrapper<Object>>(lastResult).get();
-    else
-        return std::get<Object>(lastResult);
+    return getObject(lastResult);
 }
 
 const std::vector<Field> &Interpreter::getFields(const std::wstring &typeName)
@@ -318,7 +333,12 @@ void Interpreter::visit(FunctionCallInstruction &visited)
     visit(visited.functionCall);
 }
 
-void Interpreter::visit(ReturnStatement &) {}
+void Interpreter::visit(ReturnStatement &visited)
+{
+    if(visited.returnValue)
+        visited.returnValue->accept(*this);
+    shouldReturn = true;
+}
 
 void Interpreter::visit(ContinueStatement &) {}
 
@@ -340,7 +360,12 @@ void Interpreter::visit(FunctionDeclaration &visited)
     for(unsigned i = 0; i < functionArguments.size(); i++)
         addVariable(visited.parameters.at(i).name, functionArguments.at(i));
     for(auto &instruction: visited.body)
+    {
         instruction->accept(*this);
+        if(shouldReturn)
+            break;
+    }
+    shouldReturn = false;
     variables.pop();
 }
 

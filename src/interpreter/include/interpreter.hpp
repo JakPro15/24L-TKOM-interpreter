@@ -33,7 +33,6 @@ private:
     void addVariable(const std::wstring &name, const Object &object);
     void addVariable(const std::wstring &name, std::reference_wrapper<Object> object);
     Object &getLastResult();
-    const std::vector<Field> &getFields(const std::wstring &typeName);
 
     template <typename NumberType>
     NumberType fromString(const std::wstring &value, Position position, const std::wstring &typeName);

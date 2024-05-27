@@ -251,3 +251,81 @@ TEST_CASE("FunctionDeclaration and passing values by reference", "[Interpreter]"
     interpreter.visit(program);
     REQUIRE(output.str() == L"3\n4\n");
 }
+
+TEST_CASE("BuiltinFunctionDeclaration value returned", "[Interpreter]")
+{
+    Program program({1, 1});
+    std::vector<std::unique_ptr<Instruction>> instructions;
+    std::vector<std::unique_ptr<Expression>> arguments;
+    arguments.push_back(makeLiteral({2, 20}, L"abc"));
+    instructions.push_back(std::make_unique<VariableDeclStatement>(
+        Position{2, 1}, VariableDeclaration({2, 1}, {INT}, L"a", false),
+        std::make_unique<FunctionCall>(Position{2, 10}, L"len", std::move(arguments))
+    ));
+    arguments.clear();
+    arguments.push_back(std::make_unique<Variable>(Position{3, 10}, L"a"));
+    instructions.push_back(
+        std::make_unique<FunctionCallInstruction>(Position{3, 1}, FunctionCall({3, 1}, L"print", std::move(arguments)))
+    );
+    program.functions.emplace(
+        FunctionIdentification(L"main", {}),
+        std::make_unique<FunctionDeclaration>(
+            Position{1, 1}, L"<test>", std::vector<VariableDeclaration>{}, std::nullopt, std::move(instructions)
+        )
+    );
+    std::wstringstream input, output;
+    Interpreter interpreter(L"<test>", {}, input, output, parseFromStream);
+    interpreter.visit(program);
+    REQUIRE(output.str() == L"3");
+}
+
+TEST_CASE("StructExpression and struct field assignment", "[Interpreter]")
+{
+    Program program({1, 1});
+    program.structs.emplace(
+        L"S", StructDeclaration(
+                  Position{1, 1}, L"<test>",
+                  {
+                      Field({1, 10}, {INT}, L"a"),
+                      Field({1, 20}, {FLOAT}, L"b"),
+                  }
+              )
+    );
+
+    std::vector<std::unique_ptr<Instruction>> instructions;
+    std::vector<std::unique_ptr<Expression>> arguments;
+    arguments.push_back(makeLiteral(Position{2, 20}, 2));
+    arguments.push_back(makeLiteral(Position{2, 30}, 3.5));
+    instructions.push_back(std::make_unique<VariableDeclStatement>(
+        Position{2, 1}, VariableDeclaration({2, 1}, {L"S"}, L"s", true),
+        std::make_unique<StructExpression>(Position{2, 10}, std::move(arguments))
+    ));
+    instructions.push_back(std::make_unique<AssignmentStatement>(
+        Position{3, 1}, Assignable({3, 1}, std::make_unique<Assignable>(Position{3, 1}, L"s"), L"a"),
+        makeLiteral({3, 10}, 3)
+    ));
+    arguments.clear();
+    arguments.push_back(
+        std::make_unique<DotExpression>(Position{4, 10}, std::make_unique<Variable>(Position{4, 10}, L"s"), L"a")
+    );
+    instructions.push_back(std::make_unique<FunctionCallInstruction>(
+        Position{4, 1}, FunctionCall({4, 1}, L"println", std::move(arguments))
+    ));
+    arguments.clear();
+    arguments.push_back(
+        std::make_unique<DotExpression>(Position{5, 10}, std::make_unique<Variable>(Position{5, 10}, L"s"), L"b")
+    );
+    instructions.push_back(std::make_unique<FunctionCallInstruction>(
+        Position{5, 1}, FunctionCall({5, 1}, L"println", std::move(arguments))
+    ));
+    program.functions.emplace(
+        FunctionIdentification(L"main", {}),
+        std::make_unique<FunctionDeclaration>(
+            Position{1, 1}, L"<test>", std::vector<VariableDeclaration>{}, std::nullopt, std::move(instructions)
+        )
+    );
+    std::wstringstream input, output;
+    Interpreter interpreter(L"<test>", {}, input, output, parseFromStream);
+    interpreter.visit(program);
+    REQUIRE(output.str() == L"3\n3.5\n");
+}

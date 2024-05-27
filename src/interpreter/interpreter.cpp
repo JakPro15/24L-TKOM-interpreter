@@ -29,6 +29,19 @@ Object &getObject(std::variant<Types...> &variant)
     else
         return std::get<Object>(variant);
 }
+
+Object &getField(
+    Object &structure, std::unordered_map<std::wstring, StructDeclaration>::iterator structFound,
+    const std::wstring &fieldName
+)
+{
+    const std::vector<Field> &fields = structFound->second.fields;
+    unsigned fieldIndex = std::find_if(
+                              fields.begin(), fields.end(), [&](const Field &field) { return field.name == fieldName; }
+                          ) -
+                          fields.begin();
+    return std::get<std::vector<Object>>(structure.value)[fieldIndex];
+}
 }
 
 Object &Interpreter::getVariable(const std::wstring &name)
@@ -55,14 +68,6 @@ void Interpreter::addVariable(const std::wstring &name, std::reference_wrapper<O
 Object &Interpreter::getLastResult()
 {
     return getObject(lastResult);
-}
-
-const std::vector<Field> &Interpreter::getFields(const std::wstring &typeName)
-{
-    auto structFound = program->structs.find(typeName);
-    if(structFound != program->structs.end())
-        return structFound->second.fields;
-    return program->variants.at(typeName).fields;
 }
 
 void Interpreter::visit(Literal &visited)
@@ -129,9 +134,23 @@ void Interpreter::visit(NotExpression &) {}
 
 void Interpreter::visit(SubscriptExpression &) {}
 
-void Interpreter::visit(DotExpression &) {}
+void Interpreter::visit(DotExpression &visited)
+{
+    visited.value->accept(*this);
+    Object &left = getLastResult();
+    lastResult = getField(left, program->structs.find(std::get<std::wstring>(left.type.value)), visited.field);
+}
 
-void Interpreter::visit(StructExpression &) {}
+void Interpreter::visit(StructExpression &visited)
+{
+    std::vector<Object> fields;
+    for(auto &argument: visited.arguments)
+    {
+        argument->accept(*this);
+        fields.push_back(getLastResult());
+    }
+    lastResult = Object{{*visited.structType}, fields};
+}
 
 template <typename TargetType, typename SourceType>
 TargetType Interpreter::cast(SourceType, Position)
@@ -293,16 +312,10 @@ void Interpreter::visit(Assignable &visited)
     std::wstring typeName = std::get<std::wstring>(left.type.value);
 
     auto structFound = program->structs.find(typeName);
-    if(structFound != program->structs.end())
+    if(structFound == program->structs.end())
         return; // variant access case - leave lastResult as is
 
-    const std::vector<Field> &fields = structFound->second.fields;
-    unsigned fieldIndex = std::find_if(
-                              fields.begin(), fields.end(),
-                              [&](const Field &field) { return field.name == visited.right; }
-                          ) -
-                          fields.begin();
-    lastResult = std::reference_wrapper(std::get<std::vector<Object>>(left.value)[fieldIndex]);
+    lastResult = std::reference_wrapper(getField(left, structFound, visited.right));
 }
 
 void Interpreter::visit(AssignmentStatement &visited)

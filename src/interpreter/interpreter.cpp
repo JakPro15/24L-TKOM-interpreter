@@ -65,7 +65,15 @@ void Interpreter::addVariable(const std::wstring &name, std::reference_wrapper<O
     variables.top()[variables.top().size() - 1].insert({name, object});
 }
 
-Object &Interpreter::getLastResult()
+Object Interpreter::getLastResultValue()
+{
+    if(std::holds_alternative<std::reference_wrapper<Object>>(lastResult))
+        return Object(std::get<std::reference_wrapper<Object>>(lastResult).get());
+    else
+        return std::move(std::get<Object>(lastResult));
+}
+
+Object &Interpreter::getLastResultReference()
 {
     return getObject(lastResult);
 }
@@ -80,9 +88,9 @@ std::pair<LeftType, RightType> Interpreter::getBinaryOpArgs(BinaryOperation &vis
 template <typename LeftType, typename RightType, typename BinaryOperation>
 std::pair<LeftType, RightType> Interpreter::getBinaryOpArgsLeftAccepted(BinaryOperation &visited)
 {
-    LeftType left = std::get<LeftType>(getLastResult().value);
+    LeftType left = std::get<LeftType>(getLastResultReference().value);
     visited.right->accept(*this);
-    RightType right = std::get<RightType>(getLastResult().value);
+    RightType right = std::get<RightType>(getLastResultReference().value);
     return {left, right};
 }
 
@@ -161,7 +169,7 @@ void Interpreter::visit(LesserEqualExpression &) {}
 void Interpreter::visit(PlusExpression &visited)
 {
     visited.left->accept(*this);
-    if(getLastResult().type == Type{INT})
+    if(getLastResultReference().type == Type{INT})
     {
         auto [left, right] = getBinaryOpArgsLeftAccepted<int32_t, int32_t>(visited);
         lastResult = Object{{INT}, addIntegers(left, right, visited.getPosition())};
@@ -176,7 +184,7 @@ void Interpreter::visit(PlusExpression &visited)
 void Interpreter::visit(MinusExpression &visited)
 {
     visited.left->accept(*this);
-    if(getLastResult().type == Type{INT})
+    if(getLastResultReference().type == Type{INT})
     {
         auto [left, right] = getBinaryOpArgsLeftAccepted<int32_t, int32_t>(visited);
         if(right > std::numeric_limits<int32_t>::min())
@@ -212,7 +220,7 @@ void Interpreter::visit(SubscriptExpression &) {}
 void Interpreter::visit(DotExpression &visited)
 {
     visited.value->accept(*this);
-    Object &left = getLastResult();
+    Object &left = getLastResultReference();
     lastResult = getField(left, program->structs.find(std::get<std::wstring>(left.type.value)), visited.field);
 }
 
@@ -222,7 +230,7 @@ void Interpreter::visit(StructExpression &visited)
     for(auto &argument: visited.arguments)
     {
         argument->accept(*this);
-        fields.push_back(std::move(getLastResult()));
+        fields.push_back(getLastResultValue());
     }
     lastResult = Object{{*visited.structType}, std::move(fields)};
 }
@@ -341,7 +349,7 @@ Object Interpreter::getCastedObject(Type::Builtin targetType, Position position)
 {
     return Object(
         {targetType},
-        std::visit([&](const auto &value) { return cast<TargetType>(value, position); }, getLastResult().value)
+        std::visit([&](const auto &value) { return cast<TargetType>(value, position); }, getLastResultReference().value)
     );
 }
 
@@ -367,13 +375,13 @@ void Interpreter::visit(CastExpression &visited)
         }
     }
     else // cast to variant type case
-        getLastResult().type = visited.targetType;
+        lastResult = Object{{visited.targetType}, std::make_unique<Object>(getLastResultValue())};
 }
 
 void Interpreter::visit(VariableDeclStatement &visited)
 {
     visited.value->accept(*this);
-    addVariable(visited.declaration.name, std::move(getLastResult()));
+    addVariable(visited.declaration.name, getLastResultValue());
 }
 
 void Interpreter::visit(Assignable &visited)
@@ -384,7 +392,7 @@ void Interpreter::visit(Assignable &visited)
         return;
     }
     visit(*visited.left);
-    Object &left = getLastResult();
+    Object &left = getLastResultReference();
     std::wstring typeName = std::get<std::wstring>(left.type.value);
 
     auto structFound = program->structs.find(typeName);
@@ -397,9 +405,9 @@ void Interpreter::visit(Assignable &visited)
 void Interpreter::visit(AssignmentStatement &visited)
 {
     visit(visited.left);
-    Object &assignmentTarget = getLastResult();
+    Object &assignmentTarget = getLastResultReference();
     visited.right->accept(*this);
-    Object &value = getLastResult();
+    Object value = getLastResultValue();
     assignmentTarget.value = std::move(value.value);
 }
 
@@ -409,7 +417,7 @@ void Interpreter::visit(FunctionCall &visited)
     for(auto &argument: visited.arguments)
     {
         argument->accept(*this);
-        functionArguments.push_back(getLastResult());
+        functionArguments.push_back(getLastResultReference());
     }
     std::vector<Type> argumentTypes;
     for(auto &argument: functionArguments)
@@ -453,7 +461,7 @@ void Interpreter::visit(IfStatement &visited)
     for(SingleIfCase &singleCase: visited.cases)
     {
         visit(singleCase);
-        if(std::get<bool>(getLastResult().value))
+        if(std::get<bool>(getLastResultReference().value))
         {
             executeElse = false;
             visitInstructionBlock(singleCase.body);
@@ -478,7 +486,7 @@ void Interpreter::visit(IfStatement &visited)
 
 void Interpreter::visit(WhileStatement &visited)
 {
-    while(visited.condition->accept(*this), std::get<bool>(getLastResult().value))
+    while(visited.condition->accept(*this), std::get<bool>(getLastResultReference().value))
     {
         visitInstructionBlock(visited.body);
         HANDLE_LOOP_FLAGS;
@@ -492,7 +500,7 @@ void Interpreter::visit(DoWhileStatement &visited)
         visitInstructionBlock(visited.body);
         HANDLE_LOOP_FLAGS;
     }
-    while(visited.condition->accept(*this), std::get<bool>(getLastResult().value));
+    while(visited.condition->accept(*this), std::get<bool>(getLastResultReference().value));
 }
 
 void Interpreter::visit(FunctionDeclaration &visited)

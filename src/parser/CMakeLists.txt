@@ -7,6 +7,7 @@ add_library(
     include/parserExceptions.hpp
     include/printingVisitor.hpp
     type.cpp
+    object.cpp
     documentTree.cpp
     parser.cpp
     printingVisitor.cpp

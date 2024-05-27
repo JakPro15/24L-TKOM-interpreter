@@ -32,7 +32,8 @@ private:
     Object &getVariable(const std::wstring &name);
     void addVariable(const std::wstring &name, Object &&object);
     void addVariable(const std::wstring &name, std::reference_wrapper<Object> object);
-    Object &getLastResult();
+    Object getLastResultValue();
+    Object &getLastResultReference();
 
     template <typename NumberType>
     NumberType fromString(const std::wstring &value, Position position, const std::wstring &typeName);

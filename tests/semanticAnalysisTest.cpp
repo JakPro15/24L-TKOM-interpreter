@@ -1346,6 +1346,38 @@ TEST_CASE("FunctionCall - overload resolution with initialization list", "[doSem
     checkNodeContainer(program.functions, printedFunctions);
 }
 
+TEST_CASE("FunctionCall - runtime resolution verification", "[doSemanticAnalysis]")
+{
+    std::vector<std::unique_ptr<Instruction>> functionBody;
+    std::vector<std::unique_ptr<Expression>> functionArguments;
+    functionArguments.push_back(makeLiteral({4, 20}, 2));
+    functionArguments.push_back(std::make_unique<Variable>(Position{4, 30}, L"v1"));
+    functionArguments.push_back(std::make_unique<Variable>(Position{4, 40}, L"v2"));
+    functionBody.push_back(std::make_unique<AssignmentStatement>(
+        Position{4, 1}, Assignable(Position{4, 1}, L"arg"),
+        std::make_unique<FunctionCall>(Position{4, 10}, L"f", std::move(functionArguments))
+    ));
+    Program program = wrapInFunction(std::move(functionBody));
+    std::set<std::wstring> printedFunctions;
+    printedFunctions.insert(addOverload(program, FunctionIdentification(L"f", {{INT}, {INT}, {L"vart1"}}), {{INT}}));
+    printedFunctions.insert(addOverload(program, FunctionIdentification(L"f", {{INT}, {INT}, {L"strt1"}}), {{INT}}));
+    printedFunctions.insert(addOverload(program, FunctionIdentification(L"f", {{INT}, {STR}, {L"vart1"}}), {{INT}}));
+    printedFunctions.insert(addOverload(program, FunctionIdentification(L"f", {{INT}, {STR}, {L"strt1"}}), {{INT}}));
+    printedFunctions.insert(addOverload(program, FunctionIdentification(L"f", {{INT}, {FLOAT}, {L"vart1"}}), {{INT}}));
+    printedFunctions.insert(addOverload(program, FunctionIdentification(L"f", {{INT}, {FLOAT}, {L"strt1"}}), {{INT}}));
+    printedFunctions.insert(
+        wrappedFunctionHeader + L"`-Body:\n"
+                                L" `-AssignmentStatement <line: 4, col: 1>\n"
+                                L"  |-Assignable <line: 4, col: 1> right=arg\n"
+                                L"  `-FunctionCall <line: 4, col: 10> functionName=f\n"
+                                L"   |-Literal <line: 4, col: 20> type=int value=2\n"
+                                L"   |-Variable <line: 4, col: 30> name=v1\n"
+                                L"   `-Variable <line: 4, col: 40> name=v2\n"
+    );
+    doSemanticAnalysis(program);
+    checkNodeContainer(program.functions, printedFunctions);
+}
+
 TEST_CASE("FunctionCall - errors", "[doSemanticAnalysis]")
 {
     std::vector<std::unique_ptr<Instruction>> functionBody;
@@ -1408,6 +1440,98 @@ TEST_CASE("FunctionCall - errors", "[doSemanticAnalysis]")
     REQUIRE_THROWS_AS(
         doSemanticAnalysis(program), ImmutableError
     ); // cannot pass immutable or temporary value as mutable reference
+}
+
+TEST_CASE("FunctionCall - runtime resolution verification errors", "[doSemanticAnalysis]")
+{
+    std::vector<std::unique_ptr<Instruction>> functionBody;
+    std::vector<std::unique_ptr<Expression>> functionArguments;
+    functionArguments.push_back(makeLiteral({4, 20}, 2));
+    functionArguments.push_back(std::make_unique<Variable>(Position{4, 30}, L"v1"));
+    functionArguments.push_back(std::make_unique<Variable>(Position{4, 40}, L"v2"));
+    functionBody.push_back(std::make_unique<AssignmentStatement>(
+        Position{4, 1}, Assignable(Position{4, 1}, L"arg"),
+        std::make_unique<FunctionCall>(Position{4, 10}, L"f", std::move(functionArguments))
+    ));
+    Program program = wrapInFunction(std::move(functionBody));
+    addOverload(program, FunctionIdentification(L"f", {{INT}, {INT}, {L"vart1"}}), {{INT}});
+    addOverload(program, FunctionIdentification(L"f", {{INT}, {INT}, {L"strt1"}}), {{INT}});
+    addOverload(program, FunctionIdentification(L"f", {{INT}, {STR}, {L"vart1"}}), {{INT}});
+    addOverload(program, FunctionIdentification(L"f", {{INT}, {STR}, {L"strt1"}}), {{INT}});
+    addOverload(program, FunctionIdentification(L"f", {{INT}, {FLOAT}, {L"vart1"}}), {{STR}});
+    addOverload(program, FunctionIdentification(L"f", {{INT}, {FLOAT}, {L"strt1"}}), {{INT}});
+    REQUIRE_THROWS_AS(doSemanticAnalysis(program), InvalidFunctionCallError); // return types not all same
+
+    functionBody.clear();
+    functionArguments.clear();
+    functionArguments.push_back(makeLiteral({4, 20}, 2));
+    functionArguments.push_back(std::make_unique<Variable>(Position{4, 30}, L"v1"));
+    functionArguments.push_back(std::make_unique<Variable>(Position{4, 40}, L"v2"));
+    functionBody.push_back(std::make_unique<AssignmentStatement>(
+        Position{4, 1}, Assignable(Position{4, 1}, L"arg"),
+        std::make_unique<FunctionCall>(Position{4, 10}, L"f", std::move(functionArguments))
+    ));
+    program = wrapInFunction(std::move(functionBody));
+    addOverload(program, FunctionIdentification(L"f", {{INT}, {INT}, {L"vart1"}}), {{INT}});
+    addOverload(program, FunctionIdentification(L"f", {{INT}, {INT}, {L"strt1"}}), {{INT}});
+    addOverload(program, FunctionIdentification(L"f", {{INT}, {STR}, {L"vart1"}}), {{INT}});
+    addOverload(program, FunctionIdentification(L"f", {{FLOAT}, {STR}, {L"strt1"}}), {{INT}});
+    addOverload(program, FunctionIdentification(L"f", {{INT}, {FLOAT}, {L"vart1"}}), {{INT}});
+    addOverload(program, FunctionIdentification(L"f", {{INT}, {FLOAT}, {L"strt1"}}), {{INT}});
+    REQUIRE_THROWS_AS(doSemanticAnalysis(program), InvalidFunctionCallError); // one overload would require a cast
+
+    functionBody.clear();
+    functionArguments.clear();
+    functionArguments.push_back(makeLiteral({4, 20}, 2));
+    functionArguments.push_back(std::make_unique<Variable>(Position{4, 30}, L"v1"));
+    functionArguments.push_back(std::make_unique<Variable>(Position{4, 40}, L"v2"));
+    functionBody.push_back(std::make_unique<AssignmentStatement>(
+        Position{4, 1}, Assignable(Position{4, 1}, L"arg"),
+        std::make_unique<FunctionCall>(Position{4, 10}, L"f", std::move(functionArguments))
+    ));
+    program = wrapInFunction(std::move(functionBody));
+
+    std::vector<std::unique_ptr<Instruction>> instructions;
+    instructions.push_back(std::make_unique<ReturnStatement>(Position{0, 0}, makeLiteral({0, 0}, 2)));
+    auto function = std::make_unique<FunctionDeclaration>(
+        Position{1, 1}, L"<test>",
+        std::vector<VariableDeclaration>{
+            VariableDeclaration({0, 0}, {INT}, L"a", true), VariableDeclaration({0, 0}, {INT}, L"b", false),
+            VariableDeclaration({0, 0}, {L"vart1"}, L"c", false)
+        },
+        Type{INT}, std::move(instructions)
+    );
+    program.functions.emplace(FunctionIdentification(L"f", {{INT}, {INT}, {L"vart1"}}), std::move(function));
+    addOverload(program, FunctionIdentification(L"f", {{INT}, {INT}, {L"strt1"}}), {{INT}});
+    addOverload(program, FunctionIdentification(L"f", {{INT}, {STR}, {L"vart1"}}), {{INT}});
+    addOverload(program, FunctionIdentification(L"f", {{INT}, {STR}, {L"strt1"}}), {{INT}});
+    addOverload(program, FunctionIdentification(L"f", {{INT}, {FLOAT}, {L"vart1"}}), {{INT}});
+    addOverload(program, FunctionIdentification(L"f", {{INT}, {FLOAT}, {L"strt1"}}), {{INT}});
+    REQUIRE_THROWS_AS(doSemanticAnalysis(program), ImmutableError); // passing temporary as mutable reference
+
+    functionBody.clear();
+    functionArguments.clear();
+    functionArguments.push_back(makeLiteral({4, 20}, 2));
+    functionArguments.push_back(std::make_unique<Variable>(Position{4, 30}, L"v1"));
+    std::vector<std::unique_ptr<Expression>> structArguments;
+    structArguments.push_back(makeLiteral({4, 45}, 2));
+    structArguments.push_back(makeLiteral({4, 50}, 2));
+    structArguments.push_back(makeLiteral({4, 55}, 2));
+    functionArguments.push_back(std::make_unique<StructExpression>(Position{4, 40}, std::move(structArguments)));
+    functionBody.push_back(std::make_unique<AssignmentStatement>(
+        Position{4, 1}, Assignable(Position{4, 1}, L"arg"),
+        std::make_unique<FunctionCall>(Position{4, 10}, L"f", std::move(functionArguments))
+    ));
+    program = wrapInFunction(std::move(functionBody));
+    addOverload(program, FunctionIdentification(L"f", {{INT}, {INT}, {L"vart1"}}), {{INT}});
+    addOverload(program, FunctionIdentification(L"f", {{INT}, {INT}, {L"strt1"}}), {{INT}});
+    addOverload(program, FunctionIdentification(L"f", {{INT}, {STR}, {L"vart1"}}), {{INT}});
+    addOverload(program, FunctionIdentification(L"f", {{INT}, {STR}, {L"strt1"}}), {{INT}});
+    addOverload(program, FunctionIdentification(L"f", {{INT}, {FLOAT}, {L"vart1"}}), {{INT}});
+    addOverload(program, FunctionIdentification(L"f", {{INT}, {FLOAT}, {L"strt1"}}), {{INT}});
+    REQUIRE_THROWS_AS(
+        doSemanticAnalysis(program), InvalidFunctionCallError
+    ); // init lists not permitted in runtime resolution
 }
 
 TEST_CASE("conditional statements", "[doSemanticAnalysis]")

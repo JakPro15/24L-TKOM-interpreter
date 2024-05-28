@@ -302,6 +302,91 @@ public:
             insertCast(visited.right, rightType, leftType);
     }
 
+    InvalidFunctionCallError functionCallError(
+        const std::wstring &functionName, const std::vector<Type> &argumentTypes, Position position
+    )
+    {
+        return InvalidFunctionCallError(
+            std::format(
+                L"No matching function to call with name {} for argument types {}", functionName, argumentTypes
+            ),
+            currentSource, position
+        );
+    }
+
+    std::optional<Type> checkConcreteFunction(
+        const std::wstring &functionName, const std::vector<Type> &argumentTypes,
+        const std::vector<bool> &argumentsMutable, Position position
+    )
+    {
+        FunctionIdentification id(functionName, argumentTypes);
+        auto found = findIn(program.functions, FunctionIdentification(functionName, argumentTypes));
+        if(!found)
+            throw functionCallError(functionName, argumentTypes, position);
+        auto &function = (*found)->second;
+        validateArgumentMutability(id, function, argumentsMutable, position);
+        return function->returnType;
+    }
+
+    std::optional<Type> checkSingleVariantType(
+        std::vector<Field> &fields, unsigned indexToCheck, const std::wstring &functionName,
+        const std::vector<Type> &argumentTypes, const std::vector<bool> &argumentsMutable, Position position
+    )
+    {
+        std::optional<Type> returnType;
+        bool returnTypeSet = false;
+        for(Field &field: fields)
+        {
+            std::vector<Type> newArgumentTypes = argumentTypes;
+            newArgumentTypes[indexToCheck] = field.type;
+            std::optional<Type> returned = checkRemainingTypes(
+                indexToCheck + 1, functionName, newArgumentTypes, argumentsMutable, position
+            );
+            if(returnTypeSet && returnType != returned)
+                throw functionCallError(functionName, argumentTypes, position);
+            returnTypeSet = true;
+            returnType = returned;
+        }
+        return returnType;
+    }
+
+    std::optional<Type> checkRemainingTypes(
+        unsigned indexToCheck, const std::wstring &functionName, const std::vector<Type> &argumentTypes,
+        const std::vector<bool> &argumentsMutable, Position position
+    )
+    {
+        if(indexToCheck >= argumentTypes.size())
+            return checkConcreteFunction(functionName, argumentTypes, argumentsMutable, position);
+        if(argumentTypes[indexToCheck].isInitList())
+            throw functionCallError(functionName, argumentTypes, position);
+
+        std::vector<Field> *fields = getVariantFields(argumentTypes[indexToCheck]);
+        if(!fields) // struct or builtin case
+            return checkRemainingTypes(indexToCheck + 1, functionName, argumentTypes, argumentsMutable, position);
+        return checkSingleVariantType(*fields, indexToCheck, functionName, argumentTypes, argumentsMutable, position);
+    }
+
+    std::optional<Type> validateRuntimeRecognizable(
+        FunctionCall &visited, const std::vector<Type> &argumentTypes, const std::vector<bool> &argumentsMutable
+    )
+    {
+        return checkRemainingTypes(0, visited.functionName, argumentTypes, argumentsMutable, visited.getPosition());
+    }
+
+    std::optional<Type> alignArgumentTypes(
+        FunctionCall &visited, const std::vector<Type> &argumentTypes, const std::vector<bool> &argumentsMutable
+    )
+    {
+        auto bestId = getBestOverload(visited, argumentTypes);
+        if(!bestId)
+            return validateRuntimeRecognizable(visited, argumentTypes, argumentsMutable);
+        const std::unique_ptr<BaseFunctionDeclaration> &function = program.functions.at(*bestId);
+
+        validateArgumentMutability(*bestId, function, argumentsMutable, visited.getPosition());
+        insertArgumentConversions(*bestId, visited.arguments, argumentTypes);
+        return function->returnType;
+    }
+
     void visit(FunctionCall &visited) override
     {
         bool noReturnPermitted = noReturnFunctionPermitted;
@@ -312,13 +397,7 @@ public:
         if(auto variantFound = findIn(program.variants, visited.functionName))
             return visitVariantFunctionCall(visited, argumentTypes, (*variantFound)->second.fields);
 
-        const FunctionIdentification &bestId = getBestOverload(visited, argumentTypes);
-        const std::unique_ptr<BaseFunctionDeclaration> &function = program.functions.at(bestId);
-
-        validateArgumentMutability(bestId, function, argumentsMutable, visited.getPosition());
-        insertArgumentConversions(bestId, visited.arguments, argumentTypes);
-
-        auto returnType = function->returnType;
+        auto returnType = alignArgumentTypes(visited, argumentTypes, argumentsMutable);
         if(returnType)
             lastExpressionType = {*returnType, false};
         else if(!noReturnPermitted)
@@ -698,7 +777,7 @@ private:
         return {bestIndex, multipleBests};
     }
 
-    FunctionIdentification getBestOverload(FunctionCall &visited, const std::vector<Type> &argumentTypes)
+    std::optional<FunctionIdentification> getBestOverload(FunctionCall &visited, const std::vector<Type> &argumentTypes)
     {
         std::vector<FunctionIdentification> overloads = getFunctionIdsWithName(visited.functionName);
         std::vector<unsigned> conversionsNeeded;
@@ -706,13 +785,7 @@ private:
             conversionsNeeded.push_back(countNeededConversions(id.parameterTypes, argumentTypes));
         auto [bestIndex, multipleBests] = getMinimumIndex(conversionsNeeded);
         if(conversionsNeeded[bestIndex] == std::numeric_limits<unsigned>::max())
-            throw InvalidFunctionCallError(
-                std::format(
-                    L"No matching function to call with name {} for argument types {}", visited.functionName,
-                    argumentTypes
-                ),
-                currentSource, visited.getPosition()
-            );
+            return std::nullopt;
         if(multipleBests)
             throw AmbiguousFunctionCallError(
                 std::format(

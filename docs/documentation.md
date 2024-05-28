@@ -112,7 +112,8 @@ Poniższa tabela prezentuje wspierane operatory. Wszystkie operatory, poza `(` `
 | `[` `]` | lewy `str`, między nawiasami `int` | dostęp do znaku w stringu (indeksowanie od 0) |
 | `.` | lewy struktura lub rekord wariantowy, prawy pole | dostęp do pola |
 | unarny `-` | `int` lub `float` | zmiana znaku liczby na przeciwny |
-| `**`, `*`, `/` | `int` lub `float` | potęgowanie, mnożenie, dzielenie |
+| `*` | `int` lub `float` | mnożenie |
+| `**`, `/` | `float` | potęgowanie, dzielenie |
 | `//`, `%` | `int` | operacje dzielenia całkowitego i modulo |
 | `@` | lewy `str`, prawy `int` | zwielokrotnienie stringa |
 | `!` | `str` | konkatenacja stringów |
@@ -128,7 +129,7 @@ Poniższa tabela prezentuje wspierane operatory. Wszystkie operatory, poza `(` `
 
 `/`, `//`, `%` dla drugiego argumentu 0 powodują błąd czasu wykonania.
 
-Jeżeli operacja potęgowania (operator `**`) nie zwróciłaby liczby rzeczywistej, następuje błąd czasu wykonania.
+Jeżeli lewy argument operacji potęgowania (operator `**`) nie jest dodatni, następuje błąd czasu wykonania.
 
 `==`, `!=` dla typów wbudowanych próbują skonwertować argumenty do takich samych typów. Wykonywane są następujące konwersje, w zależności od typów argumentów:
 | Argumenty | Typ docelowy |
@@ -150,7 +151,7 @@ Operatory `==`, `!=` dla struktur wymagają tego samego typu dla obu argumentów
 
 Operatory `==`, `!=` dla rekordów wariantowych wymagają tego samego typu dla obu argumentów i wykonują porównanie elementów zawartych w rekordach odpowiednim operatorem. Jeżeli typy zawarte w rekordach nie pozwalają na porównanie, zwracana jest wartość `false`.
 
-Operatory przyjmujące typy `int` lub `float` zwracają typ `int` tylko, jeżeli oba ich argumenty są typu `int`; w przeciwnym razie zwracany jest typ `float`. Wyjątkiem są operatory `/` i `**`, które zawsze zwracają typ `float`.
+Operatory przyjmujące typy `int` lub `float` zwracają typ `int` tylko, jeżeli oba ich argumenty są typu `int`; w przeciwnym razie zwracany jest typ `float`.
 ```
 bool a = (2 + 2.3) is float; # a === true
 bool b = (2.3 - 2) is float; # b === true

@@ -85,19 +85,14 @@ std::pair<LeftType, RightType> Interpreter::getBinaryOpArgsLeftAccepted(BinaryOp
     return {left, right};
 }
 
-int32_t Interpreter::addIntegers(int32_t left, int32_t right, Position position)
+template <typename BinaryOperation>
+std::pair<Object, Object> Interpreter::getBinaryOpArgsObjects(BinaryOperation &visited)
 {
-    if(left >= 0)
-    {
-        if(std::numeric_limits<int32_t>::max() - left < right)
-            throw IntegerRangeError(L"Addition or subtraction of integers would overflow", currentSource, position);
-    }
-    else
-    {
-        if(right < std::numeric_limits<int32_t>::min() - left)
-            throw IntegerRangeError(L"Addition or subtraction of integers would overflow", currentSource, position);
-    }
-    return left + right;
+    visited.left->accept(*this);
+    Object left = getLastResultValue();
+    visited.right->accept(*this);
+    Object right = getLastResultValue();
+    return {std::move(left), std::move(right)};
 }
 
 void Interpreter::visitInstructionBlock(std::vector<std::unique_ptr<Instruction>> &block)
@@ -172,13 +167,29 @@ void Interpreter::visit(AndExpression &visited)
     lastResult = Object{{BOOL}, left && right};
 }
 
-void Interpreter::visit(EqualExpression &) {}
+void Interpreter::visit(EqualExpression &visited)
+{
+    auto [left, right] = getBinaryOpArgsObjects(visited);
+    lastResult = Object{{BOOL}, left.value == right.value};
+}
 
-void Interpreter::visit(NotEqualExpression &) {}
+void Interpreter::visit(NotEqualExpression &visited)
+{
+    auto [left, right] = getBinaryOpArgsObjects(visited);
+    lastResult = Object{{BOOL}, left.value != right.value};
+}
 
-void Interpreter::visit(IdenticalExpression &) {}
+void Interpreter::visit(IdenticalExpression &visited)
+{
+    auto [left, right] = getBinaryOpArgsObjects(visited);
+    lastResult = Object{{BOOL}, left.type == right.type && left.value == right.value};
+}
 
-void Interpreter::visit(NotIdenticalExpression &) {}
+void Interpreter::visit(NotIdenticalExpression &visited)
+{
+    auto [left, right] = getBinaryOpArgsObjects(visited);
+    lastResult = Object{{BOOL}, left.type != right.type || left.value != right.value};
+}
 
 void Interpreter::visit(ConcatExpression &visited)
 {
@@ -199,13 +210,58 @@ void Interpreter::visit(StringMultiplyExpression &visited)
     lastResult = Object{{STR}, result};
 }
 
-void Interpreter::visit(GreaterExpression &) {}
+template <typename BinaryOperation>
+void Interpreter::doComparison(BinaryOperation &visited, auto compare)
+{
+    visited.left->accept(*this);
+    if(getLastResultReference().type == Type{INT})
+    {
+        auto [left, right] = getBinaryOpArgsLeftAccepted<int32_t, int32_t>(visited);
+        lastResult = Object{{BOOL}, compare(left, right)};
+    }
+    else
+    {
+        auto [left, right] = getBinaryOpArgsLeftAccepted<double, double>(visited);
+        lastResult = Object{{BOOL}, compare(left, right)};
+    }
+}
 
-void Interpreter::visit(LesserExpression &) {}
+void Interpreter::visit(GreaterExpression &visited)
+{
+    doComparison(visited, [&](auto left, auto right) { return left > right; });
+}
 
-void Interpreter::visit(GreaterEqualExpression &) {}
+void Interpreter::visit(LesserExpression &visited)
+{
+    doComparison(visited, [&](auto left, auto right) { return left < right; });
+}
 
-void Interpreter::visit(LesserEqualExpression &) {}
+void Interpreter::visit(GreaterEqualExpression &visited)
+{
+    doComparison(visited, [&](auto left, auto right) { return left >= right; });
+}
+
+void Interpreter::visit(LesserEqualExpression &visited)
+{
+    doComparison(visited, [&](auto left, auto right) { return left <= right; });
+}
+
+namespace {
+bool wouldAdditionOverflow(int32_t left, int32_t right)
+{
+    if(left >= 0)
+        return std::numeric_limits<int32_t>::max() - left < right;
+    else
+        return right < std::numeric_limits<int32_t>::min() - left;
+}
+}
+
+int32_t Interpreter::addIntegers(int32_t left, int32_t right, Position position)
+{
+    if(wouldAdditionOverflow(left, right))
+        throw IntegerRangeError(L"Addition or subtraction of integers would overflow", currentSource, position);
+    return left + right;
+}
 
 void Interpreter::visit(PlusExpression &visited)
 {
@@ -242,21 +298,106 @@ void Interpreter::visit(MinusExpression &visited)
     }
 }
 
-void Interpreter::visit(MultiplyExpression &) {}
+namespace {
+bool wouldMultiplicationOverflow(int32_t left, int32_t right)
+{
+    if(right > 0)
+    {
+        if(left > std::numeric_limits<int32_t>::max() / right || left < std::numeric_limits<int32_t>::min() / right)
+            return true;
+    }
+    else if(right < 0)
+    {
+        if(right == -1)
+            return left == std::numeric_limits<int32_t>::min();
 
-void Interpreter::visit(DivideExpression &) {}
+        if(left < std::numeric_limits<int32_t>::max() / right || left > std::numeric_limits<int32_t>::min() / right)
+            return true;
+    }
+    return false;
+}
+}
 
-void Interpreter::visit(FloorDivideExpression &) {}
+void Interpreter::visit(MultiplyExpression &visited)
+{
+    visited.left->accept(*this);
+    if(getLastResultReference().type == Type{INT})
+    {
+        auto [left, right] = getBinaryOpArgsLeftAccepted<int32_t, int32_t>(visited);
+        if(wouldMultiplicationOverflow(left, right))
+            throw IntegerRangeError(L"Multiplication of integers would overflow", currentSource, visited.getPosition());
+        lastResult = Object{{INT}, left * right};
+    }
+    else
+    {
+        auto [left, right] = getBinaryOpArgsLeftAccepted<double, double>(visited);
+        lastResult = Object{{FLOAT}, left * right};
+    }
+}
 
-void Interpreter::visit(ModuloExpression &) {}
+void Interpreter::visit(DivideExpression &visited)
+{
+    auto [left, right] = getBinaryOpArgs<double, double>(visited);
+    if(right == 0.0)
+        throw ZeroDivisionError(L"Floating-point division by zero detected", currentSource, visited.getPosition());
+    lastResult = Object{{FLOAT}, left / right};
+}
 
-void Interpreter::visit(ExponentExpression &) {}
+void Interpreter::visit(FloorDivideExpression &visited)
+{
+    auto [left, right] = getBinaryOpArgs<int32_t, int32_t>(visited);
+    if(right == 0)
+        throw ZeroDivisionError(L"Floor division by zero detected", currentSource, visited.getPosition());
+    lastResult = Object{{FLOAT}, left / right};
+}
 
-void Interpreter::visit(UnaryMinusExpression &) {}
+void Interpreter::visit(ModuloExpression &visited)
+{
+    auto [left, right] = getBinaryOpArgs<int32_t, int32_t>(visited);
+    if(right == 0)
+        throw ZeroDivisionError(L"Modulo operation by zero detected", currentSource, visited.getPosition());
+    lastResult = Object{{FLOAT}, left % right};
+}
 
-void Interpreter::visit(NotExpression &) {}
+void Interpreter::visit(ExponentExpression &visited)
+{
+    auto [left, right] = getBinaryOpArgs<double, double>(visited);
+    if(left <= 0)
+        throw OperatorArgumentError(L"Exponent base must be positive", currentSource, visited.getPosition());
+    lastResult = Object{{FLOAT}, std::pow(left, right)};
+}
 
-void Interpreter::visit(SubscriptExpression &) {}
+void Interpreter::visit(UnaryMinusExpression &visited)
+{
+    visited.value->accept(*this);
+    if(getLastResultReference().type == Type{INT})
+    {
+        int32_t value = std::get<int32_t>(getLastResultReference().value);
+        if(value == std::numeric_limits<int32_t>::min())
+            throw IntegerRangeError(L"Negation of integer would overflow", currentSource, visited.getPosition());
+        lastResult = Object{{INT}, -value};
+    }
+    else
+    {
+        double value = std::get<double>(getLastResultReference().value);
+        lastResult = Object{{FLOAT}, -value};
+    }
+}
+
+void Interpreter::visit(NotExpression &visited)
+{
+    visited.value->accept(*this);
+    bool value = std::get<bool>(getLastResultReference().value);
+    lastResult = Object{{BOOL}, !value};
+}
+
+void Interpreter::visit(SubscriptExpression &visited)
+{
+    auto [left, right] = getBinaryOpArgs<std::wstring, int32_t>(visited);
+    if(right < 0 || static_cast<size_t>(right) >= left.size())
+        throw OperatorArgumentError(L"Invalid index for subscript operator", currentSource, visited.getPosition());
+    lastResult = Object{{STR}, std::wstring(1, left.at(static_cast<size_t>(right)))};
+}
 
 void Interpreter::visit(DotExpression &visited)
 {

@@ -260,6 +260,83 @@ TEST_CASE("FunctionDeclaration and passing values by reference", "[Interpreter]"
     REQUIRE(output.str() == L"inside function\n3\n4\n");
 }
 
+TEST_CASE("FunctionCall runtime variant overload resolution", "[Interpreter]")
+{
+    Program program({1, 1});
+    program.variants.emplace(
+        L"V", VariantDeclaration(
+                  {1, 1}, L"<test>",
+                  {
+                      Field({1, 10}, {INT}, L"a"),
+                      Field({1, 10}, {STR}, L"b"),
+                  }
+              )
+    );
+
+    std::vector<std::unique_ptr<Instruction>> instructions;
+    std::vector<std::unique_ptr<Expression>> arguments;
+    arguments.push_back(makeLiteral({7, 20}, L"f(int)"));
+    instructions.push_back(std::make_unique<FunctionCallInstruction>(
+        Position{1, 100}, FunctionCall({1, 110}, L"println", std::move(arguments))
+    ));
+    program.functions.emplace(
+        FunctionIdentification(L"f", {{L"V"}, {INT}}), std::make_unique<FunctionDeclaration>(
+                                                           Position{1, 1}, L"<test>",
+                                                           std::vector<VariableDeclaration>{
+                                                               VariableDeclaration({1, 10}, {L"V"}, L"a", false),
+                                                               VariableDeclaration({1, 20}, {INT}, L"b", false),
+                                                           },
+                                                           std::nullopt, std::move(instructions)
+                                                       )
+    );
+    instructions.clear();
+    arguments.clear();
+    arguments.push_back(makeLiteral({7, 20}, L"f(str)"));
+    instructions.push_back(std::make_unique<FunctionCallInstruction>(
+        Position{1, 100}, FunctionCall({1, 110}, L"println", std::move(arguments))
+    ));
+    program.functions.emplace(
+        FunctionIdentification(L"f", {{L"V"}, {STR}}), std::make_unique<FunctionDeclaration>(
+                                                           Position{1, 1}, L"<test>",
+                                                           std::vector<VariableDeclaration>{
+                                                               VariableDeclaration({1, 10}, {L"V"}, L"a", false),
+                                                               VariableDeclaration({1, 20}, {STR}, L"b", false),
+                                                           },
+                                                           std::nullopt, std::move(instructions)
+                                                       )
+    );
+
+    instructions.clear();
+    instructions.push_back(std::make_unique<VariableDeclStatement>(
+        Position{6, 1}, VariableDeclaration({6, 1}, {L"V"}, L"a", false), makeLiteral({6, 10}, L"abc")
+    ));
+    arguments.clear();
+    arguments.push_back(std::make_unique<Variable>(Position{7, 10}, L"a"));
+    arguments.push_back(std::make_unique<Variable>(Position{7, 20}, L"a"));
+    instructions.push_back(
+        std::make_unique<FunctionCallInstruction>(Position{7, 1}, FunctionCall({7, 1}, L"f", std::move(arguments)))
+    );
+    instructions.push_back(std::make_unique<VariableDeclStatement>(
+        Position{8, 1}, VariableDeclaration({8, 1}, {L"V"}, L"b", false), makeLiteral({8, 10}, 22)
+    ));
+    arguments.clear();
+    arguments.push_back(std::make_unique<Variable>(Position{9, 10}, L"a"));
+    arguments.push_back(std::make_unique<Variable>(Position{9, 20}, L"b"));
+    instructions.push_back(
+        std::make_unique<FunctionCallInstruction>(Position{9, 1}, FunctionCall({9, 1}, L"f", std::move(arguments)))
+    );
+    program.functions.emplace(
+        FunctionIdentification(L"main", {}),
+        std::make_unique<FunctionDeclaration>(
+            Position{1, 1}, L"<test>", std::vector<VariableDeclaration>{}, std::nullopt, std::move(instructions)
+        )
+    );
+    std::wstringstream input, output;
+    Interpreter interpreter(L"<test>", {}, input, output, parseFromStream);
+    interpreter.visit(program);
+    REQUIRE(output.str() == L"f(str)\nf(int)\n");
+}
+
 TEST_CASE("BuiltinFunctionDeclaration value returned", "[Interpreter]")
 {
     Program program({1, 1});

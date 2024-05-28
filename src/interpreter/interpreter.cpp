@@ -716,7 +716,22 @@ void Interpreter::visit(FunctionCall &visited)
     std::vector<Type> argumentTypes = prepareArguments(visited);
     auto functionFound = program->functions.find(FunctionIdentification(visited.functionName, argumentTypes));
     if(functionFound != program->functions.end())
-        functionFound->second->accept(*this);
+        return functionFound->second->accept(*this);
+
+    for(unsigned index: visited.runtimeRecognized)
+    {
+        std::visit(
+            [&](auto &argument) {
+                if constexpr(std::is_same_v<Object &, decltype(argument)>)
+                    functionArguments[index] = std::move(*std::get<std::unique_ptr<Object>>(argument.value).get());
+                else
+                    functionArguments[index] = *std::get<std::unique_ptr<Object>>(argument.get().value).get();
+            },
+            functionArguments[index]
+        );
+        argumentTypes[index] = getObject(functionArguments[index]).type;
+    }
+    program->functions.at(FunctionIdentification(visited.functionName, argumentTypes))->accept(*this);
 }
 
 void Interpreter::visit(FunctionCallInstruction &visited)

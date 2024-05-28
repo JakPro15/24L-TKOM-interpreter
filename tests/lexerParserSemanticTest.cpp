@@ -475,6 +475,63 @@ TEST_CASE("variants", "[Lexer+Parser+SemanticAnalyzer]")
              L"    int b;\n"
              L"}\n";
     REQUIRE_THROWS(getTree(source));
+
+    source = L"variant V {int a; str b; bool c;}\n"
+             L"func f(int v) -> int { return 1; }\n"
+             L"func f(str v) -> int { return 2; }\n"
+             L"func f(bool v) -> int { return 3; }\n"
+             L"\n"
+             L"func main() {\n"
+             L"    V vart1 = 2;\n"
+             L"    V vart2 = \"string\";\n"
+             L"    print(f(vart1)); # 1\n"
+             L"    print(f(vart2)); # 2\n"
+             L"}\n";
+    checkProcessing(
+        source, {},
+        {L"V: VariantDeclaration <line: 1, col: 1> source=<test>\n"
+         L"|-Field <line: 1, col: 12> type=int name=a\n"
+         L"|-Field <line: 1, col: 19> type=str name=b\n"
+         L"`-Field <line: 1, col: 26> type=bool name=c\n"},
+        {L"f(int): FunctionDeclaration <line: 2, col: 1> source=<test> returnType=int\n"
+         L"|-Parameters:\n"
+         L"|`-VariableDeclaration <line: 2, col: 8> type=int name=v mutable=false\n"
+         L"`-Body:\n"
+         L" `-ReturnStatement <line: 2, col: 24>\n"
+         L"  `-Literal <line: 2, col: 31> type=int value=1\n",
+         L"f(str): FunctionDeclaration <line: 3, col: 1> source=<test> returnType=int\n"
+         L"|-Parameters:\n"
+         L"|`-VariableDeclaration <line: 3, col: 8> type=str name=v mutable=false\n"
+         L"`-Body:\n"
+         L" `-ReturnStatement <line: 3, col: 24>\n"
+         L"  `-Literal <line: 3, col: 31> type=int value=2\n",
+         L"f(bool): FunctionDeclaration <line: 4, col: 1> source=<test> returnType=int\n"
+         L"|-Parameters:\n"
+         L"|`-VariableDeclaration <line: 4, col: 8> type=bool name=v mutable=false\n"
+         L"`-Body:\n"
+         L" `-ReturnStatement <line: 4, col: 25>\n"
+         L"  `-Literal <line: 4, col: 32> type=int value=3\n",
+         L"main: FunctionDeclaration <line: 6, col: 1> source=<test>\n"
+         L"`-Body:\n"
+         L" |-VariableDeclStatement <line: 7, col: 5>\n"
+         L" ||-VariableDeclaration <line: 7, col: 5> type=V name=vart1 mutable=false\n"
+         L" |`-CastExpression <line: 7, col: 15> targetType=V\n"
+         L" | `-Literal <line: 7, col: 15> type=int value=2\n"
+         L" |-VariableDeclStatement <line: 8, col: 5>\n"
+         L" ||-VariableDeclaration <line: 8, col: 5> type=V name=vart2 mutable=false\n"
+         L" |`-CastExpression <line: 8, col: 15> targetType=V\n"
+         L" | `-Literal <line: 8, col: 15> type=str value=string\n"
+         L" |-FunctionCallInstruction <line: 9, col: 5>\n"
+         L" |`-FunctionCall <line: 9, col: 5> functionName=print\n"
+         L" | `-CastExpression <line: 9, col: 11> targetType=str\n"
+         L" |  `-FunctionCall <line: 9, col: 11> functionName=f runtimeRecognized={0}\n"
+         L" |   `-Variable <line: 9, col: 13> name=vart1\n"
+         L" `-FunctionCallInstruction <line: 10, col: 5>\n"
+         L"  `-FunctionCall <line: 10, col: 5> functionName=print\n"
+         L"   `-CastExpression <line: 10, col: 11> targetType=str\n"
+         L"    `-FunctionCall <line: 10, col: 11> functionName=f runtimeRecognized={0}\n"
+         L"     `-Variable <line: 10, col: 13> name=vart2\n"}
+    );
 }
 
 TEST_CASE("structures", "[Lexer+Parser+SemanticAnalyzer]")

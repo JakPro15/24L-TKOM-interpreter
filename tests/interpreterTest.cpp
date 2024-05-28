@@ -425,3 +425,301 @@ TEST_CASE("variant access and assignment", "[Interpreter]")
     interpreter.visit(program);
     REQUIRE(output.str() == L"2\n3\nabc\n100\n");
 }
+
+template <typename OperatorType>
+void checkBinaryOperator(
+    std::variant<std::wstring, int32_t, double, bool> left, std::variant<std::wstring, int32_t, double, bool> right,
+    const std::wstring &expectedOutput
+)
+{
+    Program program({1, 1});
+    std::vector<std::unique_ptr<Instruction>> instructions;
+    std::vector<std::unique_ptr<Expression>> arguments;
+    arguments.push_back(
+        std::make_unique<OperatorType>(Position{2, 10}, makeLiteral({2, 10}, left), makeLiteral({2, 20}, right))
+    );
+    instructions.push_back(
+        std::make_unique<FunctionCallInstruction>(Position{2, 1}, FunctionCall({2, 1}, L"print", std::move(arguments)))
+    );
+    program.functions.emplace(
+        FunctionIdentification(L"main", {}),
+        std::make_unique<FunctionDeclaration>(
+            Position{1, 1}, L"<test>", std::vector<VariableDeclaration>{}, std::nullopt, std::move(instructions)
+        )
+    );
+    std::wstringstream input, output;
+    Interpreter interpreter(L"<test>", {}, input, output, parseFromStream);
+    interpreter.visit(program);
+    REQUIRE(output.str() == expectedOutput);
+}
+
+TEST_CASE("boolean binary operators", "[Interpreter]")
+{
+    checkBinaryOperator<OrExpression>(true, true, L"true");
+    checkBinaryOperator<OrExpression>(true, false, L"true");
+    checkBinaryOperator<OrExpression>(false, true, L"true");
+    checkBinaryOperator<OrExpression>(false, false, L"false");
+
+    checkBinaryOperator<XorExpression>(true, true, L"false");
+    checkBinaryOperator<XorExpression>(true, false, L"true");
+    checkBinaryOperator<XorExpression>(false, true, L"true");
+    checkBinaryOperator<XorExpression>(false, false, L"false");
+
+    checkBinaryOperator<AndExpression>(true, true, L"true");
+    checkBinaryOperator<AndExpression>(true, false, L"false");
+    checkBinaryOperator<AndExpression>(false, true, L"false");
+    checkBinaryOperator<AndExpression>(false, false, L"false");
+}
+
+TEST_CASE("equality binary operators", "[Interpreter]")
+{
+    checkBinaryOperator<EqualExpression>(1, 2, L"false");
+    checkBinaryOperator<EqualExpression>(2, L"2", L"true");
+    checkBinaryOperator<EqualExpression>(2, 2.5, L"false");
+    checkBinaryOperator<EqualExpression>(L"false", 0, L"false");
+    checkBinaryOperator<EqualExpression>(false, false, L"true");
+
+    checkBinaryOperator<NotEqualExpression>(1, 2, L"true");
+    checkBinaryOperator<NotEqualExpression>(2, L"2", L"false");
+    checkBinaryOperator<NotEqualExpression>(2, 2.5, L"true");
+    checkBinaryOperator<NotEqualExpression>(L"false", 0, L"true");
+    checkBinaryOperator<NotEqualExpression>(false, false, L"false");
+
+    checkBinaryOperator<IdenticalExpression>(1, 2, L"false");
+    checkBinaryOperator<IdenticalExpression>(2, L"2", L"false");
+    checkBinaryOperator<IdenticalExpression>(2, 2.5, L"false");
+    checkBinaryOperator<IdenticalExpression>(L"false", 0, L"false");
+    checkBinaryOperator<IdenticalExpression>(false, false, L"true");
+    checkBinaryOperator<IdenticalExpression>(2.3, 2.3, L"true");
+
+    checkBinaryOperator<NotIdenticalExpression>(1, 2, L"true");
+    checkBinaryOperator<NotIdenticalExpression>(2, L"2", L"true");
+    checkBinaryOperator<NotIdenticalExpression>(2, 2.5, L"true");
+    checkBinaryOperator<NotIdenticalExpression>(L"false", 0, L"true");
+    checkBinaryOperator<NotIdenticalExpression>(false, false, L"false");
+    checkBinaryOperator<NotIdenticalExpression>(2.3, 2.3, L"false");
+}
+
+TEST_CASE("comparison binary operators", "[Interpreter]")
+{
+    checkBinaryOperator<GreaterExpression>(1, 1.4, L"false");
+    checkBinaryOperator<GreaterExpression>(2, 2, L"false");
+    checkBinaryOperator<GreaterExpression>(2.1, 2, L"true");
+    checkBinaryOperator<GreaterExpression>(0, -2, L"true");
+
+    checkBinaryOperator<GreaterEqualExpression>(1, 1.4, L"false");
+    checkBinaryOperator<GreaterEqualExpression>(2, 2, L"true");
+    checkBinaryOperator<GreaterEqualExpression>(2.1, 2, L"true");
+    checkBinaryOperator<GreaterEqualExpression>(0, -2, L"true");
+
+    checkBinaryOperator<LesserExpression>(1, 1.4, L"true");
+    checkBinaryOperator<LesserExpression>(2, 2, L"false");
+    checkBinaryOperator<LesserExpression>(2.1, 2, L"false");
+    checkBinaryOperator<LesserExpression>(0, -2, L"false");
+
+    checkBinaryOperator<LesserEqualExpression>(1, 1.4, L"true");
+    checkBinaryOperator<LesserEqualExpression>(2, 2, L"true");
+    checkBinaryOperator<LesserEqualExpression>(2.1, 2, L"false");
+    checkBinaryOperator<LesserEqualExpression>(0, -2, L"false");
+}
+
+TEST_CASE("string binary operators", "[Interpreter]")
+{
+    checkBinaryOperator<ConcatExpression>(1, 1.4, L"11.4");
+    checkBinaryOperator<ConcatExpression>(L"abc", L"", L"abc");
+    checkBinaryOperator<ConcatExpression>(true, false, L"truefalse");
+
+    checkBinaryOperator<StringMultiplyExpression>(L"abc", 1.4, L"abc");
+    checkBinaryOperator<StringMultiplyExpression>(L"abc", L"3", L"abcabcabc");
+    checkBinaryOperator<StringMultiplyExpression>(L"abc", 0, L"");
+    checkBinaryOperator<StringMultiplyExpression>(L"", 20, L"");
+    REQUIRE_THROWS_AS(checkBinaryOperator<StringMultiplyExpression>(L"abc", -1, L""), OperatorArgumentError);
+
+    checkBinaryOperator<SubscriptExpression>(L"abc", 1.4, L"b");
+    checkBinaryOperator<SubscriptExpression>(L"abc", L"0", L"a");
+    checkBinaryOperator<SubscriptExpression>(true, 3, L"e");
+    REQUIRE_THROWS_AS(checkBinaryOperator<SubscriptExpression>(L"abc", -1, L""), OperatorArgumentError);
+    REQUIRE_THROWS_AS(checkBinaryOperator<SubscriptExpression>(L"abc", 3, L""), OperatorArgumentError);
+}
+
+namespace {
+const int32_t minInt = std::numeric_limits<int32_t>::min(), maxInt = std::numeric_limits<int32_t>::max();
+}
+
+TEST_CASE("additive binary operators", "[Interpreter]")
+{
+    checkBinaryOperator<PlusExpression>(1, 1.4, L"2.4");
+    checkBinaryOperator<PlusExpression>(1, -1, L"0");
+    checkBinaryOperator<PlusExpression>(0, -1.4, L"-1.4");
+    checkBinaryOperator<PlusExpression>(0, maxInt, std::format(L"{}", maxInt));
+    checkBinaryOperator<PlusExpression>(-3, minInt + 3, std::format(L"{}", minInt));
+    checkBinaryOperator<PlusExpression>(1e100, 1e100, std::format(L"{}", 2e100));
+    REQUIRE_THROWS_AS(checkBinaryOperator<PlusExpression>(1, maxInt, L""), IntegerRangeError);
+    REQUIRE_THROWS_AS(checkBinaryOperator<PlusExpression>(minInt, -1, L""), IntegerRangeError);
+
+    checkBinaryOperator<MinusExpression>(1, 1.4, std::format(L"{}", 1 - 1.4));
+    checkBinaryOperator<MinusExpression>(1, -1, L"2");
+    checkBinaryOperator<MinusExpression>(0, -1.4, L"1.4");
+    checkBinaryOperator<MinusExpression>(0, maxInt, std::format(L"-{}", maxInt));
+    checkBinaryOperator<MinusExpression>(1, minInt + 2, std::format(L"{}", maxInt));
+    checkBinaryOperator<MinusExpression>(-1, minInt, std::format(L"{}", maxInt));
+    checkBinaryOperator<MinusExpression>(1e100, 1e101, std::format(L"{}", 1e100 - 1e101));
+    REQUIRE_THROWS_AS(checkBinaryOperator<MinusExpression>(1, -maxInt, L""), IntegerRangeError);
+    REQUIRE_THROWS_AS(checkBinaryOperator<MinusExpression>(minInt, 1, L""), IntegerRangeError);
+    REQUIRE_THROWS_AS(checkBinaryOperator<MinusExpression>(0, minInt, L""), IntegerRangeError);
+    REQUIRE_THROWS_AS(checkBinaryOperator<MinusExpression>(minInt, minInt, L""), IntegerRangeError);
+}
+
+TEST_CASE("multiplicative binary operators", "[Interpreter]")
+{
+    checkBinaryOperator<MultiplyExpression>(1, 1.4, L"1.4");
+    checkBinaryOperator<MultiplyExpression>(-2, 5, L"-10");
+    checkBinaryOperator<MultiplyExpression>(L"1e50", L"-10", std::format(L"{}", 1e50 * -10));
+    checkBinaryOperator<MultiplyExpression>(1e150, 0, L"0");
+    checkBinaryOperator<MultiplyExpression>(maxInt / 2, 2, std::format(L"{}", maxInt / 2 * 2));
+    checkBinaryOperator<MultiplyExpression>(maxInt / 2, -2, std::format(L"{}", maxInt / 2 * -2));
+    REQUIRE_THROWS_AS(checkBinaryOperator<MultiplyExpression>(maxInt, 2, L""), IntegerRangeError);
+    REQUIRE_THROWS_AS(checkBinaryOperator<MultiplyExpression>(maxInt, -2, L""), IntegerRangeError);
+    REQUIRE_THROWS_AS(checkBinaryOperator<MultiplyExpression>(2, minInt, L""), IntegerRangeError);
+    REQUIRE_THROWS_AS(checkBinaryOperator<MultiplyExpression>(minInt, -1, L""), IntegerRangeError);
+
+    checkBinaryOperator<DivideExpression>(1, 1.4, std::format(L"{}", 1.0 / 1.4));
+    checkBinaryOperator<DivideExpression>(-2, 5, std::format(L"{}", -2.0 / 5.0));
+    checkBinaryOperator<DivideExpression>(L"1e50", L"-10", std::format(L"{}", 1e50 / -10));
+    checkBinaryOperator<DivideExpression>(0, 1e150, L"0");
+    REQUIRE_THROWS_AS(checkBinaryOperator<DivideExpression>(231, L"0", L""), ZeroDivisionError);
+    REQUIRE_THROWS_AS(checkBinaryOperator<DivideExpression>(0, 0, L""), ZeroDivisionError);
+
+    checkBinaryOperator<FloorDivideExpression>(1, 1.4, L"1");
+    checkBinaryOperator<FloorDivideExpression>(-22, 5, L"-5");
+    checkBinaryOperator<FloorDivideExpression>(0, -3.5, L"0");
+    checkBinaryOperator<FloorDivideExpression>(-22, -5, L"4");
+    REQUIRE_THROWS_AS(checkBinaryOperator<FloorDivideExpression>(231, L"0", L""), ZeroDivisionError);
+    REQUIRE_THROWS_AS(checkBinaryOperator<FloorDivideExpression>(0, 0.4, L""), ZeroDivisionError);
+    REQUIRE_THROWS_AS(checkBinaryOperator<FloorDivideExpression>(minInt, -1, L""), IntegerRangeError);
+
+    checkBinaryOperator<ModuloExpression>(1, 1.4, L"0");
+    checkBinaryOperator<ModuloExpression>(-22, 5, L"3");
+    checkBinaryOperator<ModuloExpression>(0, -3.5, L"0");
+    checkBinaryOperator<ModuloExpression>(minInt, -1, L"0");
+    REQUIRE_THROWS_AS(checkBinaryOperator<ModuloExpression>(231, L"0", L""), ZeroDivisionError);
+    REQUIRE_THROWS_AS(checkBinaryOperator<ModuloExpression>(0, 0.4, L""), ZeroDivisionError);
+}
+
+TEST_CASE("exponent operator", "[Interpreter]")
+{
+    checkBinaryOperator<ExponentExpression>(1, 20, L"1");
+    checkBinaryOperator<ExponentExpression>(2, 5, L"32");
+    checkBinaryOperator<ExponentExpression>(L"1e5", L"-10", std::format(L"{}", 1e-50));
+    checkBinaryOperator<ExponentExpression>(L"1e5", L"10", std::format(L"{}", 1e50));
+    checkBinaryOperator<ExponentExpression>(1e150, 0, L"1");
+    checkBinaryOperator<ExponentExpression>(0, 1e150, L"0");
+    REQUIRE_THROWS_AS(checkBinaryOperator<ExponentExpression>(-100, 2, L""), OperatorArgumentError);
+    REQUIRE_THROWS_AS(checkBinaryOperator<ExponentExpression>(-0.01, 20, L""), OperatorArgumentError);
+}
+
+template <typename OperatorType>
+void checkUnaryOperator(std::variant<std::wstring, int32_t, double, bool> value, const std::wstring &expectedOutput)
+{
+    Program program({1, 1});
+    std::vector<std::unique_ptr<Instruction>> instructions;
+    std::vector<std::unique_ptr<Expression>> arguments;
+    arguments.push_back(std::make_unique<OperatorType>(Position{2, 10}, makeLiteral({2, 10}, value)));
+    instructions.push_back(
+        std::make_unique<FunctionCallInstruction>(Position{2, 1}, FunctionCall({2, 1}, L"print", std::move(arguments)))
+    );
+    program.functions.emplace(
+        FunctionIdentification(L"main", {}),
+        std::make_unique<FunctionDeclaration>(
+            Position{1, 1}, L"<test>", std::vector<VariableDeclaration>{}, std::nullopt, std::move(instructions)
+        )
+    );
+    std::wstringstream input, output;
+    Interpreter interpreter(L"<test>", {}, input, output, parseFromStream);
+    interpreter.visit(program);
+    REQUIRE(output.str() == expectedOutput);
+}
+
+TEST_CASE("unary operators", "[Interpreter]")
+{
+    checkUnaryOperator<UnaryMinusExpression>(1, L"-1");
+    checkUnaryOperator<UnaryMinusExpression>(10.54, L"-10.54");
+    checkUnaryOperator<UnaryMinusExpression>(-21, L"21");
+    checkUnaryOperator<UnaryMinusExpression>(maxInt, std::format(L"{}", -maxInt));
+    checkUnaryOperator<UnaryMinusExpression>(
+        static_cast<double>(minInt), std::format(L"{}", static_cast<double>(maxInt) + 1)
+    );
+    REQUIRE_THROWS_AS(checkUnaryOperator<UnaryMinusExpression>(minInt, L""), IntegerRangeError);
+
+    checkUnaryOperator<NotExpression>(true, L"false");
+    checkUnaryOperator<NotExpression>(false, L"true");
+    checkUnaryOperator<NotExpression>(2, L"false");
+    checkUnaryOperator<NotExpression>(0.0, L"true");
+}
+
+// TEST_CASE("WhileStatement, DoWhileStatement, IfStatement, BreakStatement, ContinueStatement", "[Interpreter]")
+// {
+//     Program program({1, 1});
+//     std::vector<std::unique_ptr<Instruction>> instructions;
+//     instructions.push_back(std::make_unique<VariableDeclStatement>(
+//         Position{2, 1}, VariableDeclaration({2, 1}, {INT}, L"a", true), makeLiteral({2, 10}, 0)
+//     ));
+//     instructions.push_back(std::make_unique<VariableDeclStatement>(
+//         Position{2, 20}, VariableDeclaration({2, 20}, {INT}, L"i", true), makeLiteral({2, 30}, 0)
+//     ));
+
+// std::vector<std::unique_ptr<Instruction>> loopBody;
+// loopBody.push_back(std::make_unique<AssignmentStatement>(
+//     Position{2, 100}, Assignable({2, 100}, L"a"),
+//     std::make_unique<PlusExpression>(
+//         Position{2, 110}, std::make_unique<Variable>(Position{2, 110}, L"a"), makeLiteral({2, 120}, 1)
+//     )
+// ));
+// std::vector<SingleIfCase> cases;
+// std::vector<std::unique_ptr<Instruction>> caseBody;
+// caseBody.push_back(std::make_unique<ContinueStatement>(Position{5, 1}));
+// cases.push_back(SingleIfCase(
+//     {4, 1},
+//     std::make_unique<EqualExpression>(
+//         Position{4, 10}, std::make_unique<Variable>(Position{4, 10}, L"a"), makeLiteral({4, 20}, 2)
+//     ),
+//     std::move(caseBody)
+// ));
+// loopBody.push_back(
+//     std::make_unique<IfStatement>(Position{4, 1}, std::move(cases), std::vector<std::unique_ptr<Instruction>>{})
+// );
+// loopBody.push_back(std::make_unique<AssignmentStatement>(
+//     Position{6, 1}, Assignable({6, 1}, L"i"),
+//     std::make_unique<PlusExpression>(
+//         Position{6, 10}, std::make_unique<Variable>(Position{6, 10}, L"i"), makeLiteral({6, 20}, 1)
+//     )
+// ));
+// instructions.push_back(std::make_unique<WhileStatement>(
+//     Position{3, 1},
+//     std::make_unique<LesserExpression>(
+//         Position{3, 10}, std::make_unique<Variable>(Position{3, 10}, L"a"), makeLiteral({3, 20}, 5)
+//     ),
+//     std::move(loopBody)
+// ));
+// std::vector<std::unique_ptr<Expression>> arguments;
+// arguments.push_back(std::make_unique<Variable>(Position{8, 10}, L"a"));
+// instructions.push_back(std::make_unique<FunctionCallInstruction>(
+//     Position{8, 1}, FunctionCall({8, 1}, L"println", std::move(arguments))
+// ));
+// arguments.clear();
+// arguments.push_back(std::make_unique<Variable>(Position{9, 10}, L"i"));
+// instructions.push_back(std::make_unique<FunctionCallInstruction>(
+//     Position{9, 1}, FunctionCall({9, 1}, L"println", std::move(arguments))
+// ));
+
+// program.functions.emplace(
+//     FunctionIdentification(L"main", {}),
+//     std::make_unique<FunctionDeclaration>(
+//         Position{1, 1}, L"<test>", std::vector<VariableDeclaration>{}, std::nullopt, std::move(instructions)
+//     )
+// );
+// std::wstringstream input, output;
+// Interpreter interpreter(L"<test>", {}, input, output, parseFromStream);
+// interpreter.visit(program);
+// REQUIRE(output.str() == L"5\n4\n");
+// }

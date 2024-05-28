@@ -272,7 +272,7 @@ struct AssignmentStatement: public Instruction
 struct FunctionCall: public Expression
 {
     explicit FunctionCall(
-        Position position, std::wstring functionName, std::vector<std::unique_ptr<Expression>> parameters
+        Position position, std::wstring functionName, std::vector<std::unique_ptr<Expression>> arguments
     );
     std::wstring functionName;
     std::vector<std::unique_ptr<Expression>> arguments;

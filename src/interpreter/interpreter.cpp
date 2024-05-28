@@ -287,7 +287,14 @@ void Interpreter::visit(MinusExpression &visited)
         if(right > std::numeric_limits<int32_t>::min())
             lastResult = Object{{INT}, addIntegers(left, -right, visited.getPosition())};
         else if(left > std::numeric_limits<int32_t>::min())
-            lastResult = Object{{INT}, -addIntegers(-left, right, visited.getPosition())};
+        {
+            int32_t result = addIntegers(-left, right, visited.getPosition());
+            if(result == std::numeric_limits<int32_t>::min())
+                throw IntegerRangeError(
+                    L"Subtraction of integers would overflow", currentSource, visited.getPosition()
+                );
+            lastResult = Object{{INT}, -result};
+        }
         else
             throw IntegerRangeError(L"Subtraction of integers would overflow", currentSource, visited.getPosition());
     }
@@ -346,9 +353,11 @@ void Interpreter::visit(DivideExpression &visited)
 void Interpreter::visit(FloorDivideExpression &visited)
 {
     auto [left, right] = getBinaryOpArgs<int32_t, int32_t>(visited);
+    if(left == std::numeric_limits<int32_t>::min() && right == -1)
+        throw IntegerRangeError(L"Division of integers would overflow", currentSource, visited.getPosition());
     if(right == 0)
         throw ZeroDivisionError(L"Floor division by zero detected", currentSource, visited.getPosition());
-    lastResult = Object{{FLOAT}, left / right};
+    lastResult = Object{{INT}, static_cast<int32_t>(std::floor(static_cast<double>(left) / right))};
 }
 
 void Interpreter::visit(ModuloExpression &visited)
@@ -356,14 +365,22 @@ void Interpreter::visit(ModuloExpression &visited)
     auto [left, right] = getBinaryOpArgs<int32_t, int32_t>(visited);
     if(right == 0)
         throw ZeroDivisionError(L"Modulo operation by zero detected", currentSource, visited.getPosition());
-    lastResult = Object{{FLOAT}, left % right};
+    if(left == std::numeric_limits<int32_t>::min() && right == -1)
+    {
+        lastResult = Object{{INT}, 0};
+        return;
+    }
+    int32_t result = left % right;
+    if(result < 0)
+        result += right;
+    lastResult = Object{{INT}, result};
 }
 
 void Interpreter::visit(ExponentExpression &visited)
 {
     auto [left, right] = getBinaryOpArgs<double, double>(visited);
-    if(left <= 0)
-        throw OperatorArgumentError(L"Exponent base must be positive", currentSource, visited.getPosition());
+    if(left < 0)
+        throw OperatorArgumentError(L"Exponent base must not be negative", currentSource, visited.getPosition());
     lastResult = Object{{FLOAT}, std::pow(left, right)};
 }
 

@@ -155,7 +155,9 @@ public:
 
     void visit(ExponentExpression &visited) override
     {
-        lastExpressionType = visitIntOrFloatExpression(visited);
+        ensureExpressionHasType(visited.left, Type{FLOAT});
+        ensureExpressionHasType(visited.right, Type{FLOAT});
+        lastExpressionType = {{FLOAT}, false};
     }
 
     void visit(UnaryMinusExpression &visited) override

@@ -129,7 +129,7 @@ Poniższa tabela prezentuje wspierane operatory. Wszystkie operatory, poza `(` `
 
 `/`, `//`, `%` dla drugiego argumentu 0 powodują błąd czasu wykonania.
 
-Jeżeli lewy argument operacji potęgowania (operator `**`) nie jest dodatni, następuje błąd czasu wykonania.
+Jeżeli lewy argument operacji potęgowania (operator `**`) jest ujemny, następuje błąd czasu wykonania.
 
 `==`, `!=` dla typów wbudowanych próbują skonwertować argumenty do takich samych typów. Wykonywane są następujące konwersje, w zależności od typów argumentów:
 | Argumenty | Typ docelowy |

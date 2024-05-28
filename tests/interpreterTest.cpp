@@ -471,7 +471,7 @@ TEST_CASE("boolean binary operators", "[Interpreter]")
     checkBinaryOperator<AndExpression>(false, false, L"false");
 }
 
-TEST_CASE("equality binary operators", "[Interpreter]")
+TEST_CASE("equality binary operators - builtin arguments", "[Interpreter]")
 {
     checkBinaryOperator<EqualExpression>(1, 2, L"false");
     checkBinaryOperator<EqualExpression>(2, L"2", L"true");
@@ -498,6 +498,129 @@ TEST_CASE("equality binary operators", "[Interpreter]")
     checkBinaryOperator<NotIdenticalExpression>(L"false", 0, L"true");
     checkBinaryOperator<NotIdenticalExpression>(false, false, L"false");
     checkBinaryOperator<NotIdenticalExpression>(2.3, 2.3, L"false");
+}
+
+template <typename EqualityOperator>
+void checkEqualityOperator(
+    std::unique_ptr<Expression> left, std::unique_ptr<Expression> right, const std::wstring &expectedOutput
+)
+{
+    Program program({1, 1});
+    program.structs.emplace(
+        L"S", StructDeclaration(
+                  Position{1, 1}, L"<test>",
+                  {
+                      Field({1, 10}, {INT}, L"a"),
+                      Field({1, 20}, {FLOAT}, L"b"),
+                  }
+              )
+    );
+    program.variants.emplace(
+        L"V", VariantDeclaration(
+                  Position{1, 1}, L"<test>",
+                  {
+                      Field({1, 10}, {INT}, L"a"),
+                      Field({1, 20}, {STR}, L"b"),
+                      Field({1, 30}, {L"S"}, L"c"),
+                  }
+              )
+    );
+    program.variants.emplace(
+        L"V2", VariantDeclaration(
+                   Position{1, 1}, L"<test>",
+                   {
+                       Field({1, 10}, {L"V"}, L"a"),
+                       Field({1, 20}, {STR}, L"b"),
+                       Field({1, 30}, {L"S"}, L"c"),
+                   }
+               )
+    );
+    std::vector<std::unique_ptr<Instruction>> instructions;
+    std::vector<std::unique_ptr<Expression>> arguments;
+    arguments.push_back(std::make_unique<EqualityOperator>(Position{2, 10}, std::move(left), std::move(right)));
+    instructions.push_back(
+        std::make_unique<FunctionCallInstruction>(Position{2, 1}, FunctionCall({2, 1}, L"print", std::move(arguments)))
+    );
+    program.functions.emplace(
+        FunctionIdentification(L"main", {}),
+        std::make_unique<FunctionDeclaration>(
+            Position{1, 1}, L"<test>", std::vector<VariableDeclaration>{}, std::nullopt, std::move(instructions)
+        )
+    );
+    std::wstringstream input, output;
+    Interpreter interpreter(L"<test>", {}, input, output, parseFromStream);
+    interpreter.visit(program);
+    REQUIRE(output.str() == expectedOutput);
+}
+
+std::unique_ptr<FunctionCall> prepareStruct(
+    const std::wstring &name, const std::vector<std::variant<std::wstring, int32_t, double, bool>> &values
+)
+{
+    std::vector<std::unique_ptr<Expression>> arguments, structArguments;
+    for(const auto &value: values)
+        structArguments.push_back(makeLiteral(Position{3, 10}, value));
+    arguments.push_back(std::make_unique<StructExpression>(Position{3, 10}, std::move(structArguments)));
+    return std::make_unique<FunctionCall>(Position{3, 1}, name, std::move(arguments));
+}
+
+std::unique_ptr<FunctionCall> prepareVariant(
+    const std::wstring &name, std::variant<std::wstring, int32_t, double, bool> value
+)
+{
+    std::vector<std::unique_ptr<Expression>> arguments;
+    arguments.push_back(makeLiteral({3, 10}, value));
+    return std::make_unique<FunctionCall>(Position{3, 1}, name, std::move(arguments));
+}
+
+std::unique_ptr<FunctionCall> prepareVariant(const std::wstring &name, std::unique_ptr<Expression> value)
+{
+    std::vector<std::unique_ptr<Expression>> arguments;
+    arguments.push_back(std::move(value));
+    return std::make_unique<FunctionCall>(Position{3, 1}, name, std::move(arguments));
+}
+
+TEST_CASE("equality binary operators - complex types", "[Interpreter]")
+{
+    checkEqualityOperator<EqualExpression>(prepareStruct(L"S", {2, 2.4}), prepareStruct(L"S", {2, 2.4}), L"true");
+    checkEqualityOperator<EqualExpression>(prepareStruct(L"S", {1, 2.4}), prepareStruct(L"S", {2, 2.4}), L"false");
+    checkEqualityOperator<EqualExpression>(prepareVariant(L"V", 2), prepareVariant(L"V", L"2"), L"true");
+    checkEqualityOperator<EqualExpression>(prepareVariant(L"V", L"2.6"), prepareVariant(L"V", 3), L"false");
+    checkEqualityOperator<EqualExpression>(
+        prepareVariant(L"V2", prepareVariant(L"V", 2)), prepareVariant(L"V2", L"2"), L"true"
+    );
+    checkEqualityOperator<EqualExpression>(
+        prepareVariant(L"V2", prepareStruct(L"S", {2, 2.4})), prepareVariant(L"V2", prepareStruct(L"S", {2, 2.4})),
+        L"true"
+    );
+
+    checkEqualityOperator<NotEqualExpression>(prepareStruct(L"S", {2, 2.4}), prepareStruct(L"S", {2, 1.5}), L"true");
+    checkEqualityOperator<NotEqualExpression>(prepareVariant(L"V", 2), prepareVariant(L"V", 2), L"false");
+    checkEqualityOperator<NotEqualExpression>(prepareVariant(L"V", 2), prepareVariant(L"V", 3), L"true");
+    checkEqualityOperator<NotEqualExpression>(
+        prepareVariant(L"V2", prepareStruct(L"S", {2, 2.4})), prepareVariant(L"V2", L"2"), L"true"
+    );
+
+    checkEqualityOperator<IdenticalExpression>(prepareStruct(L"S", {2, 2.4}), prepareStruct(L"S", {2, 2.4}), L"true");
+    checkEqualityOperator<IdenticalExpression>(prepareStruct(L"S", {1, 2.4}), prepareStruct(L"S", {2, 2.4}), L"false");
+    checkEqualityOperator<IdenticalExpression>(prepareVariant(L"V", 2), prepareVariant(L"V", L"2"), L"false");
+    checkEqualityOperator<IdenticalExpression>(prepareVariant(L"V", L"2.6"), prepareVariant(L"V", 3), L"false");
+    checkEqualityOperator<IdenticalExpression>(
+        prepareVariant(L"V2", prepareVariant(L"V", 2)), prepareVariant(L"V2", L"2"), L"false"
+    );
+    checkEqualityOperator<IdenticalExpression>(
+        prepareVariant(L"V2", prepareStruct(L"S", {2, 2.4})), prepareVariant(L"V2", prepareStruct(L"S", {2, 2.4})),
+        L"true"
+    );
+
+    checkEqualityOperator<NotIdenticalExpression>(
+        prepareStruct(L"S", {2, 2.4}), prepareStruct(L"S", {2, 1.5}), L"true"
+    );
+    checkEqualityOperator<NotIdenticalExpression>(prepareVariant(L"V", 2), prepareVariant(L"V", 2), L"false");
+    checkEqualityOperator<NotIdenticalExpression>(prepareVariant(L"V", 2), prepareVariant(L"V", 3), L"true");
+    checkEqualityOperator<NotIdenticalExpression>(
+        prepareVariant(L"V2", prepareStruct(L"S", {2, 2.4})), prepareVariant(L"V2", L"2"), L"true"
+    );
 }
 
 TEST_CASE("comparison binary operators", "[Interpreter]")

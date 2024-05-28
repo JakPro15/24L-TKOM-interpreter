@@ -167,28 +167,70 @@ void Interpreter::visit(AndExpression &visited)
     lastResult = Object{{BOOL}, left && right};
 }
 
-void Interpreter::visit(EqualExpression &visited)
+bool Interpreter::isVariantType(const Type &type)
+{
+    return !type.isBuiltin() && program->variants.count(std::get<std::wstring>(type.value)) == 1;
+}
+
+Object &Interpreter::getNonvariantValue(const Object &variant)
+{
+    Object *value = std::get<std::unique_ptr<Object>>(variant.value).get();
+    while(isVariantType(value->type))
+        value = std::get<std::unique_ptr<Object>>(value->value).get();
+    return *value;
+}
+
+std::pair<Object, Object> Interpreter::castEqualityArguments(Object &left, Object &right, Position position)
+{
+    Type::Builtin targetType = getTargetTypeForEquality(
+        std::get<Type::Builtin>(left.type.value), std::get<Type::Builtin>(right.type.value)
+    );
+    auto leftCasted = doCast(targetType, left, position);
+    auto rightCasted = doCast(targetType, right, position);
+    return {std::move(leftCasted), std::move(rightCasted)};
+}
+
+template <typename EqualityExpression>
+bool Interpreter::compareArgumentsEqual(EqualityExpression &visited)
 {
     auto [left, right] = getBinaryOpArgsObjects(visited);
-    lastResult = Object{{BOOL}, left.value == right.value};
+    if(isVariantType(left.type))
+    {
+        Object &leftValue = getNonvariantValue(left);
+        Object &rightValue = getNonvariantValue(right);
+
+        if(leftValue.type != rightValue.type)
+        {
+            if(!leftValue.type.isBuiltin() || !rightValue.type.isBuiltin())
+                return false;
+            auto [leftCasted, rightCasted] = castEqualityArguments(leftValue, rightValue, visited.getPosition());
+            return leftCasted == rightCasted;
+        }
+        return leftValue.value == rightValue.value;
+    }
+    return left.value == right.value;
+}
+
+void Interpreter::visit(EqualExpression &visited)
+{
+    lastResult = Object{{BOOL}, compareArgumentsEqual(visited)};
 }
 
 void Interpreter::visit(NotEqualExpression &visited)
 {
-    auto [left, right] = getBinaryOpArgsObjects(visited);
-    lastResult = Object{{BOOL}, left.value != right.value};
+    lastResult = Object{{BOOL}, !compareArgumentsEqual(visited)};
 }
 
 void Interpreter::visit(IdenticalExpression &visited)
 {
     auto [left, right] = getBinaryOpArgsObjects(visited);
-    lastResult = Object{{BOOL}, left.type == right.type && left.value == right.value};
+    lastResult = Object{{BOOL}, left == right};
 }
 
 void Interpreter::visit(NotIdenticalExpression &visited)
 {
     auto [left, right] = getBinaryOpArgsObjects(visited);
-    lastResult = Object{{BOOL}, left.type != right.type || left.value != right.value};
+    lastResult = Object{{BOOL}, left != right};
 }
 
 void Interpreter::visit(ConcatExpression &visited)
@@ -487,6 +529,12 @@ int32_t Interpreter::cast(const bool &value, Position)
 }
 
 template <>
+int32_t Interpreter::cast(const int32_t &value, Position)
+{
+    return value;
+}
+
+template <>
 double Interpreter::cast(const int32_t &value, Position)
 {
     return static_cast<double>(value);
@@ -502,6 +550,12 @@ template <>
 double Interpreter::cast(const bool &value, Position)
 {
     return static_cast<double>(value);
+}
+
+template <>
+double Interpreter::cast(const double &value, Position)
+{
+    return value;
 }
 
 template <>
@@ -526,6 +580,12 @@ std::wstring Interpreter::cast(const bool &value, Position)
 }
 
 template <>
+std::wstring Interpreter::cast(const std::wstring &value, Position)
+{
+    return value;
+}
+
+template <>
 bool Interpreter::cast(const int32_t &value, Position)
 {
     return value != 0;
@@ -543,13 +603,35 @@ bool Interpreter::cast(const std::wstring &value, Position)
     return value.size() > 0;
 }
 
+template <>
+bool Interpreter::cast(const bool &value, Position)
+{
+    return value;
+}
+
 template <typename TargetType>
-Object Interpreter::getCastedObject(Type::Builtin targetType, Position position)
+Object Interpreter::getCastedObject(Type::Builtin targetType, Object &toCast, Position position)
 {
     return Object(
-        {targetType},
-        std::visit([&](const auto &value) { return cast<TargetType>(value, position); }, getLastResultReference().value)
+        {targetType}, std::visit([&](const auto &value) { return cast<TargetType>(value, position); }, toCast.value)
     );
+}
+
+Object Interpreter::doCast(Type::Builtin targetType, Object &toCast, Position position)
+{
+    switch(targetType)
+    {
+    case INT:
+        return getCastedObject<int32_t>(targetType, toCast, position);
+    case STR:
+        return getCastedObject<std::wstring>(targetType, toCast, position);
+    case FLOAT:
+        return getCastedObject<double>(targetType, toCast, position);
+    case BOOL:
+        return getCastedObject<bool>(targetType, toCast, position);
+    default:
+        throw RuntimeSemanticException("Invalid builtin type detected");
+    }
 }
 
 void Interpreter::visit(CastExpression &visited)
@@ -558,20 +640,7 @@ void Interpreter::visit(CastExpression &visited)
     if(visited.targetType.isBuiltin())
     {
         Type::Builtin type = std::get<Type::Builtin>(visited.targetType.value);
-        switch(type)
-        {
-        case INT:
-            lastResult = getCastedObject<int32_t>(type, visited.getPosition());
-            break;
-        case STR:
-            lastResult = getCastedObject<std::wstring>(type, visited.getPosition());
-            break;
-        case FLOAT:
-            lastResult = getCastedObject<double>(type, visited.getPosition());
-            break;
-        case BOOL:
-            lastResult = getCastedObject<bool>(type, visited.getPosition());
-        }
+        lastResult = doCast(type, getLastResultReference(), visited.getPosition());
     }
     else // cast to variant type case
         lastResult = Object{{visited.targetType}, std::make_unique<Object>(getLastResultValue())};

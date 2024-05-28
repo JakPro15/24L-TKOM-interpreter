@@ -5,6 +5,24 @@ Object::Object(
 ): type(type), value(std::move(value))
 {}
 
+bool Object::operator==(const Object &other) const
+{
+    if(type != other.type)
+        return false;
+    if(std::holds_alternative<std::unique_ptr<Object>>(value))
+    {
+        if(!std::holds_alternative<std::unique_ptr<Object>>(other.value))
+            return false;
+        return *std::get<std::unique_ptr<Object>>(value) == *std::get<std::unique_ptr<Object>>(other.value);
+    }
+    return value == other.value;
+}
+
+bool Object::operator!=(const Object &other) const
+{
+    return !(*this == other);
+}
+
 namespace {
 template <typename Contained>
 std::variant<std::wstring, int32_t, double, bool, std::vector<Object>, std::unique_ptr<Object>> copyValue(

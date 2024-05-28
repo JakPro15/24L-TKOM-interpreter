@@ -147,9 +147,9 @@ Operator `.` jest jedynym, którego można używać po lewej stronie przypisania
 
 Wszelkie przekroczenia zakresu zmiennych typu `int` powodują błąd czasu wykonania.
 
-Operatory `==`, `!=` dla struktur wymagają tego samego typu dla obu argumentów i wykonują porównanie każdego elementu struktury  odpowiednim operatorem.
+Operatory `==`, `!=` dla struktur wymagają tego samego typu dla obu argumentów i wykonują porównanie każdego elementu struktury. Jeżeli elementem struktury jest rekord wariantowy, odpowiadające rekordy muszą zawierać taki sam typ.
 
-Operatory `==`, `!=` dla rekordów wariantowych wymagają tego samego typu dla obu argumentów i wykonują porównanie elementów zawartych w rekordach odpowiednim operatorem. Jeżeli typy zawarte w rekordach nie pozwalają na porównanie, zwracana jest wartość `false`.
+Operatory `==`, `!=` dla rekordów wariantowych wymagają tego samego typu dla obu argumentów i wykonują porównanie elementów zawartych w rekordach odpowiednim operatorem. Próbują dokonać konwersji typów zawartych w rekordach wariantowych - jeśli jest niemożliwa, wartość zwracana jest taka, jakby rekordy były różne.
 
 Operatory przyjmujące typy `int` lub `float` zwracają typ `int` tylko, jeżeli oba ich argumenty są typu `int`; w przeciwnym razie zwracany jest typ `float`.
 ```

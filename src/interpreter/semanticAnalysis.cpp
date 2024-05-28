@@ -497,17 +497,6 @@ private:
             insertCast(expression, lastExpressionType.first, desiredType);
     }
 
-    Type getTargetTypeForEquality(Type::Builtin leftType, Type::Builtin rightType)
-    {
-        if(leftType == STR || rightType == STR)
-            return {STR};
-        if(leftType == FLOAT || rightType == FLOAT)
-            return {FLOAT};
-        if(leftType == INT || rightType == INT)
-            return {INT};
-        return {BOOL};
-    }
-
     template <typename EqualityExpression>
     void visitEqualityExpression(EqualityExpression &visited)
     {
@@ -528,9 +517,9 @@ private:
                 std::format(L"{} and {} are not valid types for equality operator", leftType, rightType), currentSource,
                 visited.getPosition()
             );
-        Type targetType = getTargetTypeForEquality(
-            std::get<Type::Builtin>(leftType.value), std::get<Type::Builtin>(rightType.value)
-        );
+        Type targetType = {
+            getTargetTypeForEquality(std::get<Type::Builtin>(leftType.value), std::get<Type::Builtin>(rightType.value))
+        };
         if(leftType != targetType)
             return insertCast(visited.left, leftType, targetType);
         if(rightType != targetType)
@@ -1077,6 +1066,17 @@ private:
             parameter.accept(*this);
     }
 };
+}
+
+Type::Builtin getTargetTypeForEquality(Type::Builtin leftType, Type::Builtin rightType)
+{
+    if(leftType == STR || rightType == STR)
+        return STR;
+    if(leftType == FLOAT || rightType == FLOAT)
+        return FLOAT;
+    if(leftType == INT || rightType == INT)
+        return INT;
+    return BOOL;
 }
 
 void doSemanticAnalysis(Program &program)

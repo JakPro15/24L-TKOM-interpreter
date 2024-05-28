@@ -40,7 +40,14 @@ private:
     template <typename TargetType, typename SourceType>
     TargetType cast(const SourceType &value, Position position);
     template <typename TargetType>
-    Object getCastedObject(Type::Builtin targetType, Position position);
+    Object getCastedObject(Type::Builtin targetType, Object &toCast, Position position);
+    Object doCast(Type::Builtin targetType, Object &toCast, Position position);
+
+    bool isVariantType(const Type &type);
+    Object &getNonvariantValue(const Object &variant);
+    std::pair<Object, Object> castEqualityArguments(Object &left, Object &right, Position position);
+    template <typename EqualityExpression>
+    bool compareArgumentsEqual(EqualityExpression &visited);
 
     template <typename LeftType, typename RightType, typename BinaryOperation>
     std::pair<LeftType, RightType> getBinaryOpArgs(BinaryOperation &visited);

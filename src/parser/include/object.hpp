@@ -7,7 +7,8 @@ struct Object
 {
     Type type;
     std::variant<std::wstring, int32_t, double, bool, std::vector<Object>, std::unique_ptr<Object>> value;
-    bool operator==(const Object &other) const = default;
+    bool operator==(const Object &other) const;
+    bool operator!=(const Object &other) const;
 
     Object() = default;
     Object(

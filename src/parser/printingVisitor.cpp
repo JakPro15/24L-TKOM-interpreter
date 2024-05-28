@@ -185,7 +185,16 @@ void PrintingVisitor::visit(AssignmentStatement &visited)
 
 void PrintingVisitor::visit(FunctionCall &visited)
 {
-    out << L"FunctionCall " << visited.getPosition() << L" functionName=" << visited.functionName << L"\n";
+    out << L"FunctionCall " << visited.getPosition() << L" functionName=" << visited.functionName;
+    if(!visited.runtimeRecognized.empty())
+    {
+        out << L" runtimeRecognized={" << visited.runtimeRecognized[0];
+        std::for_each(visited.runtimeRecognized.begin() + 1, visited.runtimeRecognized.end(), [&](unsigned index) {
+            out << L", " << index;
+        });
+        out << L"}";
+    }
+    out << L"\n";
     visitContainer(visited.arguments);
 }
 

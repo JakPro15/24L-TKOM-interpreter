@@ -302,71 +302,89 @@ public:
             insertCast(visited.right, rightType, leftType);
     }
 
-    std::pair<std::optional<Type>, bool> checkConcreteFunction(
-        const std::wstring &functionName, const std::vector<Type> &argumentTypes,
-        const std::vector<bool> &argumentsMutable, Position position
+    std::pair<bool, std::optional<Type>> checkConcreteFunction(
+        const FunctionCall &call, const std::vector<Type> &argumentTypes, const std::vector<bool> &argumentsMutable
     )
     {
-        FunctionIdentification id(functionName, argumentTypes);
-        auto found = findIn(program.functions, FunctionIdentification(functionName, argumentTypes));
+        FunctionIdentification id(call.functionName, argumentTypes);
+        auto found = findIn(program.functions, id);
         if(!found)
-            return {std::nullopt, false};
+            return {false, std::nullopt};
         auto &function = (*found)->second;
-        validateArgumentMutability(id, function, argumentsMutable, position);
-        return {function->returnType, true};
+        validateArgumentMutability(id, function, argumentsMutable, call.getPosition());
+        return {true, function->returnType};
     }
 
-    std::pair<std::optional<Type>, bool> checkSingleVariantType(
-        std::vector<Field> &fields, unsigned indexToCheck, const std::wstring &functionName,
-        const std::vector<Type> &argumentTypes, const std::vector<bool> &argumentsMutable, Position position
+    std::tuple<bool, std::optional<Type>, std::vector<unsigned>> concretizeVariantType(
+        std::vector<Field> &fields, unsigned indexToCheck, const FunctionCall &call,
+        const std::vector<Type> &argumentTypes, const std::vector<bool> &argumentsMutable
     )
     {
-        auto [returned, found] = checkRemainingTypes(
-            indexToCheck + 1, functionName, argumentTypes, argumentsMutable, position
-        );
-        if(found)
-            return {returned, true};
-
-        std::optional<Type> returnType;
         bool returnTypeSet = false;
+        std::optional<Type> returnType;
+        std::vector<unsigned> indexes;
         for(Field &field: fields)
         {
             std::vector<Type> newArgumentTypes = argumentTypes;
             newArgumentTypes[indexToCheck] = field.type;
-            auto [returned, found] = checkRemainingTypes(
-                indexToCheck + 1, functionName, newArgumentTypes, argumentsMutable, position
+            auto [found, returned, returnedIndexes] = checkRemainingTypes(
+                indexToCheck + 1, call, newArgumentTypes, argumentsMutable
             );
-            if(!found || (returnTypeSet && returnType != returned))
-                return {std::nullopt, false};
-            returnTypeSet = true;
-            returnType = returned;
+            if(!found)
+                return {false, std::nullopt, {}};
+            if(returnTypeSet)
+            {
+                if(returnType != returned || indexes != returnedIndexes)
+                    return {false, std::nullopt, {}};
+            }
+            else
+            {
+                returnTypeSet = true;
+                returnType = returned;
+                indexes = returnedIndexes;
+            }
         }
-        return {returnType, true};
+        indexes.push_back(indexToCheck);
+        return {true, returnType, indexes};
     }
 
-    std::pair<std::optional<Type>, bool> checkRemainingTypes(
-        unsigned indexToCheck, const std::wstring &functionName, const std::vector<Type> &argumentTypes,
-        const std::vector<bool> &argumentsMutable, Position position
+    std::tuple<bool, std::optional<Type>, std::vector<unsigned>> checkSingleVariantType(
+        std::vector<Field> &fields, unsigned indexToCheck, const FunctionCall &call,
+        const std::vector<Type> &argumentTypes, const std::vector<bool> &argumentsMutable
+    )
+    {
+        auto [found, returnType, indexes] = checkRemainingTypes(
+            indexToCheck + 1, call, argumentTypes, argumentsMutable
+        );
+        if(found)
+            return {true, returnType, indexes};
+        return concretizeVariantType(fields, indexToCheck, call, argumentTypes, argumentsMutable);
+    }
+
+    std::tuple<bool, std::optional<Type>, std::vector<unsigned>> checkRemainingTypes(
+        unsigned indexToCheck, const FunctionCall &call, const std::vector<Type> &argumentTypes,
+        const std::vector<bool> &argumentsMutable
     )
     {
         if(indexToCheck >= argumentTypes.size())
-            return checkConcreteFunction(functionName, argumentTypes, argumentsMutable, position);
+        {
+            auto [found, returnType] = checkConcreteFunction(call, argumentTypes, argumentsMutable);
+            return {found, returnType, {}};
+        }
         if(argumentTypes[indexToCheck].isInitList())
-            return {std::nullopt, false};
+            return {false, std::nullopt, {}};
 
         std::vector<Field> *fields = getVariantFields(argumentTypes[indexToCheck]);
         if(!fields) // struct or builtin case
-            return checkRemainingTypes(indexToCheck + 1, functionName, argumentTypes, argumentsMutable, position);
-        return checkSingleVariantType(*fields, indexToCheck, functionName, argumentTypes, argumentsMutable, position);
+            return checkRemainingTypes(indexToCheck + 1, call, argumentTypes, argumentsMutable);
+        return checkSingleVariantType(*fields, indexToCheck, call, argumentTypes, argumentsMutable);
     }
 
     std::optional<Type> validateRuntimeRecognizable(
         FunctionCall &visited, const std::vector<Type> &argumentTypes, const std::vector<bool> &argumentsMutable
     )
     {
-        auto [returnType, found] = checkRemainingTypes(
-            0, visited.functionName, argumentTypes, argumentsMutable, visited.getPosition()
-        );
+        auto [found, returnType, indexes] = checkRemainingTypes(0, visited, argumentTypes, argumentsMutable);
         if(!found)
             throw InvalidFunctionCallError(
                 std::format(
@@ -375,6 +393,7 @@ public:
                 ),
                 currentSource, visited.getPosition()
             );
+        visited.runtimeRecognized = indexes;
         return returnType;
     }
 

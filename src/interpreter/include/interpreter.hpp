@@ -49,6 +49,7 @@ private:
 
     int32_t addIntegers(int32_t left, int32_t right, Position position);
     void visitInstructionBlock(std::vector<std::unique_ptr<Instruction>> &block);
+    void visitInstructionScope(std::vector<std::unique_ptr<Instruction>> &block);
 
     void visit(Literal &visited) override;
     void visit(Variable &visited) override;

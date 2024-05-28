@@ -110,6 +110,13 @@ void Interpreter::visitInstructionBlock(std::vector<std::unique_ptr<Instruction>
     }
 }
 
+void Interpreter::visitInstructionScope(std::vector<std::unique_ptr<Instruction>> &block)
+{
+    variables.top().emplace_back();
+    visitInstructionBlock(block);
+    variables.top().pop_back();
+}
+
 void Interpreter::visit(Literal &visited)
 {
     lastResult = Object(
@@ -129,13 +136,41 @@ void Interpreter::visit(Variable &visited)
     lastResult = getVariable(visited.name);
 }
 
-void Interpreter::visit(IsExpression &) {}
+void Interpreter::visit(IsExpression &visited)
+{
+    visited.left->accept(*this);
+    Object &value = getLastResultReference();
+    if(value.type.isBuiltin() || program->variants.count(std::get<std::wstring>(value.type.value)) == 1)
+    {
+        lastResult = Object{{BOOL}, value.type == visited.right};
+        return;
+    }
+    if(value.type == visited.right)
+        lastResult = Object{{BOOL}, true};
+    else
+    {
+        Object &containedInVariant = *std::get<std::unique_ptr<Object>>(value.value).get();
+        lastResult = Object{{BOOL}, containedInVariant.type == visited.right};
+    }
+}
 
-void Interpreter::visit(OrExpression &) {}
+void Interpreter::visit(OrExpression &visited)
+{
+    auto [left, right] = getBinaryOpArgs<bool, bool>(visited);
+    lastResult = Object{{BOOL}, left || right};
+}
 
-void Interpreter::visit(XorExpression &) {}
+void Interpreter::visit(XorExpression &visited)
+{
+    auto [left, right] = getBinaryOpArgs<bool, bool>(visited);
+    lastResult = Object{{BOOL}, left != right};
+}
 
-void Interpreter::visit(AndExpression &) {}
+void Interpreter::visit(AndExpression &visited)
+{
+    auto [left, right] = getBinaryOpArgs<bool, bool>(visited);
+    lastResult = Object{{BOOL}, left && right};
+}
 
 void Interpreter::visit(EqualExpression &) {}
 
@@ -145,9 +180,24 @@ void Interpreter::visit(IdenticalExpression &) {}
 
 void Interpreter::visit(NotIdenticalExpression &) {}
 
-void Interpreter::visit(ConcatExpression &) {}
+void Interpreter::visit(ConcatExpression &visited)
+{
+    auto [left, right] = getBinaryOpArgs<std::wstring, std::wstring>(visited);
+    lastResult = Object{{STR}, left + right};
+}
 
-void Interpreter::visit(StringMultiplyExpression &) {}
+void Interpreter::visit(StringMultiplyExpression &visited)
+{
+    auto [left, right] = getBinaryOpArgs<std::wstring, int32_t>(visited);
+    if(right < 0)
+        throw OperatorArgumentError(
+            L"'@' operator's right argument must be positive", currentSource, visited.getPosition()
+        );
+    std::wstring result;
+    for(int32_t i = 0; i < right; i++)
+        result += left;
+    lastResult = Object{{STR}, result};
+}
 
 void Interpreter::visit(GreaterExpression &) {}
 
@@ -372,7 +422,18 @@ void Interpreter::visit(CastExpression &visited)
 void Interpreter::visit(VariableDeclStatement &visited)
 {
     visited.value->accept(*this);
-    addVariable(visited.declaration.name, getLastResultValue());
+    Object &value = getLastResultReference();
+    if(value.type == visited.declaration.type)
+        return addVariable(visited.declaration.name, getLastResultValue());
+
+    Object &containedInVariant = *std::get<std::unique_ptr<Object>>(value.value).get();
+    if(containedInVariant.type == visited.declaration.type)
+    {
+        addVariable(visited.declaration.name, containedInVariant);
+        lastResult = Object{{BOOL}, true};
+    }
+    else
+        lastResult = Object{{BOOL}, false};
 }
 
 void Interpreter::visit(Assignable &visited)
@@ -387,10 +448,10 @@ void Interpreter::visit(Assignable &visited)
     std::wstring typeName = std::get<std::wstring>(left.type.value);
 
     auto structFound = program->structs.find(typeName);
-    if(structFound == program->structs.end())
-        return; // variant access case - leave lastResult as is
-
-    lastResult = getField(left, structFound, visited.right);
+    if(structFound != program->structs.end())
+        lastResult = getField(left, structFound, visited.right);
+    else // variant access case
+        lastResult = *std::get<std::unique_ptr<Object>>(left.value).get();
 }
 
 void Interpreter::visit(AssignmentStatement &visited)
@@ -398,8 +459,7 @@ void Interpreter::visit(AssignmentStatement &visited)
     visit(visited.left);
     Object &assignmentTarget = getLastResultReference();
     visited.right->accept(*this);
-    Object value = getLastResultValue();
-    assignmentTarget.value = std::move(value.value);
+    assignmentTarget = std::move(getLastResultValue());
 }
 
 void Interpreter::visit(FunctionCall &visited)
@@ -452,6 +512,7 @@ void Interpreter::visit(SingleIfCase &visited)
         visit(std::get<VariableDeclStatement>(visited.condition));
     else
         std::get<std::unique_ptr<Expression>>(visited.condition)->accept(*this);
+    // case body is visited in visit(IfStatement &)
 }
 
 void Interpreter::visit(IfStatement &visited)
@@ -459,16 +520,19 @@ void Interpreter::visit(IfStatement &visited)
     bool executeElse = true;
     for(SingleIfCase &singleCase: visited.cases)
     {
+        variables.top().emplace_back();
         visit(singleCase);
         if(std::get<bool>(getLastResultReference().value))
         {
             executeElse = false;
             visitInstructionBlock(singleCase.body);
+            variables.top().pop_back();
             break;
         }
+        variables.top().pop_back();
     }
     if(executeElse)
-        visitInstructionBlock(visited.elseCaseBody);
+        visitInstructionScope(visited.elseCaseBody);
 }
 
 #define HANDLE_LOOP_FLAGS           \
@@ -487,7 +551,7 @@ void Interpreter::visit(WhileStatement &visited)
 {
     while(visited.condition->accept(*this), std::get<bool>(getLastResultReference().value))
     {
-        visitInstructionBlock(visited.body);
+        visitInstructionScope(visited.body);
         HANDLE_LOOP_FLAGS;
     }
 }
@@ -496,7 +560,7 @@ void Interpreter::visit(DoWhileStatement &visited)
 {
     do
     {
-        visitInstructionBlock(visited.body);
+        visitInstructionScope(visited.body);
         HANDLE_LOOP_FLAGS;
     }
     while(visited.condition->accept(*this), std::get<bool>(getLastResultReference().value));
@@ -509,6 +573,7 @@ void Interpreter::visit(FunctionDeclaration &visited)
     variables.emplace();
     variables.top().emplace_back();
     for(unsigned i = 0; i < functionArguments.size(); i++)
+    {
         std::visit(
             [&](auto &value) {
                 if constexpr(std::is_same_v<Object &, decltype(value)>)
@@ -518,6 +583,7 @@ void Interpreter::visit(FunctionDeclaration &visited)
             },
             functionArguments[i]
         );
+    }
     visitInstructionBlock(visited.body);
     shouldReturn = false;
     variables.pop();

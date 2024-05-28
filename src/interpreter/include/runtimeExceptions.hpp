@@ -25,6 +25,7 @@ DECLARE_RUNTIME_ERROR(StandardOutputError);
 DECLARE_RUNTIME_ERROR(MainNotFoundError);
 DECLARE_RUNTIME_ERROR(MainReturnTypeError);
 DECLARE_RUNTIME_ERROR(CastImpossibleError);
+DECLARE_RUNTIME_ERROR(OperatorArgumentError);
 
 class RuntimeSemanticException: public std::runtime_error
 {

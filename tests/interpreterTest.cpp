@@ -337,3 +337,91 @@ TEST_CASE("StructExpression and struct field assignment", "[Interpreter]")
     interpreter.visit(program);
     REQUIRE(output.str() == L"3\n3.5\n");
 }
+
+void addPrintlnOfVariant(
+    std::vector<std::unique_ptr<Instruction>> &instructions, unsigned line, const std::wstring &variantName,
+    const Type &type
+)
+{
+    std::vector<SingleIfCase> cases;
+    std::vector<std::unique_ptr<Instruction>> caseBody;
+    std::vector<std::unique_ptr<Expression>> arguments;
+    arguments.push_back(std::make_unique<Variable>(Position{line + 1, 10}, L"accessed"));
+    caseBody.push_back(std::make_unique<FunctionCallInstruction>(
+        Position{line + 1, 1}, FunctionCall({line + 1, 1}, L"println", std::move(arguments))
+    ));
+    cases.push_back(SingleIfCase(
+        {line, 1},
+        VariableDeclStatement(
+            {line, 10}, VariableDeclaration({line, 10}, type, L"accessed", true),
+            std::make_unique<Variable>(Position{line, 20}, variantName)
+        ),
+        std::move(caseBody)
+    ));
+    instructions.push_back(
+        std::make_unique<IfStatement>(Position{line, 1}, std::move(cases), std::vector<std::unique_ptr<Instruction>>{})
+    );
+}
+
+TEST_CASE("variant access and assignment", "[Interpreter]")
+{
+    Program program({1, 1});
+    program.variants.emplace(
+        L"V", VariantDeclaration(
+                  Position{1, 1}, L"<test>",
+                  {
+                      Field({1, 10}, {INT}, L"a"),
+                      Field({1, 20}, {STR}, L"b"),
+                  }
+              )
+    );
+
+    std::vector<std::unique_ptr<Instruction>> instructions;
+    instructions.push_back(std::make_unique<VariableDeclStatement>(
+        Position{3, 1}, VariableDeclaration({3, 1}, {L"V"}, L"v", true), makeLiteral({3, 10}, 2)
+    ));
+    std::vector<SingleIfCase> cases;
+    std::vector<std::unique_ptr<Instruction>> caseBody;
+    std::vector<std::unique_ptr<Expression>> arguments;
+    arguments.push_back(std::make_unique<Variable>(Position{5, 10}, L"a"));
+    caseBody.push_back(std::make_unique<FunctionCallInstruction>(
+        Position{5, 1}, FunctionCall({5, 1}, L"println", std::move(arguments))
+    ));
+    caseBody.push_back(
+        std::make_unique<AssignmentStatement>(Position{6, 1}, Assignable({6, 1}, L"a"), makeLiteral({6, 10}, 3))
+    );
+    cases.push_back(SingleIfCase(
+        {4, 1},
+        VariableDeclStatement(
+            {4, 10}, VariableDeclaration({4, 10}, {INT}, L"a", true), std::make_unique<Variable>(Position{4, 20}, L"v")
+        ),
+        std::move(caseBody)
+    ));
+    instructions.push_back(
+        std::make_unique<IfStatement>(Position{4, 1}, std::move(cases), std::vector<std::unique_ptr<Instruction>>{})
+    );
+    addPrintlnOfVariant(instructions, 7, L"v", {INT});
+    addPrintlnOfVariant(instructions, 9, L"v", {STR});
+    instructions.push_back(
+        std::make_unique<AssignmentStatement>(Position{11, 1}, Assignable({11, 1}, L"v"), makeLiteral({11, 10}, L"abc"))
+    );
+    addPrintlnOfVariant(instructions, 12, L"v", {INT});
+    addPrintlnOfVariant(instructions, 14, L"v", {STR});
+    instructions.push_back(std::make_unique<AssignmentStatement>(
+        Position{16, 1}, Assignable({16, 1}, std::make_unique<Assignable>(Position{16, 1}, L"v"), L"a"),
+        makeLiteral({16, 10}, 100)
+    ));
+    addPrintlnOfVariant(instructions, 17, L"v", {INT});
+    addPrintlnOfVariant(instructions, 19, L"v", {STR});
+
+    program.functions.emplace(
+        FunctionIdentification(L"main", {}),
+        std::make_unique<FunctionDeclaration>(
+            Position{1, 1}, L"<test>", std::vector<VariableDeclaration>{}, std::nullopt, std::move(instructions)
+        )
+    );
+    std::wstringstream input, output;
+    Interpreter interpreter(L"<test>", {}, input, output, parseFromStream);
+    interpreter.visit(program);
+    REQUIRE(output.str() == L"2\n3\nabc\n100\n");
+}

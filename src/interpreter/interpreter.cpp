@@ -697,13 +697,10 @@ void Interpreter::visit(IfStatement &visited)
     if(shouldBreak || shouldReturn) \
     {                               \
         shouldBreak = false;        \
-        return;                     \
+        break;                      \
     }                               \
     if(shouldContinue)              \
-    {                               \
-        shouldContinue = false;     \
-        break;                      \
-    }
+        shouldContinue = false;
 
 void Interpreter::visit(WhileStatement &visited)
 {

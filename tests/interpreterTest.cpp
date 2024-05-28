@@ -657,69 +657,136 @@ TEST_CASE("unary operators", "[Interpreter]")
     checkUnaryOperator<NotExpression>(0.0, L"true");
 }
 
-// TEST_CASE("WhileStatement, DoWhileStatement, IfStatement, BreakStatement, ContinueStatement", "[Interpreter]")
-// {
-//     Program program({1, 1});
-//     std::vector<std::unique_ptr<Instruction>> instructions;
-//     instructions.push_back(std::make_unique<VariableDeclStatement>(
-//         Position{2, 1}, VariableDeclaration({2, 1}, {INT}, L"a", true), makeLiteral({2, 10}, 0)
-//     ));
-//     instructions.push_back(std::make_unique<VariableDeclStatement>(
-//         Position{2, 20}, VariableDeclaration({2, 20}, {INT}, L"i", true), makeLiteral({2, 30}, 0)
-//     ));
+TEST_CASE("WhileStatement, IfStatement, ContinueStatement", "[Interpreter]")
+{
+    Program program({1, 1});
+    std::vector<std::unique_ptr<Instruction>> instructions;
+    instructions.push_back(std::make_unique<VariableDeclStatement>(
+        Position{2, 1}, VariableDeclaration({2, 1}, {INT}, L"a", true), makeLiteral({2, 10}, 0)
+    ));
+    instructions.push_back(std::make_unique<VariableDeclStatement>(
+        Position{2, 20}, VariableDeclaration({2, 20}, {INT}, L"i", true), makeLiteral({2, 30}, 0)
+    ));
 
-// std::vector<std::unique_ptr<Instruction>> loopBody;
-// loopBody.push_back(std::make_unique<AssignmentStatement>(
-//     Position{2, 100}, Assignable({2, 100}, L"a"),
-//     std::make_unique<PlusExpression>(
-//         Position{2, 110}, std::make_unique<Variable>(Position{2, 110}, L"a"), makeLiteral({2, 120}, 1)
-//     )
-// ));
-// std::vector<SingleIfCase> cases;
-// std::vector<std::unique_ptr<Instruction>> caseBody;
-// caseBody.push_back(std::make_unique<ContinueStatement>(Position{5, 1}));
-// cases.push_back(SingleIfCase(
-//     {4, 1},
-//     std::make_unique<EqualExpression>(
-//         Position{4, 10}, std::make_unique<Variable>(Position{4, 10}, L"a"), makeLiteral({4, 20}, 2)
-//     ),
-//     std::move(caseBody)
-// ));
-// loopBody.push_back(
-//     std::make_unique<IfStatement>(Position{4, 1}, std::move(cases), std::vector<std::unique_ptr<Instruction>>{})
-// );
-// loopBody.push_back(std::make_unique<AssignmentStatement>(
-//     Position{6, 1}, Assignable({6, 1}, L"i"),
-//     std::make_unique<PlusExpression>(
-//         Position{6, 10}, std::make_unique<Variable>(Position{6, 10}, L"i"), makeLiteral({6, 20}, 1)
-//     )
-// ));
-// instructions.push_back(std::make_unique<WhileStatement>(
-//     Position{3, 1},
-//     std::make_unique<LesserExpression>(
-//         Position{3, 10}, std::make_unique<Variable>(Position{3, 10}, L"a"), makeLiteral({3, 20}, 5)
-//     ),
-//     std::move(loopBody)
-// ));
-// std::vector<std::unique_ptr<Expression>> arguments;
-// arguments.push_back(std::make_unique<Variable>(Position{8, 10}, L"a"));
-// instructions.push_back(std::make_unique<FunctionCallInstruction>(
-//     Position{8, 1}, FunctionCall({8, 1}, L"println", std::move(arguments))
-// ));
-// arguments.clear();
-// arguments.push_back(std::make_unique<Variable>(Position{9, 10}, L"i"));
-// instructions.push_back(std::make_unique<FunctionCallInstruction>(
-//     Position{9, 1}, FunctionCall({9, 1}, L"println", std::move(arguments))
-// ));
+    std::vector<std::unique_ptr<Instruction>> loopBody;
+    loopBody.push_back(std::make_unique<AssignmentStatement>(
+        Position{2, 100}, Assignable({2, 100}, L"a"),
+        std::make_unique<PlusExpression>(
+            Position{2, 110}, std::make_unique<Variable>(Position{2, 110}, L"a"), makeLiteral({2, 120}, 1)
+        )
+    ));
+    std::vector<SingleIfCase> cases;
+    std::vector<std::unique_ptr<Instruction>> caseBody;
+    caseBody.push_back(std::make_unique<ContinueStatement>(Position{5, 1}));
+    cases.push_back(SingleIfCase(
+        {4, 1},
+        std::make_unique<EqualExpression>(
+            Position{4, 10}, std::make_unique<Variable>(Position{4, 10}, L"a"), makeLiteral({4, 20}, 2)
+        ),
+        std::move(caseBody)
+    ));
+    loopBody.push_back(
+        std::make_unique<IfStatement>(Position{4, 1}, std::move(cases), std::vector<std::unique_ptr<Instruction>>{})
+    );
+    loopBody.push_back(std::make_unique<AssignmentStatement>(
+        Position{6, 1}, Assignable({6, 1}, L"i"),
+        std::make_unique<PlusExpression>(
+            Position{6, 10}, std::make_unique<Variable>(Position{6, 10}, L"i"), makeLiteral({6, 20}, 1)
+        )
+    ));
+    instructions.push_back(std::make_unique<WhileStatement>(
+        Position{3, 1},
+        std::make_unique<LesserExpression>(
+            Position{3, 10}, std::make_unique<Variable>(Position{3, 10}, L"a"), makeLiteral({3, 20}, 5)
+        ),
+        std::move(loopBody)
+    ));
+    std::vector<std::unique_ptr<Expression>> arguments;
+    arguments.push_back(std::make_unique<Variable>(Position{8, 10}, L"a"));
+    instructions.push_back(std::make_unique<FunctionCallInstruction>(
+        Position{8, 1}, FunctionCall({8, 1}, L"println", std::move(arguments))
+    ));
+    arguments.clear();
+    arguments.push_back(std::make_unique<Variable>(Position{9, 10}, L"i"));
+    instructions.push_back(std::make_unique<FunctionCallInstruction>(
+        Position{9, 1}, FunctionCall({9, 1}, L"println", std::move(arguments))
+    ));
 
-// program.functions.emplace(
-//     FunctionIdentification(L"main", {}),
-//     std::make_unique<FunctionDeclaration>(
-//         Position{1, 1}, L"<test>", std::vector<VariableDeclaration>{}, std::nullopt, std::move(instructions)
-//     )
-// );
-// std::wstringstream input, output;
-// Interpreter interpreter(L"<test>", {}, input, output, parseFromStream);
-// interpreter.visit(program);
-// REQUIRE(output.str() == L"5\n4\n");
-// }
+    program.functions.emplace(
+        FunctionIdentification(L"main", {}),
+        std::make_unique<FunctionDeclaration>(
+            Position{1, 1}, L"<test>", std::vector<VariableDeclaration>{}, std::nullopt, std::move(instructions)
+        )
+    );
+    std::wstringstream input, output;
+    Interpreter interpreter(L"<test>", {}, input, output, parseFromStream);
+    interpreter.visit(program);
+    REQUIRE(output.str() == L"5\n4\n");
+}
+
+TEST_CASE("DoWhileStatement, IfStatement, BreakStatement", "[Interpreter]")
+{
+    Program program({1, 1});
+    std::vector<std::unique_ptr<Instruction>> instructions;
+    instructions.push_back(std::make_unique<VariableDeclStatement>(
+        Position{2, 1}, VariableDeclaration({2, 1}, {INT}, L"a", true), makeLiteral({2, 10}, 0)
+    ));
+    instructions.push_back(std::make_unique<VariableDeclStatement>(
+        Position{2, 20}, VariableDeclaration({2, 20}, {INT}, L"i", true), makeLiteral({2, 30}, 0)
+    ));
+
+    std::vector<std::unique_ptr<Instruction>> loopBody;
+    loopBody.push_back(std::make_unique<AssignmentStatement>(
+        Position{2, 100}, Assignable({2, 100}, L"a"),
+        std::make_unique<PlusExpression>(
+            Position{2, 110}, std::make_unique<Variable>(Position{2, 110}, L"a"), makeLiteral({2, 120}, 1)
+        )
+    ));
+    std::vector<SingleIfCase> cases;
+    std::vector<std::unique_ptr<Instruction>> caseBody;
+    caseBody.push_back(std::make_unique<BreakStatement>(Position{5, 1}));
+    cases.push_back(SingleIfCase(
+        {4, 1},
+        std::make_unique<EqualExpression>(
+            Position{4, 10}, std::make_unique<Variable>(Position{4, 10}, L"a"), makeLiteral({4, 20}, 2)
+        ),
+        std::move(caseBody)
+    ));
+    loopBody.push_back(
+        std::make_unique<IfStatement>(Position{4, 1}, std::move(cases), std::vector<std::unique_ptr<Instruction>>{})
+    );
+    loopBody.push_back(std::make_unique<AssignmentStatement>(
+        Position{6, 1}, Assignable({6, 1}, L"i"),
+        std::make_unique<PlusExpression>(
+            Position{6, 10}, std::make_unique<Variable>(Position{6, 10}, L"i"), makeLiteral({6, 20}, 1)
+        )
+    ));
+    instructions.push_back(std::make_unique<DoWhileStatement>(
+        Position{3, 1},
+        std::make_unique<LesserExpression>(
+            Position{3, 10}, std::make_unique<Variable>(Position{3, 10}, L"a"), makeLiteral({3, 20}, 5)
+        ),
+        std::move(loopBody)
+    ));
+    std::vector<std::unique_ptr<Expression>> arguments;
+    arguments.push_back(std::make_unique<Variable>(Position{8, 10}, L"a"));
+    instructions.push_back(std::make_unique<FunctionCallInstruction>(
+        Position{8, 1}, FunctionCall({8, 1}, L"println", std::move(arguments))
+    ));
+    arguments.clear();
+    arguments.push_back(std::make_unique<Variable>(Position{9, 10}, L"i"));
+    instructions.push_back(std::make_unique<FunctionCallInstruction>(
+        Position{9, 1}, FunctionCall({9, 1}, L"println", std::move(arguments))
+    ));
+
+    program.functions.emplace(
+        FunctionIdentification(L"main", {}),
+        std::make_unique<FunctionDeclaration>(
+            Position{1, 1}, L"<test>", std::vector<VariableDeclaration>{}, std::nullopt, std::move(instructions)
+        )
+    );
+    std::wstringstream input, output;
+    Interpreter interpreter(L"<test>", {}, input, output, parseFromStream);
+    interpreter.visit(program);
+    REQUIRE(output.str() == L"2\n1\n");
+}

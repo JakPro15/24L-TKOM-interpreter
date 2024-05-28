@@ -1263,8 +1263,11 @@ std::wstring addOverload(
     Program &program, const FunctionIdentification &id, std::optional<Type> returnType = std::nullopt
 )
 {
+    std::vector<std::unique_ptr<Instruction>> instructions;
+    if(returnType)
+        instructions.push_back(std::make_unique<ReturnStatement>(Position{0, 0}, makeLiteral({0, 0}, 2)));
     auto function = std::make_unique<FunctionDeclaration>(
-        Position{1, 1}, L"<test>", createParameters(id), returnType, std::vector<std::unique_ptr<Instruction>>{}
+        Position{1, 1}, L"<test>", createParameters(id), returnType, std::move(instructions)
     );
     std::wstringstream printed;
     std::pair<const FunctionIdentification, std::unique_ptr<BaseFunctionDeclaration>> toPrint{id, std::move(function)};
@@ -1760,4 +1763,33 @@ TEST_CASE("ReturnStatement errors", "[doSemanticAnalysis]")
                                                  )
     );
     REQUIRE_THROWS_AS(doSemanticAnalysis(program), InvalidCastError); // return value not castable to return type
+
+    functionBody.clear();
+    program = Program({1, 1});
+    program.functions.emplace(
+        FunctionIdentification(L"function", {}),
+        std::make_unique<FunctionDeclaration>(
+            Position{1, 1}, L"<test>", std::vector<VariableDeclaration>{}, Type{INT}, std::move(functionBody)
+        )
+    );
+    REQUIRE_THROWS_AS(
+        doSemanticAnalysis(program), InvalidReturnError
+    ); // return with value required in function with return type
+
+    functionBody.clear();
+    std::vector<SingleIfCase> cases;
+    cases.emplace_back(Position{2, 1}, makeLiteral({2, 10}, true), std::vector<std::unique_ptr<Instruction>>{});
+    std::vector<std::unique_ptr<Instruction>> elseCase;
+    elseCase.push_back(std::make_unique<ReturnStatement>(Position{3, 1}, makeLiteral(Position{3, 10}, 2)));
+    functionBody.push_back(std::make_unique<IfStatement>(Position{2, 1}, std::move(cases), std::move(elseCase)));
+    program = Program({1, 1});
+    program.functions.emplace(
+        FunctionIdentification(L"function", {}),
+        std::make_unique<FunctionDeclaration>(
+            Position{1, 1}, L"<test>", std::vector<VariableDeclaration>{}, Type{INT}, std::move(functionBody)
+        )
+    );
+    REQUIRE_THROWS_AS(
+        doSemanticAnalysis(program), InvalidReturnError
+    ); // return with value required on all paths in function with return type
 }

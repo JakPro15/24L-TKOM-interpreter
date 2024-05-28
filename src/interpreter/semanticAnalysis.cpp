@@ -20,7 +20,7 @@ class SemanticAnalyzer: public DocumentTreeVisitor
 public:
     explicit SemanticAnalyzer(Program &program):
         program(program), noReturnFunctionPermitted(false), variantReadAccessPermitted(false), accessedVariant(false),
-        blockFurtherDotAccess(false), loopCounter(0)
+        blockFurtherDotAccess(false), hasReturned(false), loopCounter(0)
     {}
 
     void visit(Literal &visited) override
@@ -347,6 +347,7 @@ public:
         visitExpression(visited.returnValue);
         if(lastExpressionType.first != expectedReturnType)
             insertCast(visited.returnValue, lastExpressionType.first, *expectedReturnType);
+        hasReturned = true;
     }
 
     void visit(ContinueStatement &visited) override
@@ -375,9 +376,20 @@ public:
 
     void visit(IfStatement &visited) override
     {
+        bool previousInstructionReturned = hasReturned;
+        bool allPathsReturned = false;
         for(SingleIfCase &ifCase: visited.cases)
+        {
+            hasReturned = false;
             ifCase.accept(*this);
+            if(!hasReturned)
+                allPathsReturned = false;
+        }
+        hasReturned = false;
         visitNewScope(visited.elseCaseBody);
+        if(!hasReturned)
+            allPathsReturned = false;
+        hasReturned = previousInstructionReturned || allPathsReturned;
     }
 
     void visit(WhileStatement &visited) override
@@ -401,7 +413,13 @@ public:
         currentSource = visited.getSource();
         parametersToVariables(visited.parameters);
         expectedReturnType = visited.returnType;
+        hasReturned = false;
         visitInstructions(visited.body);
+        if(expectedReturnType && !hasReturned)
+            throw InvalidReturnError(
+                L"Return with value is required in a function that returns a value", currentSource,
+                visited.getPosition()
+            );
     }
 
     // these are verified via regular functions, not visitation
@@ -435,7 +453,7 @@ private:
     std::optional<Type> expectedReturnType;
     std::pair<Type, bool> lastExpressionType;
     std::vector<std::unordered_map<std::wstring, std::pair<Type, bool>>> variableTypeScopes;
-    bool noReturnFunctionPermitted, variantReadAccessPermitted, accessedVariant, blockFurtherDotAccess;
+    bool noReturnFunctionPermitted, variantReadAccessPermitted, accessedVariant, blockFurtherDotAccess, hasReturned;
     std::unique_ptr<Expression> toReplace;
     unsigned loopCounter;
 

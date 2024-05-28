@@ -657,6 +657,70 @@ TEST_CASE("unary operators", "[Interpreter]")
     checkUnaryOperator<NotExpression>(0.0, L"true");
 }
 
+void checkIsOperator(std::unique_ptr<Expression> left, Type right, const std::wstring &expectedOutput)
+{
+    Program program({1, 1});
+    program.structs.emplace(
+        L"S", StructDeclaration(
+                  Position{1, 1}, L"<test>",
+                  {
+                      Field({1, 10}, {INT}, L"a"),
+                      Field({1, 20}, {FLOAT}, L"b"),
+                  }
+              )
+    );
+    program.variants.emplace(
+        L"V", VariantDeclaration(
+                  Position{1, 1}, L"<test>",
+                  {
+                      Field({1, 10}, {INT}, L"a"),
+                      Field({1, 20}, {STR}, L"b"),
+                  }
+              )
+    );
+    std::vector<std::unique_ptr<Instruction>> instructions;
+    std::vector<std::unique_ptr<Expression>> arguments;
+    arguments.push_back(std::make_unique<IsExpression>(Position{2, 10}, std::move(left), right));
+    instructions.push_back(
+        std::make_unique<FunctionCallInstruction>(Position{2, 1}, FunctionCall({2, 1}, L"print", std::move(arguments)))
+    );
+    program.functions.emplace(
+        FunctionIdentification(L"main", {}),
+        std::make_unique<FunctionDeclaration>(
+            Position{1, 1}, L"<test>", std::vector<VariableDeclaration>{}, std::nullopt, std::move(instructions)
+        )
+    );
+    std::wstringstream input, output;
+    Interpreter interpreter(L"<test>", {}, input, output, parseFromStream);
+    interpreter.visit(program);
+    REQUIRE(output.str() == expectedOutput);
+}
+
+TEST_CASE("IsExpression", "[Interpreter]")
+{
+    checkIsOperator(makeLiteral({3, 1}, 2), {INT}, L"true");
+    checkIsOperator(makeLiteral({3, 1}, 2), {FLOAT}, L"false");
+    checkIsOperator(makeLiteral({3, 1}, L"true"), {BOOL}, L"false");
+    checkIsOperator(makeLiteral({3, 1}, false), {BOOL}, L"true");
+    for(auto [type, output]:
+        std::vector<std::pair<Type, std::wstring>>{{{L"S"}, L"true"}, {{INT}, L"false"}, {{FLOAT}, L"false"}})
+    {
+        std::vector<std::unique_ptr<Expression>> arguments, structArguments;
+        structArguments.push_back(makeLiteral(Position{3, 10}, 2));
+        structArguments.push_back(makeLiteral(Position{3, 10}, 3.5));
+        arguments.push_back(std::make_unique<StructExpression>(Position{3, 10}, std::move(structArguments)));
+        checkIsOperator(std::make_unique<FunctionCall>(Position{3, 1}, L"S", std::move(arguments)), type, output);
+    }
+    for(auto [type, output]: std::vector<std::pair<Type, std::wstring>>{
+            {{L"V"}, L"true"}, {{INT}, L"true"}, {{STR}, L"false"}, {{FLOAT}, L"false"}
+        })
+    {
+        std::vector<std::unique_ptr<Expression>> arguments;
+        arguments.push_back(makeLiteral(Position{3, 10}, 2));
+        checkIsOperator(std::make_unique<FunctionCall>(Position{3, 1}, L"V", std::move(arguments)), type, output);
+    }
+}
+
 TEST_CASE("WhileStatement, IfStatement, ContinueStatement", "[Interpreter]")
 {
     Program program({1, 1});

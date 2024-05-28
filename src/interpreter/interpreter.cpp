@@ -135,7 +135,7 @@ void Interpreter::visit(IsExpression &visited)
 {
     visited.left->accept(*this);
     Object &value = getLastResultReference();
-    if(value.type.isBuiltin() || program->variants.count(std::get<std::wstring>(value.type.value)) == 1)
+    if(value.type.isBuiltin() || program->structs.count(std::get<std::wstring>(value.type.value)) == 1)
     {
         lastResult = Object{{BOOL}, value.type == visited.right};
         return;

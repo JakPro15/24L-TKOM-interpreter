@@ -1376,6 +1376,33 @@ TEST_CASE("FunctionCall - runtime resolution verification", "[doSemanticAnalysis
     );
     doSemanticAnalysis(program);
     checkNodeContainer(program.functions, printedFunctions);
+
+    // case when only 1 variant is runtime resolved
+    functionBody.clear();
+    functionArguments.clear();
+    functionArguments.push_back(makeLiteral({4, 20}, 2));
+    functionArguments.push_back(std::make_unique<Variable>(Position{4, 30}, L"v1"));
+    functionArguments.push_back(std::make_unique<Variable>(Position{4, 40}, L"v2"));
+    functionBody.push_back(std::make_unique<AssignmentStatement>(
+        Position{4, 1}, Assignable(Position{4, 1}, L"arg"),
+        std::make_unique<FunctionCall>(Position{4, 10}, L"f", std::move(functionArguments))
+    ));
+    program = wrapInFunction(std::move(functionBody));
+    printedFunctions.clear();
+    printedFunctions.insert(addOverload(program, FunctionIdentification(L"f", {{INT}, {INT}, {L"vart2"}}), {{INT}}));
+    printedFunctions.insert(addOverload(program, FunctionIdentification(L"f", {{INT}, {STR}, {L"vart2"}}), {{INT}}));
+    printedFunctions.insert(addOverload(program, FunctionIdentification(L"f", {{INT}, {FLOAT}, {L"vart2"}}), {{INT}}));
+    printedFunctions.insert(
+        wrappedFunctionHeader + L"`-Body:\n"
+                                L" `-AssignmentStatement <line: 4, col: 1>\n"
+                                L"  |-Assignable <line: 4, col: 1> right=arg\n"
+                                L"  `-FunctionCall <line: 4, col: 10> functionName=f\n"
+                                L"   |-Literal <line: 4, col: 20> type=int value=2\n"
+                                L"   |-Variable <line: 4, col: 30> name=v1\n"
+                                L"   `-Variable <line: 4, col: 40> name=v2\n"
+    );
+    doSemanticAnalysis(program);
+    checkNodeContainer(program.functions, printedFunctions);
 }
 
 TEST_CASE("FunctionCall - errors", "[doSemanticAnalysis]")

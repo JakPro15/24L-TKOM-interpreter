@@ -302,19 +302,7 @@ public:
             insertCast(visited.right, rightType, leftType);
     }
 
-    InvalidFunctionCallError functionCallError(
-        const std::wstring &functionName, const std::vector<Type> &argumentTypes, Position position
-    )
-    {
-        return InvalidFunctionCallError(
-            std::format(
-                L"No matching function to call with name {} for argument types {}", functionName, argumentTypes
-            ),
-            currentSource, position
-        );
-    }
-
-    std::optional<Type> checkConcreteFunction(
+    std::pair<std::optional<Type>, bool> checkConcreteFunction(
         const std::wstring &functionName, const std::vector<Type> &argumentTypes,
         const std::vector<bool> &argumentsMutable, Position position
     )
@@ -322,35 +310,41 @@ public:
         FunctionIdentification id(functionName, argumentTypes);
         auto found = findIn(program.functions, FunctionIdentification(functionName, argumentTypes));
         if(!found)
-            throw functionCallError(functionName, argumentTypes, position);
+            return {std::nullopt, false};
         auto &function = (*found)->second;
         validateArgumentMutability(id, function, argumentsMutable, position);
-        return function->returnType;
+        return {function->returnType, true};
     }
 
-    std::optional<Type> checkSingleVariantType(
+    std::pair<std::optional<Type>, bool> checkSingleVariantType(
         std::vector<Field> &fields, unsigned indexToCheck, const std::wstring &functionName,
         const std::vector<Type> &argumentTypes, const std::vector<bool> &argumentsMutable, Position position
     )
     {
+        auto [returned, found] = checkRemainingTypes(
+            indexToCheck + 1, functionName, argumentTypes, argumentsMutable, position
+        );
+        if(found)
+            return {returned, true};
+
         std::optional<Type> returnType;
         bool returnTypeSet = false;
         for(Field &field: fields)
         {
             std::vector<Type> newArgumentTypes = argumentTypes;
             newArgumentTypes[indexToCheck] = field.type;
-            std::optional<Type> returned = checkRemainingTypes(
+            auto [returned, found] = checkRemainingTypes(
                 indexToCheck + 1, functionName, newArgumentTypes, argumentsMutable, position
             );
-            if(returnTypeSet && returnType != returned)
-                throw functionCallError(functionName, argumentTypes, position);
+            if(!found || (returnTypeSet && returnType != returned))
+                return {std::nullopt, false};
             returnTypeSet = true;
             returnType = returned;
         }
-        return returnType;
+        return {returnType, true};
     }
 
-    std::optional<Type> checkRemainingTypes(
+    std::pair<std::optional<Type>, bool> checkRemainingTypes(
         unsigned indexToCheck, const std::wstring &functionName, const std::vector<Type> &argumentTypes,
         const std::vector<bool> &argumentsMutable, Position position
     )
@@ -358,7 +352,7 @@ public:
         if(indexToCheck >= argumentTypes.size())
             return checkConcreteFunction(functionName, argumentTypes, argumentsMutable, position);
         if(argumentTypes[indexToCheck].isInitList())
-            throw functionCallError(functionName, argumentTypes, position);
+            return {std::nullopt, false};
 
         std::vector<Field> *fields = getVariantFields(argumentTypes[indexToCheck]);
         if(!fields) // struct or builtin case
@@ -370,7 +364,18 @@ public:
         FunctionCall &visited, const std::vector<Type> &argumentTypes, const std::vector<bool> &argumentsMutable
     )
     {
-        return checkRemainingTypes(0, visited.functionName, argumentTypes, argumentsMutable, visited.getPosition());
+        auto [returnType, found] = checkRemainingTypes(
+            0, visited.functionName, argumentTypes, argumentsMutable, visited.getPosition()
+        );
+        if(!found)
+            throw InvalidFunctionCallError(
+                std::format(
+                    L"No matching function to call with name {} for argument types {}", visited.functionName,
+                    argumentTypes
+                ),
+                currentSource, visited.getPosition()
+            );
+        return returnType;
     }
 
     std::optional<Type> alignArgumentTypes(

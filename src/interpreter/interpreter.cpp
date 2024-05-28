@@ -689,7 +689,7 @@ void Interpreter::visit(AssignmentStatement &visited)
     assignmentTarget = std::move(getLastResultValue());
 }
 
-void Interpreter::visit(FunctionCall &visited)
+std::vector<Type> Interpreter::prepareArguments(FunctionCall &visited)
 {
     functionArguments.clear();
     for(auto &argument: visited.arguments)
@@ -708,7 +708,15 @@ void Interpreter::visit(FunctionCall &visited)
     std::vector<Type> argumentTypes;
     for(auto &argument: functionArguments)
         argumentTypes.push_back(getObject(argument).type);
-    program->functions.at(FunctionIdentification(visited.functionName, argumentTypes))->accept(*this);
+    return argumentTypes;
+}
+
+void Interpreter::visit(FunctionCall &visited)
+{
+    std::vector<Type> argumentTypes = prepareArguments(visited);
+    auto functionFound = program->functions.find(FunctionIdentification(visited.functionName, argumentTypes));
+    if(functionFound != program->functions.end())
+        functionFound->second->accept(*this);
 }
 
 void Interpreter::visit(FunctionCallInstruction &visited)

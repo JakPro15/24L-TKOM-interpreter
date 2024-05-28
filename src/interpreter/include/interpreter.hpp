@@ -56,11 +56,11 @@ private:
     template <typename BinaryOperation>
     std::pair<Object, Object> getBinaryOpArgsObjects(BinaryOperation &visited);
 
+    int32_t addIntegers(int32_t left, int32_t right, Position position);
     template <typename BinaryOperation>
     void doComparison(BinaryOperation &visited, auto compare);
 
-    int32_t addIntegers(int32_t left, int32_t right, Position position);
-
+    std::vector<Type> prepareArguments(FunctionCall &visited);
     void visitInstructionBlock(std::vector<std::unique_ptr<Instruction>> &block);
     void visitInstructionScope(std::vector<std::unique_ptr<Instruction>> &block);
 

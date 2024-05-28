@@ -725,7 +725,7 @@ private:
             if(!argumentsMutable[i] && function->parameters[i].isMutable)
                 throw ImmutableError(
                     std::format(
-                        L"{}th argument to function {} must be mutable and must not be a temporary value", i, id
+                        L"{}th argument to function {} must be mutable and must not be a temporary value", i + 1, id
                     ),
                     currentSource, position
                 );

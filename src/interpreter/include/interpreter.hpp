@@ -22,11 +22,11 @@ private:
     std::wistream &input;
     std::wostream &output;
     std::function<Program(std::wifstream &, std::wstring)> parseFromFile;
-    std::variant<std::monostate, Object, std::reference_wrapper<Object>> lastResult;
+    std::variant<Object, std::reference_wrapper<Object>> lastResult;
     std::stack<std::vector<std::unordered_map<std::wstring, std::variant<Object, std::reference_wrapper<Object>>>>>
         variables;
     Program *program;
-    std::vector<std::reference_wrapper<Object>> functionArguments;
+    std::vector<std::variant<Object, std::reference_wrapper<Object>>> functionArguments;
     bool shouldReturn, shouldContinue, shouldBreak;
 
     Object &getVariable(const std::wstring &name);

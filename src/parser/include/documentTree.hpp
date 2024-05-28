@@ -450,8 +450,8 @@ struct FunctionDeclaration: public BaseFunctionDeclaration
 
 struct BuiltinFunctionDeclaration: public BaseFunctionDeclaration
 {
-    using Body = std::function<
-        std::optional<Object>(Position, const std::wstring &, std::vector<std::reference_wrapper<Object>>)>;
+    using Body = std::function<std::optional<
+        Object>(Position, const std::wstring &, std::vector<std::variant<Object, std::reference_wrapper<Object>>> &)>;
     explicit BuiltinFunctionDeclaration(
         Position position, std::wstring source, std::vector<VariableDeclaration> parameters,
         std::optional<Type> returnType, Body body
@@ -461,6 +461,15 @@ struct BuiltinFunctionDeclaration: public BaseFunctionDeclaration
 private:
     std::wstring source;
 };
+
+template <typename... Types>
+Object &getObject(std::variant<Types...> &variant)
+{
+    if(std::holds_alternative<std::reference_wrapper<Object>>(variant))
+        return std::get<std::reference_wrapper<Object>>(variant).get();
+    else
+        return std::get<Object>(variant);
+}
 
 struct IncludeStatement: public DocumentTreeNode
 {

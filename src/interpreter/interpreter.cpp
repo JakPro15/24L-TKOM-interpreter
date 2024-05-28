@@ -21,15 +21,6 @@ Interpreter::Interpreter(
     void Interpreter::visit(type &) {}
 
 namespace {
-template <typename... Types>
-Object &getObject(std::variant<Types...> &variant)
-{
-    if(std::holds_alternative<std::reference_wrapper<Object>>(variant))
-        return std::get<std::reference_wrapper<Object>>(variant).get();
-    else
-        return std::get<Object>(variant);
-}
-
 Object &getField(
     Object &structure, std::unordered_map<std::wstring, StructDeclaration>::iterator structFound,
     const std::wstring &fieldName
@@ -417,11 +408,19 @@ void Interpreter::visit(FunctionCall &visited)
     for(auto &argument: visited.arguments)
     {
         argument->accept(*this);
-        functionArguments.push_back(getLastResultReference());
+        std::visit(
+            [&](auto &value) {
+                if constexpr(std::is_same_v<Object &, decltype(value)>)
+                    functionArguments.push_back(std::move(value));
+                else
+                    functionArguments.push_back(value);
+            },
+            lastResult
+        );
     }
     std::vector<Type> argumentTypes;
     for(auto &argument: functionArguments)
-        argumentTypes.push_back(argument.get().type);
+        argumentTypes.push_back(getObject(argument).type);
     program->functions.at(FunctionIdentification(visited.functionName, argumentTypes))->accept(*this);
 }
 
@@ -510,7 +509,15 @@ void Interpreter::visit(FunctionDeclaration &visited)
     variables.emplace();
     variables.top().emplace_back();
     for(unsigned i = 0; i < functionArguments.size(); i++)
-        addVariable(visited.parameters.at(i).name, std::move(functionArguments.at(i)));
+        std::visit(
+            [&](auto &value) {
+                if constexpr(std::is_same_v<Object &, decltype(value)>)
+                    addVariable(visited.parameters.at(i).name, std::move(value));
+                else
+                    addVariable(visited.parameters.at(i).name, value);
+            },
+            functionArguments[i]
+        );
     visitInstructionBlock(visited.body);
     shouldReturn = false;
     variables.pop();

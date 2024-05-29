@@ -27,5 +27,6 @@ std::unique_ptr<Literal> makeLiteral(Position position, std::variant<std::wstrin
 std::wstring addOverload(
     Program &program, const FunctionIdentification &id, std::optional<Type> returnType = std::nullopt
 );
+std::wstring wrapInMain(const std::wstring &source);
 
 #endif

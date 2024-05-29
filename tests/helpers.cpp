@@ -29,3 +29,8 @@ std::wstring addOverload(Program &program, const FunctionIdentification &id, std
     program.functions.insert({id, std::move(toPrint.second)});
     return printed.str();
 }
+
+std::wstring wrapInMain(const std::wstring &source)
+{
+    return L"func main() {\n" + source + L"}";
+}

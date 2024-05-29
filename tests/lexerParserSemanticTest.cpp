@@ -52,11 +52,6 @@ void checkProcessing(
                                      L" `-VariableDeclaration <line: 0, col: 0> type=str name=value mutable=false\n");
     checkNodeContainer(tree.functions, functionWithDummyBuiltins);
 }
-
-std::wstring wrapInMain(const std::wstring &source)
-{
-    return L"func main() {\n" + source + L"}";
-}
 }
 
 TEST_CASE("variable declarations", "[Lexer+Parser+SemanticAnalyzer]")

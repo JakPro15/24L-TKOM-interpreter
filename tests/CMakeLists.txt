@@ -29,6 +29,7 @@ add_executable(
     builtinFunctionsTest.cpp
     includeExecutionTest.cpp
     interpreterTest.cpp
+    lexerToInterpreterTest.cpp
 )
 target_compile_options(Tests PUBLIC -fprofile-arcs -ftest-coverage)
 target_include_directories(Tests PUBLIC include)

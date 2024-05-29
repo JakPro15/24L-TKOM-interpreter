@@ -1066,3 +1066,28 @@ TEST_CASE("DoWhileStatement, IfStatement, BreakStatement", "[Interpreter]")
     interpreter.visit(program);
     REQUIRE(output.str() == L"2\n1\n");
 }
+
+TEST_CASE("stack overflow error", "[Interpreter]")
+{
+    Program program({1, 1});
+    std::vector<std::unique_ptr<Instruction>> instructions;
+    instructions.push_back(std::make_unique<FunctionCallInstruction>(Position{2, 1}, FunctionCall({2, 1}, L"f", {})));
+    program.functions.emplace(
+        FunctionIdentification(L"f", {}),
+        std::make_unique<FunctionDeclaration>(
+            Position{1, 1}, L"<test>", std::vector<VariableDeclaration>{}, std::nullopt, std::move(instructions)
+        )
+    );
+    instructions.clear();
+    instructions.push_back(std::make_unique<FunctionCallInstruction>(Position{4, 1}, FunctionCall({4, 1}, L"f", {})));
+    program.functions.emplace(
+        FunctionIdentification(L"main", {}),
+        std::make_unique<FunctionDeclaration>(
+            Position{3, 1}, L"<test>", std::vector<VariableDeclaration>{}, std::nullopt, std::move(instructions)
+        )
+    );
+    std::wstringstream input, output;
+    std::vector<std::wstring> sourceFiles = {L"<test>"};
+    Interpreter interpreter(sourceFiles, {}, input, output, parseFromFile);
+    REQUIRE_THROWS_AS(interpreter.visit(program), StackOverflowError);
+}

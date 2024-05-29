@@ -303,10 +303,11 @@ public:
     }
 
     std::pair<std::optional<FunctionIdentification>, std::optional<Type>> checkConcreteFunction(
-        const FunctionCall &call, const std::vector<Type> &argumentTypes, const std::vector<bool> &argumentsMutable
+        const FunctionCall &call, const std::vector<Type> &argumentTypes, const std::vector<bool> &argumentsMutable,
+        const std::vector<unsigned> &runtimeResolved
     )
     {
-        auto id = getBestOverload(call, argumentTypes);
+        auto id = getBestOverload(call, argumentTypes, runtimeResolved);
         if(!id)
             return {std::nullopt, std::nullopt};
         auto &function = (*findIn(program.functions, *id))->second;
@@ -316,13 +317,13 @@ public:
 
     bool functionNonruntimeTypesSame(
         const FunctionIdentification &id1, const FunctionIdentification &id2,
-        const std::vector<unsigned> runtimeRecognized, unsigned currentIndex
+        const std::vector<unsigned> runtimeResolved, unsigned currentIndex
     )
     {
         for(unsigned i = 0; i < id1.parameterTypes.size(); i++)
         {
             if(i == currentIndex ||
-               std::find(runtimeRecognized.begin(), runtimeRecognized.end(), i) != runtimeRecognized.end())
+               std::find(runtimeResolved.begin(), runtimeResolved.end(), i) != runtimeResolved.end())
                 continue;
             if(id1.parameterTypes[i] != id2.parameterTypes[i])
                 return false;
@@ -332,7 +333,8 @@ public:
 
     std::tuple<std::optional<FunctionIdentification>, std::optional<Type>, std::vector<unsigned>> concretizeVariantType(
         std::vector<Field> &fields, unsigned indexToCheck, const FunctionCall &call,
-        const std::vector<Type> &argumentTypes, const std::vector<bool> &argumentsMutable
+        const std::vector<Type> &argumentTypes, const std::vector<bool> &argumentsMutable,
+        const std::vector<unsigned> &runtimeResolved
     )
     {
         bool returnTypeSet = false;
@@ -343,8 +345,10 @@ public:
         {
             std::vector<Type> newArgumentTypes = argumentTypes;
             newArgumentTypes[indexToCheck] = field.type;
+            std::vector<unsigned> newRuntimeResolved = runtimeResolved;
+            newRuntimeResolved.push_back(indexToCheck);
             auto [id, returned, returnedIndexes] = checkRemainingTypes(
-                indexToCheck + 1, call, newArgumentTypes, argumentsMutable
+                indexToCheck + 1, call, newArgumentTypes, argumentsMutable, newRuntimeResolved
             );
             if(!id)
                 return {std::nullopt, std::nullopt, {}};
@@ -368,36 +372,39 @@ public:
 
     std::tuple<std::optional<FunctionIdentification>, std::optional<Type>, std::vector<unsigned>> checkSingleVariantType(
         std::vector<Field> &fields, unsigned indexToCheck, const FunctionCall &call,
-        const std::vector<Type> &argumentTypes, const std::vector<bool> &argumentsMutable
+        const std::vector<Type> &argumentTypes, const std::vector<bool> &argumentsMutable,
+        const std::vector<unsigned> &runtimeResolved
     )
     {
-        auto [id, returnType, indexes] = checkRemainingTypes(indexToCheck + 1, call, argumentTypes, argumentsMutable);
+        auto [id, returnType, indexes] = checkRemainingTypes(
+            indexToCheck + 1, call, argumentTypes, argumentsMutable, runtimeResolved
+        );
         if(id)
             return {id, returnType, indexes};
-        return concretizeVariantType(fields, indexToCheck, call, argumentTypes, argumentsMutable);
+        return concretizeVariantType(fields, indexToCheck, call, argumentTypes, argumentsMutable, runtimeResolved);
     }
 
     std::tuple<std::optional<FunctionIdentification>, std::optional<Type>, std::vector<unsigned>> checkRemainingTypes(
         unsigned indexToCheck, const FunctionCall &call, const std::vector<Type> &argumentTypes,
-        const std::vector<bool> &argumentsMutable
+        const std::vector<bool> &argumentsMutable, const std::vector<unsigned> &runtimeResolved
     )
     {
         if(indexToCheck >= argumentTypes.size())
         {
-            auto [id, returnType] = checkConcreteFunction(call, argumentTypes, argumentsMutable);
+            auto [id, returnType] = checkConcreteFunction(call, argumentTypes, argumentsMutable, runtimeResolved);
             return {id, returnType, {}};
         }
         std::vector<Field> *fields = getVariantFields(argumentTypes[indexToCheck]);
         if(!fields) // struct or builtin case
-            return checkRemainingTypes(indexToCheck + 1, call, argumentTypes, argumentsMutable);
-        return checkSingleVariantType(*fields, indexToCheck, call, argumentTypes, argumentsMutable);
+            return checkRemainingTypes(indexToCheck + 1, call, argumentTypes, argumentsMutable, runtimeResolved);
+        return checkSingleVariantType(*fields, indexToCheck, call, argumentTypes, argumentsMutable, runtimeResolved);
     }
 
-    std::optional<Type> validateRuntimeRecognizable(
+    std::optional<Type> validateRuntimeResolvable(
         FunctionCall &visited, const std::vector<Type> &argumentTypes, const std::vector<bool> &argumentsMutable
     )
     {
-        auto [id, returnType, indexes] = checkRemainingTypes(0, visited, argumentTypes, argumentsMutable);
+        auto [id, returnType, indexes] = checkRemainingTypes(0, visited, argumentTypes, argumentsMutable, {});
         if(!id)
             throw InvalidFunctionCallError(
                 std::format(
@@ -406,7 +413,7 @@ public:
                 ),
                 currentSource, visited.getPosition()
             );
-        visited.runtimeRecognized = indexes;
+        visited.runtimeResolved = indexes;
         insertArgumentConversions(*id, visited.arguments, argumentTypes, indexes);
         return returnType;
     }
@@ -415,9 +422,9 @@ public:
         FunctionCall &visited, const std::vector<Type> &argumentTypes, const std::vector<bool> &argumentsMutable
     )
     {
-        auto bestId = getBestOverload(visited, argumentTypes);
+        auto bestId = getBestOverload(visited, argumentTypes, {});
         if(!bestId)
-            return validateRuntimeRecognizable(visited, argumentTypes, argumentsMutable);
+            return validateRuntimeResolvable(visited, argumentTypes, argumentsMutable);
         const std::unique_ptr<BaseFunctionDeclaration> &function = program.functions.at(*bestId);
 
         validateArgumentMutability(*bestId, function, argumentsMutable, visited.getPosition());
@@ -778,7 +785,10 @@ private:
         lastExpressionType = {{visited.functionName}, false};
     }
 
-    unsigned countNeededConversions(const std::vector<Type> &parameterTypes, const std::vector<Type> &argumentTypes)
+    unsigned countNeededConversions(
+        const std::vector<Type> &parameterTypes, const std::vector<Type> &argumentTypes,
+        const std::vector<unsigned> &runtimeResolved
+    )
     {
         if(parameterTypes.size() != argumentTypes.size())
             return std::numeric_limits<unsigned>::max();
@@ -788,7 +798,8 @@ private:
         {
             if(parameterTypes[i] != argumentTypes[i])
             {
-                if(!areTypesConvertible(argumentTypes[i], parameterTypes[i]))
+                if(std::find(runtimeResolved.begin(), runtimeResolved.end(), i) != runtimeResolved.end() ||
+                   !areTypesConvertible(argumentTypes[i], parameterTypes[i]))
                     return std::numeric_limits<unsigned>::max();
                 conversions += 1;
             }
@@ -816,13 +827,13 @@ private:
     }
 
     std::optional<FunctionIdentification> getBestOverload(
-        const FunctionCall &visited, const std::vector<Type> &argumentTypes
+        const FunctionCall &visited, const std::vector<Type> &argumentTypes, const std::vector<unsigned> runtimeResolved
     )
     {
         std::vector<FunctionIdentification> overloads = getFunctionIdsWithName(visited.functionName);
         std::vector<unsigned> conversionsNeeded;
         for(const FunctionIdentification &id: overloads)
-            conversionsNeeded.push_back(countNeededConversions(id.parameterTypes, argumentTypes));
+            conversionsNeeded.push_back(countNeededConversions(id.parameterTypes, argumentTypes, runtimeResolved));
         auto [bestIndex, multipleBests] = getMinimumIndex(conversionsNeeded);
         if(conversionsNeeded[bestIndex] == std::numeric_limits<unsigned>::max())
             return std::nullopt;
@@ -856,12 +867,12 @@ private:
 
     void insertArgumentConversions(
         const FunctionIdentification &id, std::vector<std::unique_ptr<Expression>> &arguments,
-        std::vector<Type> argumentTypes, std::vector<unsigned> runtimeRecognized
+        std::vector<Type> argumentTypes, std::vector<unsigned> runtimeResolved
     )
     {
         for(unsigned i = 0; i < id.parameterTypes.size(); i++)
         {
-            if(std::find(runtimeRecognized.begin(), runtimeRecognized.end(), i) != runtimeRecognized.end())
+            if(std::find(runtimeResolved.begin(), runtimeResolved.end(), i) != runtimeResolved.end())
                 continue;
             if(argumentTypes[i] != id.parameterTypes[i])
                 insertCast(arguments[i], argumentTypes[i], id.parameterTypes[i]);

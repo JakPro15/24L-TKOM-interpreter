@@ -1369,7 +1369,7 @@ TEST_CASE("FunctionCall - runtime resolution verification", "[doSemanticAnalysis
         wrappedFunctionHeader + L"`-Body:\n"
                                 L" `-AssignmentStatement <line: 4, col: 1>\n"
                                 L"  |-Assignable <line: 4, col: 1> right=arg\n"
-                                L"  `-FunctionCall <line: 4, col: 10> functionName=f runtimeRecognized={2, 1}\n"
+                                L"  `-FunctionCall <line: 4, col: 10> functionName=f runtimeResolved={2, 1}\n"
                                 L"   |-CastExpression <line: 4, col: 20> targetType=int\n"
                                 L"   |`-Literal <line: 4, col: 20> type=float value=2.5\n"
                                 L"   |-Variable <line: 4, col: 30> name=v1\n"
@@ -1397,7 +1397,7 @@ TEST_CASE("FunctionCall - runtime resolution verification", "[doSemanticAnalysis
         wrappedFunctionHeader + L"`-Body:\n"
                                 L" `-AssignmentStatement <line: 4, col: 1>\n"
                                 L"  |-Assignable <line: 4, col: 1> right=arg\n"
-                                L"  `-FunctionCall <line: 4, col: 10> functionName=f runtimeRecognized={1}\n"
+                                L"  `-FunctionCall <line: 4, col: 10> functionName=f runtimeResolved={1}\n"
                                 L"   |-Literal <line: 4, col: 20> type=int value=2\n"
                                 L"   |-Variable <line: 4, col: 30> name=v1\n"
                                 L"   `-Variable <line: 4, col: 40> name=v2\n"
@@ -1507,8 +1507,24 @@ TEST_CASE("FunctionCall - runtime resolution verification errors", "[doSemanticA
     addOverload(program, FunctionIdentification(L"f", {{INT}, {FLOAT}, {L"vart1"}}), {{INT}});
     addOverload(program, FunctionIdentification(L"f", {{INT}, {FLOAT}, {L"strt1"}}), {{INT}});
     REQUIRE_THROWS_AS(
-        doSemanticAnalysis(program), AmbiguousFunctionCallError
-    ); // {int, str, strt1} has more than 1 possibility: {float, str, strt1} and {int, int, strt1}
+        doSemanticAnalysis(program), InvalidFunctionCallError
+    ); // non-runtime resolved arguments need to have the same types in all considered overloads
+
+    functionBody.clear();
+    functionArguments.clear();
+    functionArguments.push_back(makeLiteral({4, 20}, 2));
+    functionArguments.push_back(std::make_unique<Variable>(Position{4, 30}, L"v1"));
+    functionArguments.push_back(std::make_unique<Variable>(Position{4, 40}, L"v2"));
+    functionBody.push_back(std::make_unique<AssignmentStatement>(
+        Position{4, 1}, Assignable(Position{4, 1}, L"arg"),
+        std::make_unique<FunctionCall>(Position{4, 10}, L"f", std::move(functionArguments))
+    ));
+    program = wrapInFunction(std::move(functionBody));
+    addOverload(program, FunctionIdentification(L"f", {{INT}, {INT}, {L"vart1"}}), {{INT}});
+    addOverload(program, FunctionIdentification(L"f", {{INT}, {INT}, {L"strt1"}}), {{INT}});
+    REQUIRE_THROWS_AS(
+        doSemanticAnalysis(program), InvalidFunctionCallError
+    ); // options need to be defined for all possible variant value
 
     functionBody.clear();
     functionArguments.clear();

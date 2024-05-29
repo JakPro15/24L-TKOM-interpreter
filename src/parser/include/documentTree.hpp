@@ -276,7 +276,7 @@ struct FunctionCall: public Expression
     );
     std::wstring functionName;
     std::vector<std::unique_ptr<Expression>> arguments;
-    std::vector<unsigned> runtimeRecognized;
+    std::vector<unsigned> runtimeResolved;
     void accept(DocumentTreeVisitor &visitor) override;
 };
 

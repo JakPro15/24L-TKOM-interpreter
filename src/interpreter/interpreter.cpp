@@ -718,7 +718,7 @@ void Interpreter::visit(FunctionCall &visited)
     if(functionFound != program->functions.end())
         return functionFound->second->accept(*this);
 
-    for(unsigned index: visited.runtimeRecognized)
+    for(unsigned index: visited.runtimeResolved)
     {
         std::visit(
             [&](auto &argument) {

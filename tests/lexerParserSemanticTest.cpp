@@ -524,12 +524,12 @@ TEST_CASE("variants", "[Lexer+Parser+SemanticAnalyzer]")
          L" |-FunctionCallInstruction <line: 9, col: 5>\n"
          L" |`-FunctionCall <line: 9, col: 5> functionName=print\n"
          L" | `-CastExpression <line: 9, col: 11> targetType=str\n"
-         L" |  `-FunctionCall <line: 9, col: 11> functionName=f runtimeRecognized={0}\n"
+         L" |  `-FunctionCall <line: 9, col: 11> functionName=f runtimeResolved={0}\n"
          L" |   `-Variable <line: 9, col: 13> name=vart1\n"
          L" `-FunctionCallInstruction <line: 10, col: 5>\n"
          L"  `-FunctionCall <line: 10, col: 5> functionName=print\n"
          L"   `-CastExpression <line: 10, col: 11> targetType=str\n"
-         L"    `-FunctionCall <line: 10, col: 11> functionName=f runtimeRecognized={0}\n"
+         L"    `-FunctionCall <line: 10, col: 11> functionName=f runtimeResolved={0}\n"
          L"     `-Variable <line: 10, col: 13> name=vart2\n"}
     );
 }

@@ -11,6 +11,9 @@
 
 void mergePrograms(Program &program, Program &toAdd)
 {
+    for(auto &include: toAdd.includes)
+        program.includes.push_back(std::move(include));
+
     for(auto &variant: toAdd.variants)
         program.add(std::move(variant));
 
@@ -28,29 +31,20 @@ void mergePrograms(Program &program, Program &toAdd)
     }
 }
 
-namespace {
-void executeAllIncludes(
-    Program &program, const std::wstring &programSource, std::vector<std::wstring> &pastIncludes,
-    std::function<Program(const std::wstring &)> parseFromFile
+#include <iostream>
+
+void executeIncludes(
+    Program &program, std::vector<std::wstring> &sourceFiles, std::function<Program(const std::wstring &)> parseFromFile
 )
 {
-    pastIncludes.push_back(programSource);
     for(IncludeStatement &include: program.includes)
     {
-        if(std::find(pastIncludes.begin(), pastIncludes.end(), include.filePath) != pastIncludes.end())
+        if(std::find(sourceFiles.begin(), sourceFiles.end(), include.filePath) != sourceFiles.end())
             continue;
+        sourceFiles.push_back(include.filePath);
         Program newProgram = parseFromFile(include.filePath);
-        executeAllIncludes(newProgram, include.filePath, pastIncludes, parseFromFile);
+        executeIncludes(newProgram, sourceFiles, parseFromFile);
         mergePrograms(program, newProgram);
     }
     program.includes.clear();
-}
-}
-
-void executeIncludes(
-    Program &program, const std::wstring &programSource, std::function<Program(const std::wstring &)> parseFromFile
-)
-{
-    std::vector<std::wstring> pastIncludes;
-    executeAllIncludes(program, programSource, pastIncludes, parseFromFile);
 }

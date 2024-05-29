@@ -10,10 +10,10 @@
 using enum Type::Builtin;
 
 Interpreter::Interpreter(
-    std::wstring programSource, std::vector<std::wstring> arguments, std::wistream &input, std::wostream &output,
-    std::function<Program(const std::wstring &)> parseFromFile, unsigned maxStackSize
+    std::vector<std::wstring> &sourceFiles, std::vector<std::wstring> arguments, std::wistream &input,
+    std::wostream &output, std::function<Program(const std::wstring &)> parseFromFile, unsigned maxStackSize
 ):
-    currentSource(programSource), arguments(arguments), input(input), output(output), parseFromFile(parseFromFile),
+    sourceFiles(sourceFiles), arguments(arguments), input(input), output(output), parseFromFile(parseFromFile),
     shouldReturn(false), shouldContinue(false), shouldBreak(false), maxStackSize(maxStackSize)
 {}
 
@@ -855,17 +855,17 @@ void Interpreter::visit(Program &visited)
 {
     Program fullProgram = prepareBuiltinFunctions(visited.getPosition(), arguments, input, output);
     mergePrograms(fullProgram, visited);
-    executeIncludes(fullProgram, currentSource, parseFromFile);
+    executeIncludes(fullProgram, sourceFiles, parseFromFile);
     doSemanticAnalysis(fullProgram);
     if(fullProgram.functions.count({L"main", {}}) == 0)
         throw MainNotFoundError(
-            L"main function has not been found in the program", currentSource, fullProgram.getPosition()
+            L"main function has not been found in the program", sourceFiles.at(0), fullProgram.getPosition()
         );
     program = &fullProgram;
     auto &main = fullProgram.functions.at({L"main", {}});
     if(main->returnType)
         throw MainReturnTypeError(
-            std::format(L"main function should not return a type, returns {}", *main->returnType), currentSource,
+            std::format(L"main function should not return a type, returns {}", *main->returnType), main->getSource(),
             main->getPosition()
         );
     fullProgram.functions.at({L"main", {}})->accept(*this);

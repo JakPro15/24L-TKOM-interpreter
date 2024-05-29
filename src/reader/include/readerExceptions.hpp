@@ -5,7 +5,12 @@
 
 #include <stdexcept>
 
-class ErrorAtPosition: public std::runtime_error
+class InterpreterPipelineError: public std::runtime_error
+{
+    using std::runtime_error::runtime_error;
+};
+
+class ErrorAtPosition: public InterpreterPipelineError
 {
 public:
     ErrorAtPosition(std::wstring message, std::wstring sourceName, Position position);

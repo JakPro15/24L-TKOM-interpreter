@@ -1,0 +1,13 @@
+func main() {
+    str$ start = "";
+    if(no_arguments() > 0) {
+        start = argument(0);
+    }
+    int$ i = 1;
+    str$ line = input();
+    while(len(line) > 0) {
+        print(start ! i ! " " ! line ! "\n");
+        line = input();
+        i = i + 1;
+    }
+}

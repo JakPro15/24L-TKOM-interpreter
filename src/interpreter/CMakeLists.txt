@@ -6,6 +6,7 @@ add_library(
     include/semanticAnalysis.hpp
     include/interpreter.hpp
     include/builtinFunctions.hpp
+    runtimeExceptions.cpp
     includeExecution.cpp
     semanticAnalysis.cpp
     interpreter.cpp

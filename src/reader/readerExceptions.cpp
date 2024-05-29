@@ -15,5 +15,5 @@ std::string formatErrorMessage(std::wstring message, std::wstring sourceName, Po
 }
 
 ErrorAtPosition::ErrorAtPosition(std::wstring message, std::wstring sourceName, Position position):
-    std::runtime_error(formatErrorMessage(message, sourceName, position))
+    InterpreterPipelineError(formatErrorMessage(message, sourceName, position))
 {}

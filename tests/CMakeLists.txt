@@ -30,6 +30,7 @@ add_executable(
     includeExecutionTest.cpp
     interpreterTest.cpp
     lexerToInterpreterTest.cpp
+    argumentParsingTest.cpp
 )
 target_compile_options(Tests PUBLIC -fprofile-arcs -ftest-coverage)
 target_include_directories(Tests PUBLIC include)
@@ -39,6 +40,7 @@ target_link_libraries(Tests Reader)
 target_link_libraries(Tests Lexer)
 target_link_libraries(Tests Parser)
 target_link_libraries(Tests Interpreter)
+target_link_libraries(Tests AppAssets)
 target_link_libraries(Tests Catch2::Catch2WithMain)
 
 add_test(NAME Tests COMMAND Tests)

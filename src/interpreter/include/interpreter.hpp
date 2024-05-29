@@ -11,12 +11,13 @@ class Interpreter: public DocumentTreeVisitor
 {
 public:
     Interpreter(
-        std::wstring programSource, std::vector<std::wstring> arguments, std::wistream &input, std::wostream &output,
-        std::function<Program(const std::wstring &)> parseFromFile, unsigned maxStackSize = 200
+        std::vector<std::wstring> &sourceFiles, std::vector<std::wstring> arguments, std::wistream &input,
+        std::wostream &output, std::function<Program(const std::wstring &)> parseFromFile, unsigned maxStackSize = 200
     );
     void visit(Program &visited) override;
 private:
     Position callPosition;
+    std::vector<std::wstring> &sourceFiles;
     std::wstring currentSource;
     std::vector<std::wstring> arguments;
     std::wistream &input;

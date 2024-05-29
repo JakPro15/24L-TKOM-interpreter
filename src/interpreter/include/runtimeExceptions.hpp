@@ -7,9 +7,10 @@
 #include <string>
 #include <vector>
 
-class RuntimeError: public ErrorAtPosition
+class RuntimeError: public InterpreterPipelineError
 {
-    using ErrorAtPosition::ErrorAtPosition;
+public:
+    RuntimeError(std::wstring message, std::wstring sourceName, Position position);
 };
 
 #define DECLARE_RUNTIME_ERROR(class_name) \

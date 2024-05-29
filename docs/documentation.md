@@ -762,9 +762,11 @@ Kod może być załadowany z dodatkowych plików instrukcją:
 ```
 include "file";
 ```
-umieszczoną poza wszelkimi blokami. Zachowuje się to analogicznie do wklejenia zawartości pliku w miejsce instrukcji `include`.
+umieszczoną poza wszelkimi blokami. Powoduje to załadowanie do programu wszystkich definicji typów i funkcji z podanego pliku.
 
-W przetworzonym kodzie musi znajdować się dokładnie jedna funkcja o nazwie `main`, nie przyjmująca argumentów. Wykonanie programu rozpoczyna się jej wywołaniem.
+Jeżeli został już załadowany plik o ścieżce takiej jak podana w instrukcji `include`, instrukcja zostanie zignorowana.
+
+W przetworzonym kodzie (po wykonaniu instrukcji `include`) musi znajdować się dokładnie jedna funkcja o nazwie `main`, nie przyjmująca argumentów i nie zwracająca wartości. Wykonanie programu rozpoczyna się jej wywołaniem.
 
 ## 2. Gramatyka
 ### Reguły parsera (EBNF)
@@ -1001,15 +1003,15 @@ Rozmiar programu będzie ograniczony, w celu uniknięcia błędów interpretera 
 ## 3. Struktura programu
 Interpreter jest pisany w języku C++.
 
-W ogólności kod języka będzie przetwarzany kolejno przez następujące klasy:
-- StreamReader - przyjmuje dowolny std::istream, leniwie produkuje kolejne znaki. Zamienia wszystkie sekwencje oznaczające koniec linii na pojedynczy znak `\n`. Rzuca wyjątek, jeżeli napotka znak kontrolny niebędący białym znakiem. Posiada metodę zwracającą kolejny znak z wejścia wraz z jego pozycją (numer linii i kolumny).
+W ogólności kod języka jest przetwarzany kolejno przez następujące klasy:
+- StreamReader - przyjmuje dowolny std::istream, leniwie produkuje kolejne znaki. Zamienia wszystkie sekwencje oznaczające koniec linii na pojedynczy znak `\n`. Rzuca wyjątki, w przypadku napotkania znaku kontrolnego lub błędu w strumieniu wejściowym. Posiada metodę zwracającą kolejny znak z wejścia wraz z jego pozycją (numer linii i kolumny).
 - Lexer - wykonuje analizę leksykalną, leniwie produkuje kolejne tokeny. Przyjmuje obiekt spełniający interfejs IReader; posiada metodę zwracającą kolejny token, wraz z jego pozycją w źródle.
 - CommentDiscarder - przyjmuje obiekt spełniający interfejs ILexer, ze strumienia tokenów usuwa tokeny komentarzy.
-- Parser - przyjmuje obiekt spełniający interfejs ILexer, ze strumienia tokenów tworzy drzewo składniowe. Klasy węzłów drzewa składniowego będą wspierać wzorzec wizytatora, w celu umożliwienia wypisania drzewa do stringa oraz dla dalszych elementów programu.
-- SemanticAnalyzer - wizytator analizujący drzewo składniowe wyprodukowane przez Parser, sprawdza jego poprawność semantyczną oraz w razie potrzeby je modyfikuje, np. dodając instrukcje konwersji typów.
-- Interpreter - wizytator przyjmujący drzewo składniowe oraz strumień wyjściowy programu, wykonuje program.
+- Parser - przyjmuje obiekt spełniający interfejs ILexer, ze strumienia tokenów tworzy drzewo składniowe. Klasy węzłów drzewa składniowego wspierają wzorzec wizytatora.
+- SemanticAnalyzer - wizytator analizujący drzewo składniowe wyprodukowane przez Parser, sprawdza jego poprawność semantyczną oraz w razie potrzeby je modyfikuje, dodając instrukcje konwersji typów, zamieniając rzutowania parsowane jako wywołania funkcji na rzutowania oraz wstawiając potrzebne informacje do węzłów drzewa dokumentu. Analiza semantyczna jest dostępna poprzez funkcję doSemanticAnalysis, przyjmującą drzewo dokumentu po wykonaniu instrukcji `include`.
+- Interpreter - wizytator przyjmujący drzewo składniowe będące wyjściem Parsera, strumienie wejściowy i wyjściowy programu, argumenty wywołania programu oraz funkcję parsującą kod z podanego pliku (do instrukcji `include`). Wykonuje kolejno instrukcje `include`, analizę semantyczną, oraz sam program.
 
-Wartości takie jak maksymalna długość identyfikatora lub stałej tekstowej, zakres typu `int` będą określone w kodzie, jako argumenty dla leksera.
+Wartości takie jak maksymalna długość identyfikatora lub stałej tekstowej, zakres typu `int` są określone jako stałe w kodzie.
 
 ### Obsługa błędów
 
@@ -1022,14 +1024,16 @@ Błędy czasu wykonania, napotkane podczas wykonywania kodu pośredniego, powodu
 Przykładowy komunikat o błędzie:
 ```
 Error: Expected '=', got ';'
-at line 32, column 20 of input.
+in file <stdin>
+at line 32, column 20.
 ```
 
 Przykładowy komunikat o błędzie czasu wykonania:
 ```
 The program was terminated following a runtime error:
 Recursion limit exceeded
-while executing line 32 of input.
+while executing file file.txt
+at line 32, column 20.
 ```
 
 ## 4. Sposób wywołania programu
@@ -1042,7 +1046,7 @@ Wywołanie interpretera bezargumentowo powoduje załadowanie programu z wejścia
 
 Wywołanie interpretera z argumentami załaduje kod programu z podanych plików zamiast z wejścia standardowego. Wywołanie takie jest równoważne wywołaniu z jednym plikiem wejściowym z instrukcjami `include` na początku ładującymi pozostałe pliki.
 
-Wywołanie z opcją `--dump-dt` spowoduje wypisanie drzewa dokumentu programu na wyjście standardowe interpretera zamiast wykonania programu.
+Wywołanie z opcją `--dump-dt` spowoduje wypisanie drzewa dokumentu programu będącego wyjściem parsera na wyjście standardowe interpretera zamiast wykonania programu.
 
 Wszystkie argumenty po opcji `--args` są traktowane jak argumenty wywołania interpretowanego programu.
 

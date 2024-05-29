@@ -1,0 +1,10 @@
+include "test1/factorial.txt";
+
+func main() {
+    if(no_arguments() < 1) {
+        println("no argument given");
+        return;
+    }
+    int a = factorial(argument(0));
+    println(a);
+}

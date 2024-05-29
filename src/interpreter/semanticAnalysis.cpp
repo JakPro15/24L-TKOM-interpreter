@@ -711,7 +711,7 @@ private:
         }
     }
 
-    std::vector<FunctionIdentification> getFunctionIdsWithName(const std::wstring &functionName)
+    std::vector<FunctionIdentification> getFunctionIdsWithName(const std::wstring &functionName, Position position)
     {
         std::vector<FunctionIdentification> result;
         for(auto &[id, declaration]: program.functions)
@@ -719,6 +719,10 @@ private:
             if(id.name == functionName)
                 result.push_back(id);
         }
+        if(result.empty())
+            throw InvalidFunctionCallError(
+                std::format(L"No matching function to call with name {}", functionName), currentSource, position
+            );
         return result;
     }
 
@@ -835,7 +839,9 @@ private:
         const FunctionCall &visited, const std::vector<Type> &argumentTypes, const std::vector<unsigned> runtimeResolved
     )
     {
-        std::vector<FunctionIdentification> overloads = getFunctionIdsWithName(visited.functionName);
+        std::vector<FunctionIdentification> overloads = getFunctionIdsWithName(
+            visited.functionName, visited.getPosition()
+        );
         std::vector<unsigned> conversionsNeeded;
         for(const FunctionIdentification &id: overloads)
             conversionsNeeded.push_back(countNeededConversions(id.parameterTypes, argumentTypes, runtimeResolved));

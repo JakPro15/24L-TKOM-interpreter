@@ -123,8 +123,10 @@ TEST_CASE("includeExecution", "[includeExecution]")
     program.includes.emplace_back(IncludeStatement({1, 1}, L"first.txt"));
     program.includes.emplace_back(IncludeStatement({2, 1}, L"third.txt"));
     program.includes.emplace_back(IncludeStatement({3, 1}, L"second.txt"));
-    executeIncludes(program, L"zeroth.txt", parseFromFile);
+    std::vector<std::wstring> sourceFiles = {L"zeroth.txt"};
+    executeIncludes(program, sourceFiles, parseFromFile);
     REQUIRE(program.includes.size() == 0);
     REQUIRE(filesIncluded.str() == L"first.txt\nsecond.txt\nthird.txt\n");
+    REQUIRE(sourceFiles == std::vector<std::wstring>{L"zeroth.txt", L"first.txt", L"second.txt", L"third.txt"});
     checkNodeContainer(program.functions, {printedFunction});
 }

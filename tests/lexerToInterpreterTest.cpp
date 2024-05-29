@@ -10,9 +10,7 @@
 #include "streamReader.hpp"
 
 namespace {
-std::wstring interpret(
-    const std::wstring &sourceCode, const std::vector<std::wstring> &arguments = {}, const std::wstring &input = L""
-)
+std::wstring interpret(const std::wstring &sourceCode)
 {
     std::wstringstream sourceStream(sourceCode);
     StreamReader reader(sourceStream, L"<test>");
@@ -20,8 +18,9 @@ std::wstring interpret(
     CommentDiscarder commentDiscarder(lexer);
     Parser parser(commentDiscarder);
     Program program = parser.parseProgram();
-    std::wstringstream inputStream(input), outputStream;
-    Interpreter interpreter(L"<test>", arguments, inputStream, outputStream, [](const std::wstring &) -> Program {
+    std::wstringstream inputStream, outputStream;
+    std::vector<std::wstring> sourceFiles = {L"<test>"};
+    Interpreter interpreter(sourceFiles, {}, inputStream, outputStream, [](const std::wstring &) -> Program {
         throw std::runtime_error("No files should be included in these tests");
     });
     interpreter.visit(program);

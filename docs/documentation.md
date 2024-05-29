@@ -1036,15 +1036,21 @@ while executing file file.txt
 at line 32, column 20.
 ```
 
+Przykładowy komunikat o błędzie interfejsu tekstowego interpretera:
+```
+The interpreter's command line interface encountered an error:
+No source code files given to interpreter
+```
+
 ## 4. Sposób wywołania programu
 `inter` to nazwa pliku wykonywalnego interpretera.
 
 ```
 usage: inter [FILES] [--dump-dt|--args ARGS]
 ```
-Wywołanie interpretera bezargumentowo powoduje załadowanie programu z wejścia standardowego. Interpreter nie jest interaktywny - przed wykonaniem programu wejście standardowe musi dobiec końca.
+Wywołanie interpretera bezargumentowo powoduje załadowanie programu z podanych plików. Interpreter nie jest interaktywny - przed wykonaniem programu wejście standardowe musi dobiec końca.
 
-Wywołanie interpretera z argumentami załaduje kod programu z podanych plików zamiast z wejścia standardowego. Wywołanie takie jest równoważne wywołaniu z jednym plikiem wejściowym z instrukcjami `include` na początku ładującymi pozostałe pliki.
+Wywołanie interpretera z kilkoma plikami wejściowymi jest równoważne wywołaniu z jednym plikiem wejściowym z instrukcjami `include` na początku ładującymi pozostałe pliki.
 
 Wywołanie z opcją `--dump-dt` spowoduje wypisanie drzewa dokumentu programu będącego wyjściem parsera na wyjście standardowe interpretera zamiast wykonania programu.
 
@@ -1052,11 +1058,11 @@ Wszystkie argumenty po opcji `--args` są traktowane jak argumenty wywołania in
 
 ## 5. Testowanie
 
-Głównym sposobem testowania programu będą testy jednostkowe poszczególnych części programu.
+Głównym sposobem testowania programu są testy jednostkowe poszczególnych części programu.
 
 Testy jednostkowe StreamReadera polegają na sprawdzeniu poprawnych konwersji różnych zakończeń linii oraz sprawdzaniu poprawności wyliczania pozycji znaków w źródle. Ponadto, sprawdzane jest poprawne rzucanie wyjątków dla niepoprawnych znaków lub przy błędzie strumienia wejściowego.
 
-Testy jednostkowe Lexera będą polegać na sprawdzaniu poprawnej generacji różnego typu tokenów (min. jeden test na jeden token). Testowane będą błędne sekwencje dla każdego z tokenów: zbyt długi identyfikator, zbyt duży literał całkowity, zmiennoprzecinkowy i stringowy, zbyt długi komentarz. Ponadto, będą testowane również przypadki różnej ilości białych znaków między tokenami, np.:
+Testy jednostkowe Lexera polegają na sprawdzaniu poprawnej generacji różnego typu tokenów (co najmniej jeden test na jeden token). Testowane są błędne sekwencje dla każdego z tokenów: zbyt długi identyfikator, zbyt duży literał całkowity, zmiennoprzecinkowy i stringowy, zbyt długi komentarz, nieprawidłowa specjalna sekwencja znaków. Ponadto, testowane są również przypadki różnej ilości białych znaków między tokenami, np.:
 ```
 abc+-abc
 ```
@@ -1072,7 +1078,11 @@ powinny wygenerować taką samą sekwencję tokenów:
 - operator `-`
 - identyfikator `abc`
 
-Testy jednostkowe Parsera będą polegać na sprawdzeniu poprawności drzewa składniowego utworzonego na podstawie podanej sekwencji tokenów. Poprawność drzewa będzie weryfikowana przez wypisanie go do stringa i porównanie ze wzorcem. Dla każdej produkcji będzie co najmniej jeden test jednostkowy. Testowane będą przypadki typowych błędów programistów, np. użycie `=` zamiast `==`:
+Testy jednostkowe Lexera korzystają także ze StreamReadera, jako że jest potrzebny do przekazania danych ze stringa do Lexera.
+
+Testy jednostkowe Parsera polegają na sprawdzeniu poprawności drzewa składniowego utworzonego na podstawie podanej sekwencji tokenów. Poprawność drzewa jest weryfikowana przez wypisanie go do stringa za pomocą klasy PrintingVisitor i porównanie ze wzorcem. Każda produkcja jest sprawdzana przez co najmniej jeden test jednostkowy. Błędne przypadki są weryfikowane przez złapanie wyjątku.
+
+Ponadto, Parser jest też testowany razem z Lexerem (lexerAndParserTest.cpp) dla różnych przykładów z dokumentacji, np. weryfikacjia priorytetów. Testowane są także przypadki typowych błędów programistów, np. użycie `=` zamiast `==`:
 ```
 func main() {
     int a = 4;
@@ -1098,17 +1108,23 @@ func main() {
 }
 ```
 
-Testy jednostkowe SemanticAnalyzera będą polegać na sprawdzaniu poprawnego wstawiania operacji konwersji typów do drzewa składniowego i wykrywania błędów takich, jak:
+Testy jednostkowe SemanticAnalyzera polegają na sprawdzaniu poprawnego wstawiania operacji konwersji typów do drzewa składniowego i wykrywania błędów takich, jak:
 - redeklaracja zmiennej
 - modyfikacja stałej
 - próba konwersji struktury na inny typ
 - próba wstawienia nazwy typu tam, gdzie powinna być zmienna
 - próba wykonania instrukcji `break` lub `continue` poza pętlą
 
-i innych. Na każdy rodzaj błędu będzie min. 1 test jednostkowy.
+i innych. Na każdy rodzaj błędu wykrywany przez SemanticAnalyzer istnieje minimum 1 test jednostkowy.
 
-Testy jednostkowe Interpretera będą polegały na sprawdzeniu zachowania interpretera dla różnych drzew dokumentu. Weryfikacja przypadków bez błędów będzie polegać na sprawdzeniu zawartości strumienia wyjściowego programu (w testach będzie to string). Będzie co najmniej 1 test jednostkowy na każdy rodzaj błędu czasu wykonania.
+Wejściowe drzewo składniowe jest budowane w kodzie, a wyjście SemanticAnalyzera jest sprawdzane przez wypisanie zmodyfikowanego drzewa do stringa, analogicznie jak przy Parserze, lub przez złapanie wyjątku.
 
-Ponadto, coraz większe części potoku przetwarzania (Lexer-Parser, Lexer-Parser-SemanticAnalyzer, itd.) będą weryfikowane testami integracyjnymi na przykładach z pierwszej sekcji dokumentacji wstępnej. Jeżeli w przykładzie podawane były instrukcje poza funkcją, zostaną one umieszczone w funkcji `main`, żeby utworzyć poprawny program.
+SemanticAnalyzer jest też testowany razem z Lexerem i Parserem (lexerParserSemanticTest.cpp) dla różnych przykładów z dokumentacji.
 
-Ponadto, będą przygotowane testy integracyjne całości skompilowanego programu dla kilku przygotowanych programów.
+Testy jednostkowe Interpretera polegają na sprawdzeniu wyjścia standardowego interpretera dla różnych drzew dokumentu. Weryfikacja przypadków bez błędów polega na sprawdzeniu zawartości strumienia wyjściowego programu. Istnieje co najmniej 1 test jednostkowy na każdy rodzaj błędu czasu wykonania.
+
+Plik lexerToInterpreterTest.cpp zawiera testy całego potoku przetwarzania od StreamReadera do Interpretera. Weryfikowane są tam przykłady z dokumentacji. Jeżeli w przykładzie podawane były instrukcje poza funkcją, są one umieszczone w funkcji `main`, żeby utworzyć poprawny program. Jeżeli w przykładzie poprawne wyjście było podane tylko w komentarzu, dodane są instrukcje `print`, żeby zweryfikować wyjście programu w teście.
+
+Oddzielnie są testowane jednostkowo funkcje wbudowane, wykonanie instrukcji `include` oraz CommentDiscarder.
+
+Ponadto, zostały przygotowane testy integracyjne całości skompilowanego programu dla kilku przygotowanych, poprawnych i błędnych, programów.

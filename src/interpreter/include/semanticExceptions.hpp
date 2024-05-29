@@ -7,16 +7,6 @@
 #include <string>
 #include <vector>
 
-class FileError: public ErrorAtPosition
-{
-    using ErrorAtPosition::ErrorAtPosition;
-};
-
-class CircularIncludeError: public ErrorAtPosition
-{
-    using ErrorAtPosition::ErrorAtPosition;
-};
-
 class IncludeInSemanticAnalysisError: public std::runtime_error
 {
     using std::runtime_error::runtime_error;

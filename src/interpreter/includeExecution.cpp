@@ -7,7 +7,6 @@
 #include "streamReader.hpp"
 
 #include <format>
-#include <fstream>
 #include <vector>
 
 void mergePrograms(Program &program, Program &toAdd)
@@ -32,29 +31,24 @@ void mergePrograms(Program &program, Program &toAdd)
 namespace {
 void executeAllIncludes(
     Program &program, const std::wstring &programSource, std::vector<std::wstring> &pastIncludes,
-    std::function<Program(std::wstring)> parseFromFile
+    std::function<Program(const std::wstring &)> parseFromFile
 )
 {
     pastIncludes.push_back(programSource);
-    std::vector<IncludeStatement> includes = program.includes;
-    program.includes.clear();
-    for(IncludeStatement &include: includes)
+    for(IncludeStatement &include: program.includes)
     {
         if(std::find(pastIncludes.begin(), pastIncludes.end(), include.filePath) != pastIncludes.end())
-            throw CircularIncludeError(
-                std::format(L"Circular include of file {} detected", programSource), include.filePath,
-                include.getPosition()
-            );
+            continue;
         Program newProgram = parseFromFile(include.filePath);
         executeAllIncludes(newProgram, include.filePath, pastIncludes, parseFromFile);
         mergePrograms(program, newProgram);
     }
-    pastIncludes.pop_back();
+    program.includes.clear();
 }
 }
 
 void executeIncludes(
-    Program &program, const std::wstring &programSource, std::function<Program(std::wstring)> parseFromFile
+    Program &program, const std::wstring &programSource, std::function<Program(const std::wstring &)> parseFromFile
 )
 {
     std::vector<std::wstring> pastIncludes;

@@ -104,3 +104,27 @@ TEST_CASE("mergePrograms name collisions", "[includeExecution]")
     addOverload(p2, FunctionIdentification(L"f", {{INT}, {STR}}), {{INT}});
     REQUIRE_THROWS_AS(mergePrograms(p1, p2), DuplicateFunctionError);
 }
+
+TEST_CASE("includeExecution", "[includeExecution]")
+{
+    Program firstProgram({1, 1});
+    firstProgram.includes.emplace_back(IncludeStatement({1, 1}, L"second.txt"));
+    std::wstring printedFunction = addOverload(firstProgram, FunctionIdentification(L"f", {{INT}, {STR}}), {{INT}});
+    std::wstringstream filesIncluded;
+    auto parseFromFile = [&](const std::wstring &fileName) {
+        filesIncluded << fileName << L'\n';
+        if(fileName == L"first.txt")
+            return std::move(firstProgram);
+        else
+            return Program({1, 1});
+    };
+
+    Program program({1, 1});
+    program.includes.emplace_back(IncludeStatement({1, 1}, L"first.txt"));
+    program.includes.emplace_back(IncludeStatement({2, 1}, L"third.txt"));
+    program.includes.emplace_back(IncludeStatement({3, 1}, L"second.txt"));
+    executeIncludes(program, L"zeroth.txt", parseFromFile);
+    REQUIRE(program.includes.size() == 0);
+    REQUIRE(filesIncluded.str() == L"first.txt\nsecond.txt\nthird.txt\n");
+    checkNodeContainer(program.functions, {printedFunction});
+}

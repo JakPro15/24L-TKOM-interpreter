@@ -24,5 +24,8 @@ void checkNodeContainer(NodeContainer &container, const std::set<std::wstring> &
 }
 
 std::unique_ptr<Literal> makeLiteral(Position position, std::variant<std::wstring, int32_t, double, bool> value);
+std::wstring addOverload(
+    Program &program, const FunctionIdentification &id, std::optional<Type> returnType = std::nullopt
+);
 
 #endif

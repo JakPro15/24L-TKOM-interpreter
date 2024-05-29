@@ -32,7 +32,7 @@ void mergePrograms(Program &program, Program &toAdd)
 namespace {
 void executeAllIncludes(
     Program &program, const std::wstring &programSource, std::vector<std::wstring> &pastIncludes,
-    std::function<Program(std::wifstream &, std::wstring)> parseFromFile
+    std::function<Program(std::wstring)> parseFromFile
 )
 {
     pastIncludes.push_back(programSource);
@@ -45,13 +45,7 @@ void executeAllIncludes(
                 std::format(L"Circular include of file {} detected", programSource), include.filePath,
                 include.getPosition()
             );
-        std::wifstream inputFile(convertToString(include.filePath));
-        if(!inputFile.is_open())
-            throw FileError(
-                std::format(L"Error opening file {} required from include statement", include.filePath), programSource,
-                include.getPosition()
-            );
-        Program newProgram = parseFromFile(inputFile, include.filePath);
+        Program newProgram = parseFromFile(include.filePath);
         executeAllIncludes(newProgram, include.filePath, pastIncludes, parseFromFile);
         mergePrograms(program, newProgram);
     }
@@ -60,8 +54,7 @@ void executeAllIncludes(
 }
 
 void executeIncludes(
-    Program &program, const std::wstring &programSource,
-    std::function<Program(std::wifstream &, std::wstring)> parseFromFile
+    Program &program, const std::wstring &programSource, std::function<Program(std::wstring)> parseFromFile
 )
 {
     std::vector<std::wstring> pastIncludes;

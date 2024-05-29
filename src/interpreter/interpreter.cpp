@@ -11,7 +11,7 @@ using enum Type::Builtin;
 
 Interpreter::Interpreter(
     std::wstring programSource, std::vector<std::wstring> arguments, std::wistream &input, std::wostream &output,
-    std::function<Program(std::wifstream &, std::wstring)> parseFromFile
+    std::function<Program(std::wstring)> parseFromFile
 ):
     currentSource(programSource), arguments(arguments), input(input), output(output), parseFromFile(parseFromFile),
     shouldReturn(false), shouldContinue(false), shouldBreak(false)

@@ -1251,31 +1251,6 @@ TEST_CASE("FunctionCall - explicit cast to variant errors", "[doSemanticAnalysis
     checkSemanticError<InvalidCastError>(functionBody); // variant cast argument not castable
 }
 
-std::vector<VariableDeclaration> createParameters(const FunctionIdentification &id)
-{
-    std::vector<VariableDeclaration> parameters;
-    for(unsigned i = 0; const Type &type: id.parameterTypes)
-        parameters.emplace_back(Position{1, 1}, type, std::format(L"a{}", i++), false);
-    return parameters;
-}
-
-std::wstring addOverload(
-    Program &program, const FunctionIdentification &id, std::optional<Type> returnType = std::nullopt
-)
-{
-    std::vector<std::unique_ptr<Instruction>> instructions;
-    if(returnType)
-        instructions.push_back(std::make_unique<ReturnStatement>(Position{0, 0}, makeLiteral({0, 0}, 2)));
-    auto function = std::make_unique<FunctionDeclaration>(
-        Position{1, 1}, L"<test>", createParameters(id), returnType, std::move(instructions)
-    );
-    std::wstringstream printed;
-    std::pair<const FunctionIdentification, std::unique_ptr<BaseFunctionDeclaration>> toPrint{id, std::move(function)};
-    PrintingVisitor(printed).visit(toPrint);
-    program.functions.insert({id, std::move(toPrint.second)});
-    return printed.str();
-}
-
 TEST_CASE("FunctionCall - overload resolution", "[doSemanticAnalysis]")
 {
     std::vector<std::unique_ptr<Instruction>> functionBody;

@@ -13,13 +13,9 @@
 
 using enum Type::Builtin;
 
-Program parseFromStream(std::wistream &input, const std::wstring &fileName)
+Program parseFromFile(const std::wstring &)
 {
-    StreamReader reader(input, fileName);
-    Lexer lexer(reader);
-    CommentDiscarder commentDiscarder(lexer);
-    Parser parser(commentDiscarder);
-    return parser.parseProgram();
+    return Program({1, 1});
 }
 
 TEST_CASE("hello world", "[Interpreter]")
@@ -38,7 +34,7 @@ TEST_CASE("hello world", "[Interpreter]")
         )
     );
     std::wstringstream input, output;
-    Interpreter interpreter(L"<test>", {}, input, output, parseFromStream);
+    Interpreter interpreter(L"<test>", {}, input, output, parseFromFile);
     interpreter.visit(program);
     REQUIRE(output.str() == L"hello, world!\n");
 }
@@ -59,7 +55,7 @@ TEST_CASE("main function errors", "[Interpreter]")
                                                   )
     );
     std::wstringstream input, output;
-    Interpreter interpreter(L"<test>", {}, input, output, parseFromStream);
+    Interpreter interpreter(L"<test>", {}, input, output, parseFromFile);
     REQUIRE_THROWS_AS(interpreter.visit(program), MainNotFoundError); // no function with signature main()
 
     program = Program({1, 1});
@@ -93,7 +89,7 @@ TEST_CASE("VariableDeclStatement and Variable", "[Interpreter]")
         )
     );
     std::wstringstream input, output;
-    Interpreter interpreter(L"<test>", {}, input, output, parseFromStream);
+    Interpreter interpreter(L"<test>", {}, input, output, parseFromFile);
     interpreter.visit(program);
     REQUIRE(output.str() == L"msg\n");
 }
@@ -120,7 +116,7 @@ TEST_CASE("AssignmentStatement", "[Interpreter]")
         )
     );
     std::wstringstream input, output;
-    Interpreter interpreter(L"<test>", {}, input, output, parseFromStream);
+    Interpreter interpreter(L"<test>", {}, input, output, parseFromFile);
     interpreter.visit(program);
     REQUIRE(output.str() == L"not msg\n");
 }
@@ -143,7 +139,7 @@ void doCastTest(
         )
     );
     std::wstringstream input, output;
-    Interpreter interpreter(L"<test>", {}, input, output, parseFromStream);
+    Interpreter interpreter(L"<test>", {}, input, output, parseFromFile);
     interpreter.visit(program);
     REQUIRE(output.str() == expectedOutput);
 }
@@ -255,7 +251,7 @@ TEST_CASE("FunctionDeclaration and passing values by reference", "[Interpreter]"
         )
     );
     std::wstringstream input, output;
-    Interpreter interpreter(L"<test>", {}, input, output, parseFromStream);
+    Interpreter interpreter(L"<test>", {}, input, output, parseFromFile);
     interpreter.visit(program);
     REQUIRE(output.str() == L"inside function\n3\n4\n");
 }
@@ -332,7 +328,7 @@ TEST_CASE("FunctionCall runtime variant overload resolution", "[Interpreter]")
         )
     );
     std::wstringstream input, output;
-    Interpreter interpreter(L"<test>", {}, input, output, parseFromStream);
+    Interpreter interpreter(L"<test>", {}, input, output, parseFromFile);
     interpreter.visit(program);
     REQUIRE(output.str() == L"f(str)\nf(int)\n");
 }
@@ -359,7 +355,7 @@ TEST_CASE("BuiltinFunctionDeclaration value returned", "[Interpreter]")
         )
     );
     std::wstringstream input, output;
-    Interpreter interpreter(L"<test>", {}, input, output, parseFromStream);
+    Interpreter interpreter(L"<test>", {}, input, output, parseFromFile);
     interpreter.visit(program);
     REQUIRE(output.str() == L"3");
 }
@@ -410,7 +406,7 @@ TEST_CASE("StructExpression and struct field assignment", "[Interpreter]")
         )
     );
     std::wstringstream input, output;
-    Interpreter interpreter(L"<test>", {}, input, output, parseFromStream);
+    Interpreter interpreter(L"<test>", {}, input, output, parseFromFile);
     interpreter.visit(program);
     REQUIRE(output.str() == L"3\n3.5\n");
 }
@@ -498,7 +494,7 @@ TEST_CASE("variant access and assignment", "[Interpreter]")
         )
     );
     std::wstringstream input, output;
-    Interpreter interpreter(L"<test>", {}, input, output, parseFromStream);
+    Interpreter interpreter(L"<test>", {}, input, output, parseFromFile);
     interpreter.visit(program);
     REQUIRE(output.str() == L"2\n3\nabc\n100\n");
 }
@@ -525,7 +521,7 @@ void checkBinaryOperator(
         )
     );
     std::wstringstream input, output;
-    Interpreter interpreter(L"<test>", {}, input, output, parseFromStream);
+    Interpreter interpreter(L"<test>", {}, input, output, parseFromFile);
     interpreter.visit(program);
     REQUIRE(output.str() == expectedOutput);
 }
@@ -625,7 +621,7 @@ void checkEqualityOperator(
         )
     );
     std::wstringstream input, output;
-    Interpreter interpreter(L"<test>", {}, input, output, parseFromStream);
+    Interpreter interpreter(L"<test>", {}, input, output, parseFromFile);
     interpreter.visit(program);
     REQUIRE(output.str() == expectedOutput);
 }
@@ -835,7 +831,7 @@ void checkUnaryOperator(std::variant<std::wstring, int32_t, double, bool> value,
         )
     );
     std::wstringstream input, output;
-    Interpreter interpreter(L"<test>", {}, input, output, parseFromStream);
+    Interpreter interpreter(L"<test>", {}, input, output, parseFromFile);
     interpreter.visit(program);
     REQUIRE(output.str() == expectedOutput);
 }
@@ -891,7 +887,7 @@ void checkIsOperator(std::unique_ptr<Expression> left, Type right, const std::ws
         )
     );
     std::wstringstream input, output;
-    Interpreter interpreter(L"<test>", {}, input, output, parseFromStream);
+    Interpreter interpreter(L"<test>", {}, input, output, parseFromFile);
     interpreter.visit(program);
     REQUIRE(output.str() == expectedOutput);
 }
@@ -983,7 +979,7 @@ TEST_CASE("WhileStatement, IfStatement, ContinueStatement", "[Interpreter]")
         )
     );
     std::wstringstream input, output;
-    Interpreter interpreter(L"<test>", {}, input, output, parseFromStream);
+    Interpreter interpreter(L"<test>", {}, input, output, parseFromFile);
     interpreter.visit(program);
     REQUIRE(output.str() == L"5\n4\n");
 }
@@ -1050,7 +1046,7 @@ TEST_CASE("DoWhileStatement, IfStatement, BreakStatement", "[Interpreter]")
         )
     );
     std::wstringstream input, output;
-    Interpreter interpreter(L"<test>", {}, input, output, parseFromStream);
+    Interpreter interpreter(L"<test>", {}, input, output, parseFromFile);
     interpreter.visit(program);
     REQUIRE(output.str() == L"2\n1\n");
 }

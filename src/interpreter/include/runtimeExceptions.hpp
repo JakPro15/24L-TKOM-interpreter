@@ -27,6 +27,7 @@ DECLARE_RUNTIME_ERROR(MainReturnTypeError);
 DECLARE_RUNTIME_ERROR(CastImpossibleError);
 DECLARE_RUNTIME_ERROR(OperatorArgumentError);
 DECLARE_RUNTIME_ERROR(ZeroDivisionError);
+DECLARE_RUNTIME_ERROR(StackOverflowError);
 
 class RuntimeSemanticException: public std::runtime_error
 {

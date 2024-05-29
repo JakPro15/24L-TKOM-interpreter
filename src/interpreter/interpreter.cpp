@@ -11,10 +11,10 @@ using enum Type::Builtin;
 
 Interpreter::Interpreter(
     std::wstring programSource, std::vector<std::wstring> arguments, std::wistream &input, std::wostream &output,
-    std::function<Program(const std::wstring &)> parseFromFile
+    std::function<Program(const std::wstring &)> parseFromFile, unsigned maxStackSize
 ):
     currentSource(programSource), arguments(arguments), input(input), output(output), parseFromFile(parseFromFile),
-    shouldReturn(false), shouldContinue(false), shouldBreak(false)
+    shouldReturn(false), shouldContinue(false), shouldBreak(false), maxStackSize(maxStackSize)
 {}
 
 #define EMPTY_VISIT(type) \
@@ -32,6 +32,28 @@ Object &getField(
                           ) -
                           fields.begin();
     return std::get<std::vector<Object>>(structure.value)[fieldIndex];
+}
+
+std::variant<Object, std::reference_wrapper<Object>> getReferenceOrTemporary(
+    std::variant<Object, std::reference_wrapper<Object>> value, Object &toGet
+)
+{
+    return std::visit(
+        [&](auto &value) -> std::variant<Object, std::reference_wrapper<Object>> {
+            if constexpr(std::is_same_v<Object &, decltype(value)>)
+                return std::move(toGet);
+            else
+                return toGet;
+        },
+        value
+    );
+}
+
+std::variant<Object, std::reference_wrapper<Object>> getReferenceOrTemporary(
+    std::variant<Object, std::reference_wrapper<Object>> value
+)
+{
+    return getReferenceOrTemporary(value, getObject(value));
 }
 }
 
@@ -413,7 +435,7 @@ void Interpreter::visit(ModuloExpression &visited)
         return;
     }
     int32_t result = left % right;
-    if(result < 0)
+    if(result < 0 && (left > 0 || right > 0))
         result += right;
     lastResult = Object{{INT}, result};
 }
@@ -462,7 +484,10 @@ void Interpreter::visit(DotExpression &visited)
 {
     visited.value->accept(*this);
     Object &left = getLastResultReference();
-    lastResult = getField(left, program->structs.find(std::get<std::wstring>(left.type.value)), visited.field);
+    auto fields = program->structs.find(std::get<std::wstring>(left.type.value));
+    Object &field = getField(left, fields, visited.field);
+
+    lastResult = getReferenceOrTemporary(lastResult, field);
 }
 
 void Interpreter::visit(StructExpression &visited)
@@ -656,7 +681,7 @@ void Interpreter::visit(VariableDeclStatement &visited)
     Object &containedInVariant = *std::get<std::unique_ptr<Object>>(value.value).get();
     if(containedInVariant.type == visited.declaration.type)
     {
-        addVariable(visited.declaration.name, containedInVariant);
+        addVariable(visited.declaration.name, std::move(containedInVariant));
         lastResult = Object{{BOOL}, true};
     }
     else
@@ -691,23 +716,18 @@ void Interpreter::visit(AssignmentStatement &visited)
 
 std::vector<Type> Interpreter::prepareArguments(FunctionCall &visited)
 {
-    functionArguments.clear();
+    if(variables.size() >= maxStackSize)
+        throw StackOverflowError(L"Recursion limit exceeded", currentSource, visited.getPosition());
+    std::vector<std::variant<Object, std::reference_wrapper<Object>>> arguments;
     for(auto &argument: visited.arguments)
     {
         argument->accept(*this);
-        std::visit(
-            [&](auto &value) {
-                if constexpr(std::is_same_v<Object &, decltype(value)>)
-                    functionArguments.push_back(std::move(value));
-                else
-                    functionArguments.push_back(value);
-            },
-            lastResult
-        );
+        arguments.push_back(getReferenceOrTemporary(lastResult));
     }
     std::vector<Type> argumentTypes;
-    for(auto &argument: functionArguments)
+    for(auto &argument: arguments)
         argumentTypes.push_back(getObject(argument).type);
+    functionArguments = std::move(arguments);
     return argumentTypes;
 }
 
@@ -720,15 +740,8 @@ void Interpreter::visit(FunctionCall &visited)
 
     for(unsigned index: visited.runtimeResolved)
     {
-        std::visit(
-            [&](auto &argument) {
-                if constexpr(std::is_same_v<Object &, decltype(argument)>)
-                    functionArguments[index] = std::move(*std::get<std::unique_ptr<Object>>(argument.value).get());
-                else
-                    functionArguments[index] = *std::get<std::unique_ptr<Object>>(argument.get().value).get();
-            },
-            functionArguments[index]
-        );
+        Object &variantContent = *std::get<std::unique_ptr<Object>>(getObject(functionArguments[index]).value).get();
+        functionArguments[index] = getReferenceOrTemporary(functionArguments[index], variantContent);
         argumentTypes[index] = getObject(functionArguments[index]).type;
     }
     program->functions.at(FunctionIdentification(visited.functionName, argumentTypes))->accept(*this);
@@ -822,13 +835,8 @@ void Interpreter::visit(FunctionDeclaration &visited)
     for(unsigned i = 0; i < functionArguments.size(); i++)
     {
         std::visit(
-            [&](auto &value) {
-                if constexpr(std::is_same_v<Object &, decltype(value)>)
-                    addVariable(visited.parameters.at(i).name, std::move(value));
-                else
-                    addVariable(visited.parameters.at(i).name, value);
-            },
-            functionArguments[i]
+            [&](auto value) { addVariable(visited.parameters[i].name, std::move(value)); },
+            getReferenceOrTemporary(functionArguments[i])
         );
     }
     visitInstructionBlock(visited.body);

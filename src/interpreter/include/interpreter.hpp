@@ -12,7 +12,7 @@ class Interpreter: public DocumentTreeVisitor
 public:
     Interpreter(
         std::wstring programSource, std::vector<std::wstring> arguments, std::wistream &input, std::wostream &output,
-        std::function<Program(const std::wstring &)> parseFromFile
+        std::function<Program(const std::wstring &)> parseFromFile, unsigned maxStackSize = 200
     );
     void visit(Program &visited) override;
 private:
@@ -28,6 +28,7 @@ private:
     Program *program;
     std::vector<std::variant<Object, std::reference_wrapper<Object>>> functionArguments;
     bool shouldReturn, shouldContinue, shouldBreak;
+    const unsigned maxStackSize;
 
     Object &getVariable(const std::wstring &name);
     void addVariable(const std::wstring &name, Object &&object);

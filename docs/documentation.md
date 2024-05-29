@@ -98,7 +98,7 @@ int a = int("42"); # a === 42
 
 Nie są dozwolone konwersje z i na typy struktur.\
 Nie są dozwolone konwersje z typów rekordów wariantowych.\
-Możliwa jest konwersja typu na rekord wariantowy, jeżeli rekord wariantowy może zawierać ten typ.
+Możliwa jest konwersja typu na rekord wariantowy, jeżeli jedno z pól rekordu wariantowego posiada ten typ.
 
 ### Komentarze
 Język obsługuje komentarze - jako komentarz traktowany jest fragment kodu pomiędzy `#` a końcem linii.
@@ -125,11 +125,35 @@ Poniższa tabela prezentuje wspierane operatory. Wszystkie operatory, poza `(` `
 | `is` | lewy dowolny, prawy typ | sprawdzenie typu |
 | `=` | lewy zmienna, prawy dowolny | przypisanie |
 
-`[` `]` dla drugiego argumentu ujemnego lub nie mniejszego niż długość stringa powoduje błąd czasu wykonania. Znaki kodowane w UTF-8 jako wiele 8-bitowych liczb są traktowane jako wiele oddzielnych znaki.
+`[` `]` dla drugiego argumentu ujemnego lub nie mniejszego niż długość stringa powoduje błąd czasu wykonania.
+```
+str a = "abc"[-1]; # błąd - nieprawidłowy indeks
+str b = "abc"[3];  # błąd - nieprawidłowy indeks
+```
 
 `/`, `//`, `%` dla drugiego argumentu 0 powodują błąd czasu wykonania.
+```
+float a = 2.5 / 0.0; # błąd - dzielenie przez zero
+int b = 2 // 0;      # błąd - dzielenie przez zero
+int c = 2 % 0;       # błąd - dzielenie przez zero
+```
+
+Operator `//` zwraca podłogę z dokładnego wyniku dzielenia jego argumentów.
+
+Operator `%` zwraca resztę z dzielenia jego argumentów, taką, że `a // b * b + a % b == a`
+```
+int a = -22 // 5; # a === -5
+int b = -22 % 5;  # b === 3
+int c = -22 // -5; # c === 4
+int d = -22 % -5;  # d === -2
+```
 
 Jeżeli lewy argument operacji potęgowania (operator `**`) jest ujemny, następuje błąd czasu wykonania.
+```
+float a = -2 ** 5; # błąd - nieprawidłowy argument operacji potęgowania
+float b = 0 ** 5;  # b === 0.0
+float c = 2 ** 5;  # c === 32.0
+```
 
 `==`, `!=` dla typów wbudowanych próbują skonwertować argumenty do takich samych typów. Wykonywane są następujące konwersje, w zależności od typów argumentów:
 | Argumenty | Typ docelowy |
@@ -138,18 +162,58 @@ Jeżeli lewy argument operacji potęgowania (operator `**`) jest ujemny, następ
 | `int` i `float` | `float` |
 | `bool` i inny typ | ten inny typ |
 | `str` i inny typ | `str` |
+```
+print(2 == 2.4);      # false
+print("2.4" == 2.4); # true
+print(true != 1);     # false
+print("1" != true);   # true
+```
 
 `===`, `!==` traktują wartości jako różne jeżeli argumenty są różnych typów.
+```
+print("2.4" === 2.4); # false
+print(true !== 1);     # true
+```
 
 `is` dla rekordów wariantowych zwraca `true`, jeżeli typ podany jako prawy argument jest typem aktualnie przechowywanym w rekordzie.
 
 Operator `.` jest jedynym, którego można używać po lewej stronie przypisania.
 
 Wszelkie przekroczenia zakresu zmiennych typu `int` powodują błąd czasu wykonania.
+```
+int a = 2147483647 + 1;          # błąd - przekroczenie zakresu liczby całkowitej
+int a = -2147483648 - 1;         # błąd - przekroczenie zakresu liczby całkowitej
+int a = 1073741824 * 2;          # błąd - przekroczenie zakresu liczby całkowitej
+int a = -(-2147483647 - 1);      # błąd - przekroczenie zakresu liczby całkowitej
+int a = (-2147483647 - 1) // -1; # błąd - przekroczenie zakresu liczby całkowitej
+int a = 1e100;                   # błąd - przekroczenie zakresu liczby całkowitej
+```
 
 Operatory `==`, `!=` dla struktur wymagają tego samego typu dla obu argumentów i wykonują porównanie każdego elementu struktury. Jeżeli elementem struktury jest rekord wariantowy, odpowiadające rekordy muszą zawierać taki sam typ.
+```
+struct S {int a; str b;}
+func main() {
+    print(S({1, "a"}) == S({1, "a"})); # true
+}
+```
+```
+variant V {int a; str b;}
+struct S {int a; V b;}
+func main() {
+    print(S({1, "2"}) != S({1, 2}));   # true
+    print(S({1, "2"}) == S({1, "2"})); # true
+}
+```
 
 Operatory `==`, `!=` dla rekordów wariantowych wymagają tego samego typu dla obu argumentów i wykonują porównanie elementów zawartych w rekordach odpowiednim operatorem. Próbują dokonać konwersji typów zawartych w rekordach wariantowych - jeśli jest niemożliwa, wartość zwracana jest taka, jakby rekordy były różne.
+```
+struct S {int a; str b;}
+variant V {int a; str b; S c;}
+func main() {
+    print(V(2) == V("2"));         # true
+    print(V(2) != V(S({2, "2"}))); # true
+}
+```
 
 Operatory przyjmujące typy `int` lub `float` zwracają typ `int` tylko, jeżeli oba ich argumenty są typu `int`; w przeciwnym razie zwracany jest typ `float`.
 ```
@@ -350,6 +414,43 @@ func main() {
     print(f(vart1)); # 3
 }
 ```
+Wywołania takie są możliwe także z wieloma argumentami wariantowymi, oraz z domyślnymi konwersjami niewariantowych argumentów.
+```
+variant V {int a; str b;}
+func f(int a, int v1, int v2) -> int { return 1; }
+func f(int a, str v1, int v2) -> int { return 2; }
+func f(int a, int v1, str v2) -> int { return 3; }
+func f(int a, str v1, str v2) -> int { return 4; }
+
+func f(V v) -> int { return 3; }
+
+func main() {
+    V vart1 = 2;
+    V vart2 = "2";
+    print(f(2.5, vart1, vart2)); # 3
+}
+```
+Wszystkie przeciążone funkcje biorące udział w takim wywołaniu muszą zwracać ten sam typ i przyjmować takie same typy argumentów niewariantowych.
+```
+variant V {int a; str b;}
+func f(int v) -> int { return 1; }
+func f(str v) -> str { return "2"; }
+
+func main() {
+    V vart1 = 2;
+    print(f(vart1)); # błąd - nieprawidłowe typy funkcji przeciążonych
+}
+```
+```
+variant V {int a; str b;}
+func f(int a, int v) -> int { return 1; }
+func f(float a, str v) -> int { return 2; }
+
+func main() {
+    V vart1 = 2;
+    print(f(2, vart1)); # błąd - nieprawidłowe typy argumentu niewariantowego funkcji przeciążonych
+}
+```
 
 ### Struktury
 Język wspiera definiowanie przez użytkownika struktur:
@@ -392,11 +493,11 @@ Inicjalizacja struktury następuje przez podanie wartości wszystkich pól w odp
 ```
 MyStruct a = {2, 4.3, {4, "a"}, true};
 ```
-Podczas przypisania do stałej lub zmiennej o typie struktury oraz podczas przypisywania wartości pola struktury niebędącego rekordem wariantowym w liście inicjalizacyjnej struktury nie trzeba podawać typu struktury.\
+Podczas przypisania do stałej lub zmiennej o typie struktury, podczas przypisywania wartości pola struktury niebędącego rekordem wariantowym w liście inicjalizacyjnej oraz podczas wywołania funkcji przyjmującej typ struktury nie trzeba podawać typu struktury.\
 W pozostałych przypadkach listę inicjalizacyjną należy explicite skonwertować na typ struktury.
 ```
 int a = MyStruct({2, 4.3, {4, "a"}, true}).a;
-function_taking_MyStruct(MyStruct({2, 4.3, {4, "a"}, true}));
+function_taking_MyStruct({2, 4.3, {4, "a"}, true});
 # nie potrzeba podawać typu OtherStruct
 ```
 ```
@@ -533,7 +634,7 @@ func f(int a, int$ b)
 func main() {
     int a = 1;
     int b = 1;
-    func(a, b);
+    f(a, b);
     # a === 1, b === 4
 }
 ```
@@ -579,13 +680,16 @@ func main() {
 }
 ```
 
-Nie jest możliwe przeciążanie funkcji po mutowalności argumentu.
+Nie jest możliwe przeciążanie funkcji po mutowalności argumentu ani po typie zwracanym przez funkcję.
 
 ```
 func f(int a) {}
 func f(int$ a) {} # błąd - duplikat funkcji
 ```
-
+```
+func f(int a) {}
+func f(int a) -> int { return 2; } # błąd - duplikat funkcji
+```
 
 ### Widoczność zmiennych
 Zmienna zadeklarowana w bloku oznaczonym `{` `}` jest widoczna tylko wewnątrz bloku, w którym została zadeklarowana.

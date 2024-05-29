@@ -496,7 +496,7 @@ TEST_CASE("variant access and assignment", "[Interpreter]")
     std::wstringstream input, output;
     Interpreter interpreter(L"<test>", {}, input, output, parseFromFile);
     interpreter.visit(program);
-    REQUIRE(output.str() == L"2\n3\nabc\n100\n");
+    REQUIRE(output.str() == L"2\n2\nabc\n100\n");
 }
 
 template <typename OperatorType>

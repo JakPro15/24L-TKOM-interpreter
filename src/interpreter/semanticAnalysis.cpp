@@ -264,6 +264,7 @@ public:
     {
         visit(visited.declaration);
         bool shouldAccessVariant = variantReadAccessPermitted;
+        accessedVariant = false;
         visited.value->accept(*this);
         doReplacement(visited.value);
         bool isValueVariant = validateConditionVariantAccess(visited, lastExpressionType.first, shouldAccessVariant);
@@ -463,10 +464,14 @@ public:
     {
         if(!expectedReturnType || !visited.returnValue)
         {
-            if(expectedReturnType || visited.returnValue)
+            if(visited.returnValue)
                 throw InvalidReturnError(
-                    L"Return with value is required if and only if function returns a type", currentSource,
+                    L"Return with value is permitted only if function returns a type", currentSource,
                     visited.getPosition()
+                );
+            if(expectedReturnType)
+                throw InvalidReturnError(
+                    L"Return value is required if function returns a type", currentSource, visited.getPosition()
                 );
             return;
         }
@@ -503,7 +508,7 @@ public:
     void visit(IfStatement &visited) override
     {
         bool previousInstructionReturned = hasReturned;
-        bool allPathsReturned = false;
+        bool allPathsReturned = true;
         for(SingleIfCase &ifCase: visited.cases)
         {
             hasReturned = false;
@@ -1028,14 +1033,12 @@ private:
             return false;
         if(typeFrom.isInitList())
             return isStructInitListValid(std::get<Type::InitializationList>(typeFrom.value), typeTo);
-        if(!typeFrom.isBuiltin())
-            return false;
         if(!typeTo.isBuiltin())
         {
             std::wstring typeName = std::get<std::wstring>(typeTo.value);
             return isFieldOfVariant(typeName, typeFrom);
         }
-        return true;
+        return typeFrom.isBuiltin();
     }
 
     void insertCast(std::unique_ptr<Expression> &expression, Type typeFrom, Type typeTo)

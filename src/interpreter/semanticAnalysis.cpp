@@ -302,78 +302,91 @@ public:
             insertCast(visited.right, rightType, leftType);
     }
 
-    std::pair<bool, std::optional<Type>> checkConcreteFunction(
+    std::pair<std::optional<FunctionIdentification>, std::optional<Type>> checkConcreteFunction(
         const FunctionCall &call, const std::vector<Type> &argumentTypes, const std::vector<bool> &argumentsMutable
     )
     {
-        FunctionIdentification id(call.functionName, argumentTypes);
-        auto found = findIn(program.functions, id);
-        if(!found)
-            return {false, std::nullopt};
-        auto &function = (*found)->second;
-        validateArgumentMutability(id, function, argumentsMutable, call.getPosition());
-        return {true, function->returnType};
+        auto id = getBestOverload(call, argumentTypes);
+        if(!id)
+            return {std::nullopt, std::nullopt};
+        auto &function = (*findIn(program.functions, *id))->second;
+        validateArgumentMutability(*id, function, argumentsMutable, call.getPosition());
+        return {*id, function->returnType};
     }
 
-    std::tuple<bool, std::optional<Type>, std::vector<unsigned>> concretizeVariantType(
+    bool functionNonruntimeTypesSame(
+        const FunctionIdentification &id1, const FunctionIdentification &id2,
+        const std::vector<unsigned> runtimeRecognized, unsigned currentIndex
+    )
+    {
+        for(unsigned i = 0; i < id1.parameterTypes.size(); i++)
+        {
+            if(i == currentIndex ||
+               std::find(runtimeRecognized.begin(), runtimeRecognized.end(), i) != runtimeRecognized.end())
+                continue;
+            if(id1.parameterTypes[i] != id2.parameterTypes[i])
+                return false;
+        }
+        return true;
+    }
+
+    std::tuple<std::optional<FunctionIdentification>, std::optional<Type>, std::vector<unsigned>> concretizeVariantType(
         std::vector<Field> &fields, unsigned indexToCheck, const FunctionCall &call,
         const std::vector<Type> &argumentTypes, const std::vector<bool> &argumentsMutable
     )
     {
         bool returnTypeSet = false;
+        std::optional<FunctionIdentification> functionId;
         std::optional<Type> returnType;
         std::vector<unsigned> indexes;
         for(Field &field: fields)
         {
             std::vector<Type> newArgumentTypes = argumentTypes;
             newArgumentTypes[indexToCheck] = field.type;
-            auto [found, returned, returnedIndexes] = checkRemainingTypes(
+            auto [id, returned, returnedIndexes] = checkRemainingTypes(
                 indexToCheck + 1, call, newArgumentTypes, argumentsMutable
             );
-            if(!found)
-                return {false, std::nullopt, {}};
+            if(!id)
+                return {std::nullopt, std::nullopt, {}};
             if(returnTypeSet)
             {
-                if(returnType != returned || indexes != returnedIndexes)
-                    return {false, std::nullopt, {}};
+                if(returnType != returned || indexes != returnedIndexes ||
+                   !functionNonruntimeTypesSame(*functionId, *id, indexes, indexToCheck))
+                    return {std::nullopt, std::nullopt, {}};
             }
             else
             {
                 returnTypeSet = true;
+                functionId = id;
                 returnType = returned;
                 indexes = returnedIndexes;
             }
         }
         indexes.push_back(indexToCheck);
-        return {true, returnType, indexes};
+        return {functionId, returnType, indexes};
     }
 
-    std::tuple<bool, std::optional<Type>, std::vector<unsigned>> checkSingleVariantType(
+    std::tuple<std::optional<FunctionIdentification>, std::optional<Type>, std::vector<unsigned>> checkSingleVariantType(
         std::vector<Field> &fields, unsigned indexToCheck, const FunctionCall &call,
         const std::vector<Type> &argumentTypes, const std::vector<bool> &argumentsMutable
     )
     {
-        auto [found, returnType, indexes] = checkRemainingTypes(
-            indexToCheck + 1, call, argumentTypes, argumentsMutable
-        );
-        if(found)
-            return {true, returnType, indexes};
+        auto [id, returnType, indexes] = checkRemainingTypes(indexToCheck + 1, call, argumentTypes, argumentsMutable);
+        if(id)
+            return {id, returnType, indexes};
         return concretizeVariantType(fields, indexToCheck, call, argumentTypes, argumentsMutable);
     }
 
-    std::tuple<bool, std::optional<Type>, std::vector<unsigned>> checkRemainingTypes(
+    std::tuple<std::optional<FunctionIdentification>, std::optional<Type>, std::vector<unsigned>> checkRemainingTypes(
         unsigned indexToCheck, const FunctionCall &call, const std::vector<Type> &argumentTypes,
         const std::vector<bool> &argumentsMutable
     )
     {
         if(indexToCheck >= argumentTypes.size())
         {
-            auto [found, returnType] = checkConcreteFunction(call, argumentTypes, argumentsMutable);
-            return {found, returnType, {}};
+            auto [id, returnType] = checkConcreteFunction(call, argumentTypes, argumentsMutable);
+            return {id, returnType, {}};
         }
-        if(argumentTypes[indexToCheck].isInitList())
-            return {false, std::nullopt, {}};
-
         std::vector<Field> *fields = getVariantFields(argumentTypes[indexToCheck]);
         if(!fields) // struct or builtin case
             return checkRemainingTypes(indexToCheck + 1, call, argumentTypes, argumentsMutable);
@@ -384,8 +397,8 @@ public:
         FunctionCall &visited, const std::vector<Type> &argumentTypes, const std::vector<bool> &argumentsMutable
     )
     {
-        auto [found, returnType, indexes] = checkRemainingTypes(0, visited, argumentTypes, argumentsMutable);
-        if(!found)
+        auto [id, returnType, indexes] = checkRemainingTypes(0, visited, argumentTypes, argumentsMutable);
+        if(!id)
             throw InvalidFunctionCallError(
                 std::format(
                     L"No matching function to call with name {} for argument types {}", visited.functionName,
@@ -394,6 +407,7 @@ public:
                 currentSource, visited.getPosition()
             );
         visited.runtimeRecognized = indexes;
+        insertArgumentConversions(*id, visited.arguments, argumentTypes, indexes);
         return returnType;
     }
 
@@ -407,7 +421,7 @@ public:
         const std::unique_ptr<BaseFunctionDeclaration> &function = program.functions.at(*bestId);
 
         validateArgumentMutability(*bestId, function, argumentsMutable, visited.getPosition());
-        insertArgumentConversions(*bestId, visited.arguments, argumentTypes);
+        insertArgumentConversions(*bestId, visited.arguments, argumentTypes, {});
         return function->returnType;
     }
 
@@ -801,7 +815,9 @@ private:
         return {bestIndex, multipleBests};
     }
 
-    std::optional<FunctionIdentification> getBestOverload(FunctionCall &visited, const std::vector<Type> &argumentTypes)
+    std::optional<FunctionIdentification> getBestOverload(
+        const FunctionCall &visited, const std::vector<Type> &argumentTypes
+    )
     {
         std::vector<FunctionIdentification> overloads = getFunctionIdsWithName(visited.functionName);
         std::vector<unsigned> conversionsNeeded;
@@ -840,11 +856,13 @@ private:
 
     void insertArgumentConversions(
         const FunctionIdentification &id, std::vector<std::unique_ptr<Expression>> &arguments,
-        std::vector<Type> argumentTypes
+        std::vector<Type> argumentTypes, std::vector<unsigned> runtimeRecognized
     )
     {
         for(unsigned i = 0; i < id.parameterTypes.size(); i++)
         {
+            if(std::find(runtimeRecognized.begin(), runtimeRecognized.end(), i) != runtimeRecognized.end())
+                continue;
             if(argumentTypes[i] != id.parameterTypes[i])
                 insertCast(arguments[i], argumentTypes[i], id.parameterTypes[i]);
         }

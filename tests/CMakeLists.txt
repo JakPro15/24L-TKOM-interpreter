@@ -42,5 +42,3 @@ target_link_libraries(Tests Parser)
 target_link_libraries(Tests Interpreter)
 target_link_libraries(Tests AppAssets)
 target_link_libraries(Tests Catch2::Catch2WithMain)
-
-add_test(NAME Tests COMMAND Tests)

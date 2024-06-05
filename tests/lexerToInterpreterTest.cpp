@@ -10,7 +10,10 @@
 #include "streamReader.hpp"
 
 namespace {
-std::wstring interpret(const std::wstring &sourceCode)
+std::wstring interpret(
+    const std::wstring &sourceCode, const std::vector<std::wstring> &arguments = {},
+    const std::wstring &standardInput = L""
+)
 {
     std::wstringstream sourceStream(sourceCode);
     StreamReader reader(sourceStream, L"<test>");
@@ -18,9 +21,9 @@ std::wstring interpret(const std::wstring &sourceCode)
     CommentDiscarder commentDiscarder(lexer);
     Parser parser(commentDiscarder);
     Program program = parser.parseProgram();
-    std::wstringstream inputStream, outputStream;
+    std::wstringstream inputStream(standardInput), outputStream;
     std::vector<std::wstring> sourceFiles = {L"<test>"};
-    Interpreter interpreter(sourceFiles, {}, inputStream, outputStream, [](const std::wstring &) -> Program {
+    Interpreter interpreter(sourceFiles, arguments, inputStream, outputStream, [](const std::wstring &) -> Program {
         throw std::runtime_error("No files should be included in these tests");
     });
     interpreter.visit(program);
@@ -322,7 +325,7 @@ TEST_CASE("variants", "[Lexer+Parser+Interpreter]")
                   L"\n"
                   L"func main() {\n"
                   L"    V vart1 = 2;\n"
-                  L"    print(f(vart1)); # błąd - nieprawidłowe typy funkcji przeciążonych\n"
+                  L"    print(f(vart1)); # błąd - nieprawidłowe typy zwracane funkcji przeciążonych\n"
                   L"}\n"),
         InvalidFunctionCallError
     );
@@ -554,4 +557,48 @@ TEST_CASE("variable visibility", "[Lexer+Parser+Interpreter]")
                              L"}\n")),
         VariableNameCollisionError
     );
+}
+
+TEST_CASE("builtin functions examples", "[Lexer+Parser+Interpreter]")
+{
+    std::wstring argumentsExample = L"func main() {\n"
+                                    L"    if(no_arguments() < 1) {\n"
+                                    L"        println(\"not enough args\");\n"
+                                    L"        return;\n"
+                                    L"    }\n"
+                                    L"    println(\"the first arg is: \" ! argument(0));\n"
+                                    L"    if(no_arguments() > 1) {\n"
+                                    L"        println(\"the second arg is: \" ! argument(1));\n"
+                                    L"    }\n"
+                                    L"}";
+    REQUIRE(interpret(argumentsExample) == L"not enough args\n");
+    REQUIRE(interpret(argumentsExample, {L"first"}) == L"the first arg is: first\n");
+    REQUIRE(
+        interpret(argumentsExample, {L"f", L"s"}) == L"the first arg is: f\n"
+                                                     L"the second arg is: s\n"
+    );
+
+    std::wstring stdinExample = L"func main() {\n"
+                                L"    int$ i = 1;\n"
+                                L"    str$ line = input();\n"
+                                L"    while(len(line) > 0) {\n"
+                                L"        print(i ! \" \" ! line ! \"\\n\");\n"
+                                L"        line = input();\n"
+                                L"        i = i + 1;\n"
+                                L"    }\n"
+                                L"}\n";
+    REQUIRE(interpret(stdinExample, {}, L"line1\nline2") == L"1 line1\n2 line2\n");
+    REQUIRE(interpret(stdinExample, {}, L"") == L"");
+
+    REQUIRE(interpret(wrapInMain(L"print(max(1, -1) === 1);")) == L"true");
+    REQUIRE_THROWS_AS(interpret(wrapInMain(L"max(1, -1.0);")), AmbiguousFunctionCallError);
+    REQUIRE(interpret(wrapInMain(L"print(max(1.5, -1.5) === 1.5);")) == L"true");
+
+    REQUIRE(interpret(wrapInMain(L"print(min(1, -1) === -1);")) == L"true");
+    REQUIRE_THROWS_AS(interpret(wrapInMain(L"min(1, -1.0);")), AmbiguousFunctionCallError);
+    REQUIRE(interpret(wrapInMain(L"print(min(1.5, -1.5) === -1.5);")) == L"true");
+
+    REQUIRE(interpret(wrapInMain(L"print(abs(3) === 3);")) == L"true");
+    REQUIRE(interpret(wrapInMain(L"print(abs(-3.0) === 3.0);")) == L"true");
+    REQUIRE_THROWS_AS(interpret(wrapInMain(L"abs(-2147483647 - 1);")), IntegerRangeError);
 }

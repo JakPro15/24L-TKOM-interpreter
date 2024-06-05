@@ -26,5 +26,3 @@ target_link_libraries(IntegrationTests Catch2::Catch2WithMain)
 file(COPY test1 DESTINATION ${CMAKE_BINARY_DIR})
 file(COPY test2 DESTINATION ${CMAKE_BINARY_DIR})
 file(COPY test3 DESTINATION ${CMAKE_BINARY_DIR})
-
-add_test(NAME IntegrationTests COMMAND IntegrationTests)

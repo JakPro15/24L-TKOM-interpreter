@@ -181,12 +181,12 @@ Operator `.` jest jedynym, którego można używać po lewej stronie przypisania
 
 Wszelkie przekroczenia zakresu zmiennych typu `int` powodują błąd czasu wykonania.
 ```
-int a = 2147483647 + 1;          # błąd - przekroczenie zakresu liczby całkowitej
-int a = -2147483648 - 1;         # błąd - przekroczenie zakresu liczby całkowitej
-int a = 1073741824 * 2;          # błąd - przekroczenie zakresu liczby całkowitej
-int a = -(-2147483647 - 1);      # błąd - przekroczenie zakresu liczby całkowitej
-int a = (-2147483647 - 1) // -1; # błąd - przekroczenie zakresu liczby całkowitej
-int a = 1e100;                   # błąd - przekroczenie zakresu liczby całkowitej
+int a = 2147483647 + 1; # błędy - przekroczenia zakresu liczby całkowitej
+int a = -2147483647 - 2;
+int a = 1073741824 * 2;
+int a = -(-2147483647 - 1);
+int a = (-2147483647 - 1) // -1;
+int a = 1e100;
 ```
 
 Operatory `==`, `!=` dla struktur wymagają tego samego typu dla obu argumentów i wykonują porównanie każdego elementu struktury. Jeżeli elementem struktury jest rekord wariantowy, odpowiadające rekordy muszą zawierać taki sam typ.
@@ -438,7 +438,7 @@ func f(str v) -> str { return "2"; }
 
 func main() {
     V vart1 = 2;
-    print(f(vart1)); # błąd - nieprawidłowe typy funkcji przeciążonych
+    print(f(vart1)); # błąd - nieprawidłowe typy zwracane funkcji przeciążonych
 }
 ```
 ```
@@ -723,6 +723,21 @@ Zwraca liczbę argumentów wywołania programu.
 argument(int index) -> str
 ```
 Zwraca argument wywołania programu o podanym indeksie (indeksowanie od 0). Jeżeli nie istnieje argument o takim indeksie, powoduje błąd czasu wykonania.
+
+Przykład obsługi argumentów wywołania:
+```
+func main() {
+    if(no_arguments() < 1) {
+        println("not enough args");
+        return;
+    }
+    println("the first arg is: " ! argument(0));
+    if(no_arguments() > 1) {
+        println("the second arg is: " ! argument(1));
+    }
+}
+```
+
 ```
 print(str message)
 println(str message)
@@ -731,7 +746,7 @@ Wypisuje podanego stringa na wyjście standardowe. `println` dodaje znak nowej l
 ```
 input() -> str
 ```
-Zwraca linię z wejścia standardowego (wszystkie znaki do znaku nowej linii włącznie).
+Zwraca linię z wejścia standardowego (wszystkie znaki do znaku nowej linii). Konsumuje ale nie zwraca samego znaku nowej linii.
 ```
 input(int no_chars) -> str
 ```
@@ -740,6 +755,19 @@ Zwraca do num_chars 8-bitowych znaków z wejścia standardowego.
 len(str string) -> int
 ```
 Zwraca długość stringa.
+
+Przykład obsługi wejścia standardowego:
+```
+func main() {
+    int$ i = 1;
+    str$ line = input();
+    while(len(line) > 0) {
+        print(i ! " " ! line ! "\n");
+        line = input();
+        i = i + 1;
+    }
+}
+```
 ```
 abs(float value) -> float
 abs(int value) -> int
@@ -752,6 +780,23 @@ min(float first, float second) -> float
 min(int first, int second) -> int
 ```
 Zwraca większą (`max`) lub mniejszą (`min`) z dwóch podanych wartości.
+
+Przykład działania funkcji `abs`, `max`, `min`:
+```
+print(max(1, -1) === 1);       # true
+max(1, -1.0);                  # błąd - niejednoznaczne wywołanie funkcji
+print(max(1.5, -1.5) === 1.5); # true
+```
+```
+print(min(1, -1) === -1);       # true
+min(1, -1.0);                   # błąd - niejednoznaczne wywołanie funkcji
+print(min(1.5, -1.5) === -1.5); # true
+```
+```
+print(abs(3) === 3);      # true
+print(abs(-3.0) === 3.0); # true
+abs(-2147483647 - 1);     # błąd - przekroczenie zakresu typu int
+```
 
 ### Schemat programu
 Program składa się z definicji typów (struktur, rekordów wariantowych) i funkcji. Pozostałe instrukcje są dozwolone tylko wewnątrz funkcji.

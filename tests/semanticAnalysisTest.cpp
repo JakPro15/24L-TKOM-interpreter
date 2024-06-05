@@ -1249,6 +1249,20 @@ TEST_CASE("FunctionCall - explicit cast to variant errors", "[doSemanticAnalysis
         std::make_unique<FunctionCall>(Position{3, 10}, L"vart1", std::move(functionArguments))
     ));
     checkSemanticError<InvalidCastError>(functionBody); // variant cast argument not castable
+
+    functionBody.clear();
+    std::vector<std::unique_ptr<Expression>> structArguments;
+    structArguments.push_back(makeLiteral({3, 21}, 2));
+    structArguments.push_back(makeLiteral({3, 23}, L"2"));
+    structArguments.push_back(makeLiteral({3, 27}, 2.0));
+    functionArguments.clear();
+    functionArguments.push_back(std::make_unique<StructExpression>(Position{3, 20}, std::move(structArguments)));
+    functionArguments.push_back(makeLiteral(Position{3, 30}, 2));
+    functionBody.push_back(std::make_unique<AssignmentStatement>(
+        Position{3, 1}, Assignable({3, 1}, L"v1"),
+        std::make_unique<FunctionCall>(Position{3, 10}, L"vart1", std::move(functionArguments))
+    ));
+    checkSemanticError<InvalidCastError>(functionBody); // attempt to cast a struct init list to variant
 }
 
 TEST_CASE("FunctionCall - overload resolution", "[doSemanticAnalysis]")

@@ -20,7 +20,7 @@ class SemanticAnalyzer: public DocumentTreeVisitor
 public:
     explicit SemanticAnalyzer(Program &program):
         program(program), noReturnFunctionPermitted(false), variantReadAccessPermitted(false), accessedVariant(false),
-        blockFurtherDotAccess(false), hasReturned(false), loopCounter(0)
+        blockFurtherDotAccess(false), currentCallHasReturned(false), loopCounter(0)
     {}
 
     void visit(Program &visited) override
@@ -44,10 +44,24 @@ public:
 private:
     Program &program;
     std::wstring currentSource;
+    // Return type expected by the currently analyzed FunctionDeclaration.
     std::optional<Type> expectedReturnType;
+    // Type and mutability of the last analyzed expression. Temporaries are treated as immutable.
     std::pair<Type, bool> lastExpressionType;
     std::vector<std::unordered_map<std::wstring, std::pair<Type, bool>>> variableTypeScopes;
-    bool noReturnFunctionPermitted, variantReadAccessPermitted, accessedVariant, blockFurtherDotAccess, hasReturned;
+    // Set to true only when a FunctionCall may not return a value (that is, one directly in a FunctionCallInstruction)
+    bool noReturnFunctionPermitted;
+    // Set to true only in a VariableDeclStatement in an if condition, where variant access (via dot or implicit
+    // conversion) is allowed and expected
+    bool variantReadAccessPermitted;
+    // Set to true only if a variant access via dot occurred in the currently analyzed if condition
+    bool accessedVariant;
+    // Set to true to block access to fields of fields of variant when a variant field was accessed for assignment
+    bool blockFurtherDotAccess;
+    // Set to true when the currently analyzed code path has had a ReturnStatement with a value. Used for verification
+    // that a function with return type returns a value on all code paths.
+    bool currentCallHasReturned;
+    // Set to something other than nullptr when an expression detects that it should be replaced by another expression.
     std::unique_ptr<Expression> toReplace;
     unsigned loopCounter;
 
@@ -78,11 +92,10 @@ private:
 
     void doReplacement(std::unique_ptr<Expression> &expression)
     {
-        if(toReplace)
-        {
-            expression = std::move(toReplace);
-            toReplace = nullptr;
-        }
+        if(!toReplace)
+            return;
+        expression = std::move(toReplace);
+        toReplace = nullptr;
     }
 
     void visitExpression(std::unique_ptr<Expression> &expression)
@@ -145,6 +158,8 @@ private:
     {
         expression.structType = structType;
         const std::vector<Field> &structFields = getStructOrVariantFields(structType);
+        // getStructOrVariantFields will always return struct fields, as this structType is verified before calling
+        // setStructExpressionType
         for(unsigned i = 0; i < structFields.size(); i++)
         {
             if(structInitListType[i] != structFields[i].type)
@@ -159,7 +174,7 @@ private:
                 std::format(L"Implicit conversion between types {} and {} is impossible", typeFrom, typeTo),
                 currentSource, expression->getPosition()
             );
-        if(typeFrom.isInitList())
+        if(typeFrom.isInitList()) // the type is an initialization list, so it must be a StructExpression
             setStructExpressionType(
                 *static_cast<StructExpression *>(expression.get()), std::get<std::wstring>(typeTo.value),
                 std::get<Type::InitializationList>(typeFrom.value)
@@ -542,6 +557,8 @@ private:
             return nullptr;
     }
 
+    // Returns whether the variable declaration statement's value is a variant - can be true only in an if condition
+    // declaration.
     bool validateConditionVariantAccess(VariableDeclStatement &visited, Type valueType, bool shouldAccessVariant)
     {
         std::vector<Field> *variantFields = getVariantFields(valueType);
@@ -570,6 +587,7 @@ private:
         visit(visited.declaration);
         bool shouldAccessVariant = variantReadAccessPermitted;
         accessedVariant = false;
+        // not calling visitExpression not to clear variantReadAccessPermitted flag
         visited.value->accept(*this);
         doReplacement(visited.value);
         bool isValueVariant = validateConditionVariantAccess(visited, lastExpressionType.first, shouldAccessVariant);
@@ -592,7 +610,7 @@ private:
         lastExpressionType = {variableFound->first, true};
     }
 
-    void ensureFieldAssignable(std::wstring complexTypeName, std::wstring fieldName, Position position)
+    void checkFieldAssignable(std::wstring complexTypeName, std::wstring fieldName, Position position)
     {
         if(auto structFound = findIn(program.structs, complexTypeName))
         {
@@ -626,7 +644,7 @@ private:
                 std::format(L"Attempted access to field of simple type {}", lastExpressionType.first), currentSource,
                 visited.left->getPosition()
             );
-        ensureFieldAssignable(
+        checkFieldAssignable(
             std::get<std::wstring>(lastExpressionType.first.value), visited.right, visited.left->getPosition()
         );
     }
@@ -683,7 +701,7 @@ private:
         return std::get<Type::InitializationList>(argumentTypes[0].value);
     }
 
-    // case when the function call is an explicit cast of initialization list to a struct type, parsed as FunctionCall
+    // Case when the function call is an explicit cast of initialization list to a struct type, parsed as FunctionCall
     void visitStructFunctionCall(FunctionCall &visited, const std::vector<Type> &argumentTypes)
     {
         Type::InitializationList initListType = getInitListType(visited, argumentTypes);
@@ -704,7 +722,7 @@ private:
         lastExpressionType = {{visited.functionName}, false};
     }
 
-    // case when the function call is an explicit cast to a variant type, parsed as FunctionCall
+    // Case when the function call is an explicit cast to a variant type, parsed as FunctionCall
     void visitVariantFunctionCall(
         FunctionCall &visited, const std::vector<Type> &argumentTypes, const std::vector<Field> &variantFields
     )
@@ -724,6 +742,7 @@ private:
         lastExpressionType = {{visited.functionName}, false};
     }
 
+    // Conversions of arguments with indices in runtimeResolved are ignored.
     unsigned countNeededConversions(
         const std::vector<Type> &parameterTypes, const std::vector<Type> &argumentTypes,
         const std::vector<unsigned> &runtimeResolved
@@ -765,6 +784,8 @@ private:
         return {bestIndex, multipleBests};
     }
 
+    // runtimeResolved are indices of variant arguments that are to be resolved at runtime. Type incompatibilities with
+    // them are ignored in this function.
     std::optional<FunctionIdentification> getBestOverload(
         const FunctionCall &visited, const std::vector<Type> &argumentTypes, const std::vector<unsigned> runtimeResolved
     )
@@ -849,6 +870,7 @@ private:
         return true;
     }
 
+    // Sets typeToUse instead of the runtime resolved variant and recursively checks if a valid function to call exists.
     std::tuple<std::optional<FunctionIdentification>, std::optional<Type>, std::vector<unsigned>> checkWithConcreteType(
         unsigned indexToCheck, const FunctionCall &call, const std::vector<Type> &argumentTypes,
         const std::vector<bool> &argumentsMutable, const std::vector<unsigned> &runtimeResolved, Type typeToUse
@@ -866,6 +888,8 @@ private:
         return {id, returned, returnedIndexes};
     }
 
+    // Checks whether the currently analyzed variant can be runtime resolved; checks whether in all cases of types
+    // contained in the variant there is a function to call.
     std::tuple<std::optional<FunctionIdentification>, std::optional<Type>, std::vector<unsigned>> concretizeVariantType(
         std::vector<Field> &fields, unsigned indexToCheck, const FunctionCall &call,
         const std::vector<Type> &argumentTypes, const std::vector<bool> &argumentsMutable,
@@ -899,6 +923,8 @@ private:
         return {functionId, returnType, indexes};
     }
 
+    // Checks if the currently analyzed variant needs to be runtime resolved; if there is a function to call that takes
+    // this variant type directly.
     std::tuple<std::optional<FunctionIdentification>, std::optional<Type>, std::vector<unsigned>> checkSingleVariantType(
         std::vector<Field> &fields, unsigned indexToCheck, const FunctionCall &call,
         const std::vector<Type> &argumentTypes, const std::vector<bool> &argumentsMutable,
@@ -913,6 +939,8 @@ private:
         return concretizeVariantType(fields, indexToCheck, call, argumentTypes, argumentsMutable, runtimeResolved);
     }
 
+    // Checks whether there is a function to call for the given argument types; assumes that the arguments before
+    // indexToCheck are either in runtimeResolved or are not runtime resolved.
     std::tuple<std::optional<FunctionIdentification>, std::optional<Type>, std::vector<unsigned>> checkRemainingTypes(
         unsigned indexToCheck, const FunctionCall &call, const std::vector<Type> &argumentTypes,
         const std::vector<bool> &argumentsMutable, const std::vector<unsigned> &runtimeResolved
@@ -1006,7 +1034,7 @@ private:
         visitExpression(visited.returnValue);
         if(lastExpressionType.first != expectedReturnType)
             insertCast(visited.returnValue, lastExpressionType.first, *expectedReturnType);
-        hasReturned = true;
+        currentCallHasReturned = true;
     }
 
     void visit(ContinueStatement &visited) override
@@ -1062,20 +1090,20 @@ private:
 
     void visit(IfStatement &visited) override
     {
-        bool previousInstructionReturned = hasReturned;
+        bool previousInstructionReturned = currentCallHasReturned;
         bool allPathsReturned = true;
         for(SingleIfCase &ifCase: visited.cases)
         {
-            hasReturned = false;
+            currentCallHasReturned = false;
             ifCase.accept(*this);
-            if(!hasReturned)
+            if(!currentCallHasReturned)
                 allPathsReturned = false;
         }
-        hasReturned = false;
+        currentCallHasReturned = false;
         visitNewScope(visited.elseCaseBody);
-        if(!hasReturned)
+        if(!currentCallHasReturned)
             allPathsReturned = false;
-        hasReturned = previousInstructionReturned || allPathsReturned;
+        currentCallHasReturned = previousInstructionReturned || allPathsReturned;
     }
 
     void visit(WhileStatement &visited) override
@@ -1106,9 +1134,9 @@ private:
         currentSource = visited.getSource();
         parametersToVariables(visited.parameters);
         expectedReturnType = visited.returnType;
-        hasReturned = false;
+        currentCallHasReturned = false;
         visitInstructions(visited.body);
-        if(expectedReturnType && !hasReturned)
+        if(expectedReturnType && !currentCallHasReturned)
             throw InvalidReturnError(
                 L"Return with value is required in a function that returns a value", currentSource,
                 visited.getPosition()

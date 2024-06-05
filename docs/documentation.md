@@ -1053,10 +1053,20 @@ W ogólności kod języka jest przetwarzany kolejno przez następujące klasy:
 - Lexer - wykonuje analizę leksykalną, leniwie produkuje kolejne tokeny. Przyjmuje obiekt spełniający interfejs IReader; posiada metodę zwracającą kolejny token, wraz z jego pozycją w źródle.
 - CommentDiscarder - przyjmuje obiekt spełniający interfejs ILexer, ze strumienia tokenów usuwa tokeny komentarzy.
 - Parser - przyjmuje obiekt spełniający interfejs ILexer, ze strumienia tokenów tworzy drzewo składniowe. Klasy węzłów drzewa składniowego wspierają wzorzec wizytatora.
-- SemanticAnalyzer - wizytator analizujący drzewo składniowe wyprodukowane przez Parser, sprawdza jego poprawność semantyczną oraz w razie potrzeby je modyfikuje, dodając instrukcje konwersji typów, zamieniając rzutowania parsowane jako wywołania funkcji na rzutowania oraz wstawiając potrzebne informacje do węzłów drzewa dokumentu. Analiza semantyczna jest dostępna poprzez funkcję doSemanticAnalysis, przyjmującą drzewo dokumentu po wykonaniu instrukcji `include`.
+- SemanticAnalyzer - wizytator analizujący drzewo składniowe wyprodukowane przez Parser, sprawdza jego poprawność semantyczną oraz w razie potrzeby je modyfikuje, dodając instrukcje konwersji typów, zamieniając rzutowania parsowane jako wywołania funkcji na rzutowania oraz wstawiając potrzebne informacje do węzłów drzewa dokumentu. Analiza semantyczna jest dostępna poprzez funkcję `doSemanticAnalysis`, przyjmującą drzewo dokumentu po wykonaniu instrukcji `include`.
 - Interpreter - wizytator przyjmujący drzewo składniowe będące wyjściem Parsera, strumienie wejściowy i wyjściowy programu, argumenty wywołania programu oraz funkcję parsującą kod z podanego pliku (do instrukcji `include`). Wykonuje kolejno instrukcje `include`, analizę semantyczną, oraz sam program.
 
 Wartości takie jak maksymalna długość identyfikatora lub stałej tekstowej, zakres typu `int` są określone jako stałe w kodzie.
+
+Struktura projektu:\
+katalog `src/` z kodem samego programu, z podkatalogami:
+- `reader/` - zawiera interfejs IReader, klasę StreamReader oraz definicje bazowego wyjątku używanego we wszystkich klasach potoku przetwarzania.
+- `lexer/` - zawiera definicje tokenu oraz typu tokenu, a także interfejs ILexer, klasę Lexera oraz CommentDiscarder
+- `parser/` - zawiera definicje węzłów drzewa dokumentu, a także klas Type i Object używanych także podczas interpretacji. Poza tym zawiera implementacje Parsera oraz wizytatora wypisującego drzewo dokumentu.
+- `interpreter/` - zawiera definicje funkcji wbudowanych oraz wizytatory wykonujące analizę semantyczną oraz interpretację programu, a także wyjątków reprezentujących błędy czasu wykonania.
+- `app/` - zawiera kod źródłowy samego programu wykonywalnego wykonującego interpretację.
+
+Poza tym, katalog `tests/` zawiera testy jednostkowe poszczególnych klas oraz testy większych części potoku przetwarzania. Katalog `integrationTests/` zawiera testy integracyjne całej skompilowanej aplikacji.
 
 ### Obsługa błędów
 
@@ -1107,27 +1117,13 @@ Głównym sposobem testowania programu są testy jednostkowe poszczególnych cz�
 
 Testy jednostkowe StreamReadera polegają na sprawdzeniu poprawnych konwersji różnych zakończeń linii oraz sprawdzaniu poprawności wyliczania pozycji znaków w źródle. Ponadto, sprawdzane jest poprawne rzucanie wyjątków dla niepoprawnych znaków lub przy błędzie strumienia wejściowego.
 
-Testy jednostkowe Lexera polegają na sprawdzaniu poprawnej generacji różnego typu tokenów (co najmniej jeden test na jeden token). Testowane są błędne sekwencje dla każdego z tokenów: zbyt długi identyfikator, zbyt duży literał całkowity, zmiennoprzecinkowy i stringowy, zbyt długi komentarz, nieprawidłowa specjalna sekwencja znaków. Ponadto, testowane są również przypadki różnej ilości białych znaków między tokenami, np.:
-```
-abc+-abc
-```
-```
-abc      +      -
-
-
-abc
-```
-powinny wygenerować taką samą sekwencję tokenów:
-- identyfikator `abc`
-- operator `+`
-- operator `-`
-- identyfikator `abc`
+Testy jednostkowe Lexera polegają na sprawdzaniu poprawnej generacji różnego typu tokenów (co najmniej jeden test na jeden token). Testowane są błędne sekwencje dla każdego z tokenów: zbyt długi identyfikator, zbyt duży literał całkowity, zmiennoprzecinkowy i stringowy, zbyt długi komentarz, nieprawidłowa specjalna sekwencja znaków. Ponadto, testowane są również na przykład przypadki różnej ilości białych znaków między tokenami.
 
 Testy jednostkowe Lexera korzystają także ze StreamReadera, jako że jest potrzebny do przekazania danych ze stringa do Lexera.
 
 Testy jednostkowe Parsera polegają na sprawdzeniu poprawności drzewa składniowego utworzonego na podstawie podanej sekwencji tokenów. Poprawność drzewa jest weryfikowana przez wypisanie go do stringa za pomocą klasy PrintingVisitor i porównanie ze wzorcem. Każda produkcja jest sprawdzana przez co najmniej jeden test jednostkowy. Błędne przypadki są weryfikowane przez złapanie wyjątku.
 
-Ponadto, Parser jest też testowany razem z Lexerem (lexerAndParserTest.cpp) dla różnych przykładów z dokumentacji, np. weryfikacjia priorytetów. Testowane są także przypadki typowych błędów programistów, np. użycie `=` zamiast `==`:
+Ponadto, Parser jest też testowany razem z Lexerem (lexerAndParserTest.cpp) dla różnych przykładów z dokumentacji, np. weryfikacja priorytetów. Testowane są także przypadki typowych błędów programistów, np. użycie `=` zamiast `==`:
 ```
 func main() {
     int a = 4;
@@ -1168,7 +1164,7 @@ SemanticAnalyzer jest też testowany razem z Lexerem i Parserem (lexerParserSema
 
 Testy jednostkowe Interpretera polegają na sprawdzeniu wyjścia standardowego interpretera dla różnych drzew dokumentu. Weryfikacja przypadków bez błędów polega na sprawdzeniu zawartości strumienia wyjściowego programu. Istnieje co najmniej 1 test jednostkowy na każdy rodzaj błędu czasu wykonania.
 
-Plik lexerToInterpreterTest.cpp zawiera testy całego potoku przetwarzania od StreamReadera do Interpretera. Weryfikowane są tam przykłady z dokumentacji. Jeżeli w przykładzie podawane były instrukcje poza funkcją, są one umieszczone w funkcji `main`, żeby utworzyć poprawny program. Jeżeli w przykładzie poprawne wyjście było podane tylko w komentarzu, dodane są instrukcje `print`, żeby zweryfikować wyjście programu w teście.
+Plik lexerToInterpreterTest.cpp zawiera testy całego potoku przetwarzania od StreamReadera do Interpretera. Weryfikowane są tam przykłady z tej dokumentacji. Jeżeli w przykładzie podawane były instrukcje poza funkcją, są one umieszczone w funkcji `main`, żeby utworzyć poprawny program. Jeżeli w przykładzie poprawne wyjście było podane tylko w komentarzu, dodane są instrukcje `print`, żeby zweryfikować wyjście programu w teście.
 
 Oddzielnie są testowane jednostkowo funkcje wbudowane, wykonanie instrukcji `include` oraz CommentDiscarder.
 

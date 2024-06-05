@@ -588,6 +588,16 @@ while(a < 10) {
 }
 # a === 8, b === 13
 ```
+```
+int$ a = 0;
+do {
+    while(true) {
+        break; # przerywa tylko wewnętrzną pętlę
+    }
+    a = a + 1;
+} while(a < 10)
+# a === 10
+```
 Instrukcje te nie są dopuszczalne poza pętlą.
 
 ### Funkcje

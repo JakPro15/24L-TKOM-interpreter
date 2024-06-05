@@ -450,6 +450,16 @@ TEST_CASE("loops", "[Lexer+Parser+Interpreter]")
                              L"println(\"a = \" ! a);\n"
                              L"println(\"b = \" ! b);\n")) == L"a = 8\nb = 13\n"
     );
+    REQUIRE(
+        interpret(wrapInMain(L"int$ a = 0;\n"
+                             L"do {\n"
+                             L"    while(true) {\n"
+                             L"        break; # przerywa tylko wewnętrzną pętlę\n"
+                             L"    }\n"
+                             L"    a = a + 1;\n"
+                             L"} while(a < 10)\n"
+                             L"print(a);\n")) == L"10"
+    );
     REQUIRE_THROWS_AS(interpret(wrapInMain(L"continue;\n")), InvalidContinueError);
     REQUIRE_THROWS_AS(interpret(wrapInMain(L"break;\n")), InvalidBreakError);
 }

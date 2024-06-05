@@ -24,16 +24,19 @@ private:
     std::wostream &output;
     std::function<Program(const std::wstring &)> parseFromFile;
     std::variant<Object, std::reference_wrapper<Object>> lastResult;
+    // Each element of stack corresponds to a called function. Each vector corresponds to a scope in the function.
     std::stack<std::vector<std::unordered_map<std::wstring, std::variant<Object, std::reference_wrapper<Object>>>>>
         variables;
     Program *program;
     std::vector<std::variant<Object, std::reference_wrapper<Object>>> functionArguments;
+    // Flags that are set when the current block should be interrupted.
     bool shouldReturn, shouldContinue, shouldBreak;
     const unsigned maxStackSize;
 
     Object &getVariable(const std::wstring &name);
     void addVariable(const std::wstring &name, Object &&object);
     void addVariable(const std::wstring &name, std::reference_wrapper<Object> object);
+    // Copies (if reference) or moves (if temporary) the last result.
     Object getLastResultValue();
     Object &getLastResultReference();
 

@@ -21,6 +21,7 @@ public:
 
 DECLARE_RUNTIME_ERROR(BuiltinFunctionArgumentError);
 DECLARE_RUNTIME_ERROR(IntegerRangeError);
+DECLARE_RUNTIME_ERROR(StringSizeError);
 DECLARE_RUNTIME_ERROR(StandardInputError);
 DECLARE_RUNTIME_ERROR(StandardOutputError);
 DECLARE_RUNTIME_ERROR(MainNotFoundError);

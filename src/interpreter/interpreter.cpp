@@ -258,6 +258,10 @@ void Interpreter::visit(NotIdenticalExpression &visited)
 void Interpreter::visit(ConcatExpression &visited)
 {
     auto [left, right] = getBinaryOpArgs<std::wstring, std::wstring>(visited);
+    if(left.size() + right.size() > left.max_size())
+        throw StringSizeError(
+            L"Concatenation would result in a string over maximum size", currentSource, visited.getPosition()
+        );
     lastResult = Object{{STR}, left + right};
 }
 
@@ -267,6 +271,10 @@ void Interpreter::visit(StringMultiplyExpression &visited)
     if(right < 0)
         throw OperatorArgumentError(
             L"'@' operator's right argument must be positive", currentSource, visited.getPosition()
+        );
+    if(left.size() * right > left.max_size())
+        throw StringSizeError(
+            L"String multiplication would result in a string over maximum size", currentSource, visited.getPosition()
         );
     std::wstring result;
     for(int32_t i = 0; i < right; i++)

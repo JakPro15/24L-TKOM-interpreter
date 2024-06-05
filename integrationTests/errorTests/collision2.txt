@@ -1,0 +1,3 @@
+include "factorialTest/factorial.txt";
+
+func main() {}

@@ -1,0 +1,4 @@
+variant AVariant {
+    int a;
+    str b;
+}

@@ -1,0 +1,24 @@
+func main() {
+    AStruct first = {23, "heeello!"};
+    printSth(first);
+    AVariant$ second = 22;
+    printSth(second);
+    second = "not hello >:(";
+    printSth(second);
+}
+
+func printSth(AStruct item) {
+    printSth(item.a);
+    printSth(item.b);
+}
+
+func printSth(int item) {
+    println("An integer: " ! item);
+}
+
+func printSth(str item) {
+    println("A string: '" ! item ! "'");
+}
+
+include "typesTest/aStruct.txt";
+include "typesTest/aVariant.txt";

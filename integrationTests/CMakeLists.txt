@@ -23,6 +23,7 @@ target_link_options(IntegrationTests PUBLIC -lgcov --coverage)
 
 target_link_libraries(IntegrationTests Catch2::Catch2WithMain)
 
-file(COPY test1 DESTINATION ${CMAKE_BINARY_DIR})
-file(COPY test2 DESTINATION ${CMAKE_BINARY_DIR})
-file(COPY test3 DESTINATION ${CMAKE_BINARY_DIR})
+file(COPY factorialTest DESTINATION ${CMAKE_BINARY_DIR})
+file(COPY errorTests DESTINATION ${CMAKE_BINARY_DIR})
+file(COPY stdinTest DESTINATION ${CMAKE_BINARY_DIR})
+file(COPY typesTest DESTINATION ${CMAKE_BINARY_DIR})

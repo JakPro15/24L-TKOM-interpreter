@@ -1,0 +1,1 @@
+include "errorTests/syntaxError.txt";

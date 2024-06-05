@@ -7,4 +7,4 @@ func factorial(int n) -> int {
     }
 }
 
-include "test1/factorialUse.txt";
+include "factorialTest/factorialUse.txt";

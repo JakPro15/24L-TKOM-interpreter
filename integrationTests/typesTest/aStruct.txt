@@ -1,0 +1,4 @@
+struct AStruct {
+    int a;
+    str b;
+}

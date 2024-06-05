@@ -1,4 +1,4 @@
-include "test1/factorial.txt";
+include "factorialTest/factorial.txt";
 
 func main() {
     if(no_arguments() < 1) {
